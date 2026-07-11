@@ -1,0 +1,119 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* CreatorFlow — Visitors design system */
+  --color-carbon: #181925;
+  --color-paper-white: #ffffff;
+  --color-linen: #fafafa;
+  --color-mist: #f5f5f5;
+  --color-fog: #e8e8e8;
+  --color-ash: #999999;
+  --color-graphite: #666666;
+  --color-lavender: #918df6;
+  --color-iris: #9580ff;
+  --color-mint: #33c758;
+  --color-mint-wash: #def6e4;
+  --color-amber: #ffa600;
+  --color-sky: #2c78fc;
+  --color-magenta: #d6409f;
+  --color-ember: #ff3e00;
+
+  /* shadcn semantic tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: 'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-full: 9999px;
+
+  --shadow-subtle: rgba(0, 0, 0, 0.08) 0px 1px 1px 1px, rgba(0, 0, 0, 0.06) 0px 0px 0px 0.5px;
+  --shadow-subtle-2: rgba(0, 0, 0, 0.08) 0px 1px 1px 0px, rgba(0, 0, 0, 0.05) 0px 0px 0px 1px;
+  --shadow-panel: rgba(0, 0, 0, 0.06) 0px 1px 3px 0px, rgba(0, 0, 0, 0.06) 0px 8px 16px 0px, rgba(0, 0, 0, 0.02) 0px 0px 0px 1px;
+}
+
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #181925;
+  --card: #ffffff;
+  --card-foreground: #181925;
+  --popover: #ffffff;
+  --popover-foreground: #181925;
+  --primary: #918df6;
+  --primary-foreground: #ffffff;
+  --secondary: #fafafa;
+  --secondary-foreground: #181925;
+  --muted: #f5f5f5;
+  --muted-foreground: #999999;
+  --accent: #f5f5f5;
+  --accent-foreground: #181925;
+  --destructive: #ff3e00;
+  --border: #e8e8e8;
+  --input: #e8e8e8;
+  --ring: #918df6;
+  --chart-1: #918df6;
+  --chart-2: #33c758;
+  --chart-3: #ffa600;
+  --chart-4: #2c78fc;
+  --chart-5: #d6409f;
+  --radius: 0.625rem;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #181925;
+  --sidebar-primary: #918df6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0f0fe;
+  --sidebar-accent-foreground: #181925;
+  --sidebar-border: #e8e8e8;
+  --sidebar-ring: #918df6;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
