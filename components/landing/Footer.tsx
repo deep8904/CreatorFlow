@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 const links = {
-  Product: [
+  Platform: [
     { label: 'Features', href: '#features' },
     { label: 'How it works', href: '#how-it-works' },
     { label: 'Pricing', href: '/pricing' },
@@ -12,7 +12,7 @@ const links = {
     { label: 'Ideas', href: '/ideas' },
     { label: 'Analytics', href: '/analytics' },
   ],
-  Support: [
+  Company: [
     { label: 'Documentation', href: '/docs' },
     { label: 'Status', href: '/status' },
     { label: 'Contact', href: '/contact' },
@@ -25,66 +25,37 @@ const links = {
 
 export default function Footer() {
   return (
-    <footer className="bg-carbon py-16 px-6">
-      <div className="max-w-[1200px] mx-auto">
-        <div className="flex flex-col md:flex-row gap-12 md:gap-8">
-
-          {/* Brand */}
-          <div className="flex flex-col gap-4 md:w-56 shrink-0">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-lavender flex items-center justify-center">
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                  <path d="M2.5 6.5h8M6.5 2.5l4 4-4 4" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <span className="text-[15px] font-semibold text-paper-white" style={{ letterSpacing: '-0.3px' }}>
-                CreatorFlow
-              </span>
-            </Link>
-            <p className="text-[13px] text-ash leading-relaxed" style={{ letterSpacing: '-0.2px' }}>
-              The free tool that helps content creators run the business side of their work.
-            </p>
-            <p className="text-[12px]" style={{ color: '#555566', letterSpacing: '-0.2px' }}>
-              We never sell your data or train models on your inbox.
-            </p>
+    <footer className="font-label border-t border-white/10 bg-black py-24 text-[11px] uppercase tracking-wide text-ash">
+      <div className="container-shell grid grid-cols-1 gap-16 md:grid-cols-2 md:gap-12 lg:grid-cols-6">
+        <div className="flex flex-col items-start gap-4 lg:col-span-2">
+          <div className="flex items-center gap-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="2" width="20" height="20" stroke="#F97316" strokeWidth="2" />
+              <circle cx="12" cy="12" r="4" fill="#F97316" />
+            </svg>
+            <span className="font-sans text-base font-semibold uppercase tracking-tight text-white">CreatorFlow</span>
           </div>
+          <p className="normal-case tracking-normal text-graphite">
+            The free tool that helps content creators run the business side of their work.
+          </p>
+          <p>Never sold. Never trained on.</p>
+        </div>
 
-          {/* Link columns */}
-          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-8">
-            {Object.entries(links).map(([group, items]) => (
-              <div key={group} className="flex flex-col gap-3">
-                <p
-                  className="text-[11px] font-semibold uppercase tracking-widest"
-                  style={{ color: '#555566' }}
-                >
-                  {group}
-                </p>
-                {items.map((item) => (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className="text-[13px] text-ash hover:text-paper-white transition-colors"
-                    style={{ letterSpacing: '-0.2px' }}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
+        {Object.entries(links).map(([group, items]) => (
+          <div key={group} className="flex flex-col gap-4">
+            <span className="mb-2 text-white">{group}</span>
+            {items.map((item) => (
+              <Link key={item.label} href={item.href} className="normal-case tracking-normal transition-colors hover:text-white">
+                {item.label}
+              </Link>
             ))}
           </div>
-        </div>
+        ))}
+      </div>
 
-        <div
-          className="mt-12 pt-6 flex flex-col md:flex-row items-center justify-between gap-3"
-          style={{ borderTop: '1px solid #2a2b38' }}
-        >
-          <p className="text-[12px]" style={{ color: '#555566', letterSpacing: '-0.2px' }}>
-            © {new Date().getFullYear()} CreatorFlow. All rights reserved.
-          </p>
-          <p className="text-[12px]" style={{ color: '#555566', letterSpacing: '-0.2px' }}>
-            No cut taken. No lock-in. No nonsense.
-          </p>
-        </div>
+      <div className="container-shell mt-16 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 md:flex-row">
+        <span>© {new Date().getFullYear()} CreatorFlow Inc.</span>
+        <span>No cut taken. No lock-in. No nonsense.</span>
       </div>
     </footer>
   )

@@ -1,32 +1,26 @@
+import type { ReactNode } from 'react'
+
 interface FeatureCardProps {
-  icon: React.ReactNode
+  icon: ReactNode
   heading: string
   body: string
-  accent?: string
+  invert?: boolean
 }
 
-export default function FeatureCard({ icon, heading, body, accent = 'bg-lavender' }: FeatureCardProps) {
+export default function FeatureCard({ icon, heading, body, invert = false }: FeatureCardProps) {
   return (
     <div
-      className="bg-paper-white border border-fog rounded-2xl p-6 flex flex-col gap-4"
-      style={{ boxShadow: 'rgba(0,0,0,0.03) 0px 1px 2px 0px' }}
+      className={`hover-lift-editorial group flex aspect-square flex-col p-8 lg:p-10 ${
+        invert ? 'relative overflow-hidden bg-white text-black' : ''
+      }`}
     >
-      <div className={`w-9 h-9 rounded-xl ${accent} flex items-center justify-center shrink-0`}>
-        {icon}
-      </div>
-      <div>
-        <h3
-          className="font-semibold text-carbon mb-1.5"
-          style={{ fontSize: '15px', lineHeight: 1.4, letterSpacing: '-0.3px' }}
-        >
-          {heading}
-        </h3>
-        <p
-          className="text-graphite"
-          style={{ fontSize: '14px', lineHeight: 1.55, letterSpacing: '-0.2px' }}
-        >
-          {body}
-        </p>
+      {invert && (
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white to-orange-50 opacity-60" />
+      )}
+      <div className={`relative z-10 mb-auto ${invert ? 'text-black' : 'text-lavender'}`}>{icon}</div>
+      <div className="relative z-10">
+        <h3 className={`mb-2.5 text-lg font-semibold ${invert ? 'text-black' : 'text-white'}`}>{heading}</h3>
+        <p className={`text-sm leading-relaxed ${invert ? 'text-black/70' : 'text-graphite'}`}>{body}</p>
       </div>
     </div>
   )

@@ -1,177 +1,120 @@
 import Link from 'next/link'
-import { ArrowRight, Zap } from 'lucide-react'
+import { ArrowUpRight, Play } from 'lucide-react'
+import DotGrid from '@/components/editorial/DotGrid'
+import RevealUp from '@/components/editorial/RevealUp'
 
 export default function Hero() {
   return (
-    <section className="bg-paper-white pt-16 pb-0 px-6 overflow-hidden">
-      <div className="max-w-[1200px] mx-auto">
+    <section className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-linen pt-[4.5rem]">
+      <DotGrid />
 
-        {/* Top announcement chip */}
-        <div className="flex justify-center mb-8">
-          <div
-            className="inline-flex items-center gap-2 bg-paper-white border border-fog rounded-full px-3.5 py-1.5"
-            style={{ boxShadow: 'rgba(0,0,0,0.06) 0px 1px 4px 0px' }}
-          >
-            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-sky text-paper-white">
-              <Zap size={9} fill="currentColor" />
-            </span>
-            <span className="text-[13px] font-medium text-carbon" style={{ letterSpacing: '-0.2px' }}>
-              Free means free — no cut from your deals, ever
-            </span>
-            <ArrowRight size={13} className="text-ash" />
-          </div>
-        </div>
+      {/* Swiss grid overlay lines — padding matches .container-shell so the lines track the content edges */}
+      <div
+        className="pointer-events-none absolute inset-0 flex justify-between opacity-10"
+        style={{ paddingInline: 'clamp(1.5rem, 4vw, 6rem)' }}
+      >
+        <div className="h-full w-px bg-white" />
+        <div className="hidden h-full w-px bg-white md:block" />
+        <div className="hidden h-full w-px bg-white lg:block" />
+        <div className="h-full w-px bg-white" />
+      </div>
 
-        {/* Main headline block */}
-        <div className="text-center max-w-[800px] mx-auto mb-8">
-          <h1
-            className="font-bold text-carbon text-balance"
-            style={{
-              fontSize: 'clamp(40px, 5.5vw, 64px)',
-              lineHeight: 1.08,
-              letterSpacing: '-0.04em',
-            }}
-          >
+      <div className="container-shell relative z-10 pb-20 pt-16">
+        <RevealUp>
+          <div className="label-eyebrow mb-8">SYSTEM_CORE // CREATOR_OPS</div>
+          <h1 className="text-display-lg max-w-[880px] text-white">
             Run your creator business
             <br />
-            <span className="text-lavender">without the chaos.</span>
+            without losing your Gmail to it.
           </h1>
-          <p
-            className="text-graphite mt-5 max-w-[560px] mx-auto"
-            style={{ fontSize: '17px', lineHeight: 1.6, letterSpacing: '-0.3px' }}
-          >
-            Track brand deals from first email to paid invoice. Capture ideas before they slip. See what&apos;s working — free, forever, no percentage taken.
+        </RevealUp>
+
+        <RevealUp delay={1}>
+          <div className="mt-8 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+            <p className="font-body-editorial max-w-[36rem] text-[1.05rem] leading-relaxed text-graphite">
+              Track brand deals from first email to paid invoice, capture ideas before they slip
+              away, and see what&apos;s actually working — free, with no cut taken from your deals,
+              ever.
+            </p>
+            <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center">
+              <Link href="/onboarding" className="btn-editorial group">
+                <span className="relative z-10 flex items-center gap-2">
+                  Start free
+                  <ArrowUpRight size={16} className="icon-arrow" />
+                </span>
+              </Link>
+              <Link href="#how-it-works" className="btn-outline-editorial">
+                <Play size={13} />
+                See how it works
+              </Link>
+            </div>
+          </div>
+        </RevealUp>
+
+        <RevealUp delay={2}>
+          <p className="mt-6 font-label text-[11px] uppercase tracking-widest text-ash">
+            Free means free — no percentage of your deals, no credit card to start.
           </p>
-        </div>
+        </RevealUp>
 
-        {/* CTA row */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
-          <Link
-            href="/onboarding"
-            className="inline-flex items-center gap-2 text-[14px] font-semibold text-paper-white bg-lavender px-6 py-3 rounded-full transition-opacity hover:opacity-90"
-            style={{
-              letterSpacing: '-0.25px',
-              boxShadow: 'rgba(145,141,246,0.35) 0px 4px 16px 0px, rgba(0,0,0,0.08) 0px 1px 2px 0px',
-            }}
-          >
-            Start free
-            <ArrowRight size={14} />
-          </Link>
-          <Link
-            href="#how-it-works"
-            className="inline-flex items-center gap-1.5 text-[14px] font-medium text-graphite hover:text-carbon transition-colors px-4 py-3"
-            style={{ letterSpacing: '-0.25px' }}
-          >
-            See how it works
-          </Link>
-        </div>
-
-        <p className="text-center text-[12.5px] text-ash mb-12" style={{ letterSpacing: '-0.2px' }}>
-          No credit card. No deal cut. Connects in 2 minutes.
-        </p>
-
-        {/* Hero product mockup — full-bleed gradient band with floating dashboard */}
-        <div
-          className="relative rounded-t-[20px] overflow-hidden"
-          style={{ background: 'linear-gradient(160deg, #2c78fc 0%, #918df6 55%, #b8a6ff 100%)' }}
-        >
-          {/* Subtle noise / texture overlay */}
-          <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")' }} />
-
-          <div className="relative px-8 pt-10 pb-0">
-            {/* Floating dashboard card */}
-            <div
-              className="bg-paper-white rounded-[16px] border border-fog overflow-hidden"
-              style={{ boxShadow: 'rgba(0,0,0,0.18) 0px 8px 40px 0px, rgba(0,0,0,0.06) 0px 1px 3px 0px' }}
-            >
-              {/* App top bar */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-fog bg-linen">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-ember/60" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber/60" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-mint/60" />
-                </div>
-                <div className="flex items-center gap-2 bg-fog/50 rounded-full px-3 py-1">
-                  <div className="w-2 h-2 rounded-full bg-ash/40" />
-                  <span className="text-[11px] text-ash font-medium">app.creatorflow.io</span>
-                </div>
-                <div className="w-16" />
+        {/* Product preview panel */}
+        <RevealUp delay={3} className="mt-16">
+          <div className="glass-panel relative aspect-[16/10] w-full overflow-hidden rounded-lg shadow-[0_20px_60px_-15px_rgba(249,115,22,0.12)] md:aspect-[21/9]">
+            {/* UI chrome header */}
+            <div className="flex h-12 items-center gap-4 border-b border-white/10 bg-white/[0.02] px-6">
+              <div className="flex gap-2">
+                <div className="h-3 w-3 rounded-full bg-white/20" />
+                <div className="h-3 w-3 rounded-full bg-white/20" />
+                <div className="h-3 w-3 rounded-full bg-white/20" />
               </div>
+              <div className="ml-4 flex gap-6 font-label text-[11px] uppercase text-ash">
+                <span className="border-b border-lavender pb-1 text-white">Dashboard</span>
+                <span>Deals</span>
+                <span>Ideas</span>
+              </div>
+            </div>
 
-              <div className="flex">
-                {/* Mini sidebar */}
-                <div className="w-44 border-r border-fog bg-linen shrink-0 p-3 hidden sm:block">
-                  <div className="flex items-center gap-2 px-2 py-2 mb-3">
-                    <div className="w-5 h-5 rounded-md bg-lavender flex items-center justify-center">
-                      <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5h6M4.5 1.5l3 3-3 3" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </div>
-                    <span className="text-[11px] font-semibold text-carbon">CreatorFlow</span>
+            {/* Body grid */}
+            <div className="grid flex-grow grid-cols-1 gap-6 bg-[#050505] p-6 md:grid-cols-3">
+              {/* Pipeline chart-ish area */}
+              <div className="group relative flex flex-col justify-between overflow-hidden rounded border border-white/5 bg-paper-white/50 p-6 md:col-span-2">
+                <div className="mb-8 flex items-start justify-between">
+                  <div>
+                    <span className="mb-1 block font-label text-[11px] uppercase text-ash">Revenue_MTD</span>
+                    <span className="text-3xl font-semibold tracking-tight text-white">$12.4K</span>
                   </div>
-                  {['Dashboard','Deals','Ideas','Drafts','Analytics'].map((item, i) => (
+                  <span className="rounded bg-lavender/15 px-2 py-1 text-xs text-lavender">+18% MoM</span>
+                </div>
+                <div className="mt-auto flex h-[110px] items-end gap-2">
+                  {[30, 45, 60, 40, 80, 55, 100].map((h, i) => (
                     <div
-                      key={item}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg mb-0.5 ${i === 0 ? 'bg-paper-white text-carbon' : 'text-graphite'}`}
-                    >
-                      <div className={`w-3 h-3 rounded-sm ${i === 0 ? 'bg-lavender/20' : 'bg-fog'}`} />
-                      <span className="text-[11px] font-medium">{item}</span>
-                    </div>
+                      key={i}
+                      className="w-full rounded-t bg-white/10 transition-colors duration-300 group-hover:bg-lavender/40"
+                      style={{ height: `${h}%`, background: i === 6 ? '#F97316' : undefined }}
+                    />
                   ))}
                 </div>
+              </div>
 
-                {/* Main content */}
-                <div className="flex-1 p-5 bg-paper-white">
-                  <p className="text-[11px] font-medium text-ash mb-1" style={{ letterSpacing: '-0.2px' }}>Good morning, Jane</p>
-                  <p className="text-[15px] font-semibold text-carbon mb-4" style={{ letterSpacing: '-0.4px' }}>What needs your attention today</p>
-
-                  {/* Stat row */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
-                    {[
-                      { label: 'Open Deals', value: '8', delta: '+3 this week', color: 'text-mint' },
-                      { label: 'Revenue MTD', value: '$12.4K', delta: '+18%', color: 'text-mint' },
-                      { label: 'Ideas', value: '24', delta: '5 in progress', color: 'text-sky' },
-                      { label: 'Views', value: '142K', delta: '+8.4%', color: 'text-mint' },
-                    ].map((s) => (
-                      <div key={s.label} className="bg-linen border border-fog rounded-xl p-3">
-                        <p className="text-[10px] text-ash font-medium mb-1">{s.label}</p>
-                        <p className="text-[16px] font-bold text-carbon leading-none mb-0.5" style={{ letterSpacing: '-0.4px' }}>{s.value}</p>
-                        <p className={`text-[10px] font-medium ${s.color}`}>{s.delta}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Deal pipeline strip */}
-                  <div className="bg-linen border border-fog rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-2.5">
-                      <span className="text-[11px] font-semibold text-carbon">Deal Pipeline</span>
-                      <span className="text-[10px] text-ash">8 active</span>
+              {/* Sidebar mini pipeline */}
+              <div className="flex flex-col gap-3 rounded border border-white/5 bg-paper-white/50 p-6">
+                <span className="mb-1 font-label text-[11px] uppercase text-ash">Deal_Pipeline</span>
+                {[
+                  { stage: 'Inbound', count: 3 },
+                  { stage: 'Negotiating', count: 2 },
+                  { stage: 'Paid', count: 1 },
+                ].map((s) => (
+                  <div key={s.stage} className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <div className="flex items-center gap-2 text-sm text-white">
+                      <span className="h-1.5 w-1.5 rounded-full bg-lavender" /> {s.stage}
                     </div>
-                    <div className="flex gap-1.5">
-                      {[
-                        { stage: 'Inbound', count: 3, chip: 'bg-sky/10 text-sky' },
-                        { stage: 'Negotiating', count: 2, chip: 'bg-amber/10 text-amber' },
-                        { stage: 'Contracted', count: 1, chip: 'bg-lavender/10 text-lavender' },
-                        { stage: 'Delivered', count: 1, chip: 'bg-mint-wash text-mint' },
-                        { stage: 'Paid', count: 1, chip: 'bg-mint-wash text-mint' },
-                      ].map((col) => (
-                        <div key={col.stage} className="flex-1">
-                          <div className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold mb-1.5 inline-block ${col.chip}`}>
-                            {col.stage} {col.count}
-                          </div>
-                          {Array.from({ length: col.count }).map((_, j) => (
-                            <div key={j} className="bg-paper-white border border-fog rounded-lg p-1.5 mb-1">
-                              <div className="h-1.5 bg-fog rounded-full w-3/4 mb-1" />
-                              <div className="h-1.5 bg-fog rounded-full w-1/2" />
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
+                    <span className="font-label text-xs text-ash">{s.count}</span>
                   </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
-        </div>
+        </RevealUp>
       </div>
     </section>
   )

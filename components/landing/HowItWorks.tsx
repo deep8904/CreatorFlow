@@ -1,87 +1,56 @@
+import RevealUp from '@/components/editorial/RevealUp'
+
 const steps = [
   {
     number: '01',
-    heading: 'Connect Gmail & YouTube',
-    body: 'Takes two minutes. Nothing is shared or sold. Disconnect any time you like.',
-    chip: 'bg-sky/10 text-sky',
-    bar: 'bg-sky',
+    heading: 'Connect Gmail and YouTube',
+    body: 'Takes two minutes. Nothing is shared or sold. Disconnect any time.',
   },
   {
     number: '02',
-    heading: 'Deals get sorted automatically',
-    body: 'Sponsorship emails are pulled out of inbox noise into a clean deal pipeline view.',
-    chip: 'bg-lavender/10 text-lavender',
-    bar: 'bg-lavender',
+    heading: 'Brand deals get sorted for you',
+    body: 'Sponsorship emails are pulled out of your regular inbox noise into one pipeline view.',
   },
   {
     number: '03',
-    heading: 'Capture and develop ideas',
-    body: 'Turn a passing thought into a scheduled piece of content in seconds.',
-    chip: 'bg-mint-wash text-mint',
-    bar: 'bg-mint',
+    heading: 'Capture and develop your ideas',
+    body: 'Turn a passing thought into a scheduled piece of content.',
   },
   {
     number: '04',
     heading: 'See the full picture',
-    body: 'Deals, ideas, and channel performance in one dashboard — no tab-switching.',
-    chip: 'bg-amber/10 text-amber',
-    bar: 'bg-amber',
+    body: 'Your deals, your ideas, and your channel performance in one dashboard.',
   },
 ]
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="bg-paper-white py-24 px-6">
-      <div className="max-w-[1200px] mx-auto">
+    <section id="how-it-works" className="bg-linen py-24 md:py-32">
+      <div className="container-shell">
+        <RevealUp>
+          <div className="mb-20 flex flex-col items-center text-center">
+            <div className="label-eyebrow mb-6">HOW_IT_WORKS</div>
+            <h2 className="text-display-sm max-w-[36rem] text-white">
+              Set up in two minutes. Run your business from day one.
+            </h2>
+          </div>
+        </RevealUp>
 
-        {/* Section header */}
-        <div className="text-center mb-16">
-          <span
-            className="inline-block text-[11.5px] font-semibold text-lavender uppercase tracking-widest mb-3"
-          >
-            How it works
-          </span>
-          <h2
-            className="font-bold text-carbon text-balance"
-            style={{ fontSize: 'clamp(28px, 4vw, 40px)', lineHeight: 1.15, letterSpacing: '-0.04em' }}
-          >
-            Set up in two minutes.<br />Run your business from day one.
-          </h2>
-        </div>
+        <div className="relative grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+          <div className="absolute left-[12.5%] right-[12.5%] top-[19px] hidden h-px bg-fog lg:block" />
 
-        {/* Steps grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 relative">
-          {/* Horizontal connector line (desktop) */}
-          <div className="hidden lg:block absolute top-[19px] left-[12.5%] right-[12.5%] h-px bg-fog" />
-
-          {steps.map((step) => (
-            <div key={step.number} className="flex flex-col gap-5 px-4 pb-8 lg:pb-0">
-              {/* Number badge */}
-              <div className="relative flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-full border-2 border-fog bg-paper-white flex items-center justify-center shrink-0 z-10`}>
-                  <span className="text-[12px] font-bold text-carbon">{step.number}</span>
+          {steps.map((step, i) => (
+            <RevealUp key={step.number} delay={(Math.min(i, 3)) as 0 | 1 | 2 | 3}>
+              <div className="flex flex-col gap-5">
+                <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-fog bg-linen font-label text-[12px] text-white">
+                  {step.number}
+                </div>
+                <div>
+                  <h3 className="mb-2 text-[15px] font-semibold text-white">{step.heading}</h3>
+                  <p className="font-body-editorial text-[14px] leading-relaxed text-graphite">{step.body}</p>
                 </div>
               </div>
-
-              {/* Content */}
-              <div>
-                <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold mb-3 ${step.chip}`}>
-                  Step {step.number}
-                </div>
-                <h3
-                  className="font-semibold text-carbon mb-2"
-                  style={{ fontSize: '15px', lineHeight: 1.4, letterSpacing: '-0.3px' }}
-                >
-                  {step.heading}
-                </h3>
-                <p
-                  className="text-graphite"
-                  style={{ fontSize: '14px', lineHeight: 1.55, letterSpacing: '-0.2px' }}
-                >
-                  {step.body}
-                </p>
-              </div>
-            </div>
+            </RevealUp>
           ))}
         </div>
       </div>

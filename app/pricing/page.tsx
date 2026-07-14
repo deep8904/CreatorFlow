@@ -2,6 +2,8 @@ import Nav from '@/components/landing/Nav'
 import Footer from '@/components/landing/Footer'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { Check, ArrowRight } from 'lucide-react'
+import RevealUp from '@/components/editorial/RevealUp'
 
 export const metadata: Metadata = {
   title: 'Pricing — CreatorFlow',
@@ -31,7 +33,7 @@ const faqs = [
   },
   {
     q: 'What happens if I disconnect Gmail?',
-    a: 'Disconnecting Gmail does not delete any deal records you\'ve already created. Your data is yours and stays in CreatorFlow.',
+    a: "Disconnecting Gmail does not delete any deal records you've already created. Your data is yours and stays in CreatorFlow.",
   },
   {
     q: 'Can I export my data?',
@@ -45,132 +47,101 @@ const faqs = [
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-paper-white">
+    <div className="min-h-screen bg-linen">
       <Nav />
-      <main>
+      <main className="pt-[4.5rem]">
         {/* Header */}
-        <section className="py-20 px-6 text-center bg-paper-white">
-          <div className="max-w-[1200px] mx-auto flex flex-col items-center gap-5">
-            <div className="inline-flex items-center gap-2 bg-mint-wash border border-mint/20 rounded-full px-4 py-1.5">
-              <span className="text-[13px] font-semibold text-mint">Free forever</span>
+        <section className="bg-linen px-6 py-24 text-center">
+          <RevealUp>
+            <div className="mx-auto flex flex-col items-center gap-6">
+              <span className="rounded-full border border-mint/30 bg-mint-wash px-4 py-1.5 text-[13px] font-semibold text-mint">
+                Free forever
+              </span>
+              <h1 className="text-display-md max-w-[560px] text-white">Free. Actually free.</h1>
+              <p className="font-body-editorial max-w-[520px] text-[18px] leading-relaxed text-graphite">
+                CreatorFlow doesn&apos;t take a percentage of your brand deals, and it doesn&apos;t
+                charge a subscription for the core product. Connect your accounts, track your deals,
+                capture your ideas — no cost, no catch.
+              </p>
             </div>
-            <h1
-              className="font-bold text-carbon text-balance max-w-[560px]"
-              style={{ fontSize: 'clamp(32px, 5vw, 52px)', lineHeight: 1.1, letterSpacing: '-0.05em' }}
-            >
-              Free. Actually free.
-            </h1>
-            <p className="text-graphite max-w-[520px]" style={{ fontSize: '18px', lineHeight: 1.55, letterSpacing: '-0.32px' }}>
-              CreatorFlow doesn&apos;t take a percentage of your brand deals, and it doesn&apos;t charge a subscription for the core product. Connect your accounts, track your deals, capture your ideas — no cost, no catch.
-            </p>
-          </div>
+          </RevealUp>
         </section>
 
         {/* Main pricing card */}
-        <section className="bg-linen py-12 px-6">
-          <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row gap-8 items-start">
-
-            {/* Card */}
-            <div
-              className="w-full lg:max-w-[400px] bg-paper-white border border-fog rounded-3xl p-8 flex flex-col gap-6 shrink-0"
-              style={{ boxShadow: 'rgba(0,0,0,0.06) 0px 1px 3px 0px, rgba(0,0,0,0.06) 0px 8px 16px 0px, rgba(0,0,0,0.02) 0px 0px 0px 1px' }}
-            >
-              <div>
-                <span className="text-[12px] font-semibold text-ash uppercase tracking-wider">Core Plan</span>
-                <div className="flex items-end gap-1.5 mt-2">
-                  <span className="text-[56px] font-bold text-carbon leading-none tracking-[-0.05em]">$0</span>
-                  <span className="text-[16px] text-graphite mb-1.5">/ month</span>
+        <section className="border-y border-fog bg-mist/30 py-16">
+          <RevealUp delay={1}>
+            <div className="container-shell flex flex-col items-start gap-10 lg:flex-row">
+              <div className="glass-panel w-full shrink-0 rounded-lg p-8 lg:max-w-[400px]">
+                <span className="font-label text-[11px] uppercase tracking-widest text-ash">Core plan</span>
+                <div className="mt-2 flex items-end gap-1.5">
+                  <span className="text-[56px] font-semibold leading-none tracking-tight text-white">$0</span>
+                  <span className="mb-1.5 text-[16px] text-graphite">/ month</span>
                 </div>
-                <p className="text-[13px] text-ash mt-1">No credit card required</p>
+                <p className="mt-1 text-[13px] text-ash">No credit card required</p>
+
+                <Link href="/onboarding" className="btn-editorial mt-6 w-full">
+                  <span className="relative z-10">Start free</span>
+                </Link>
+
+                <p className="mt-4 border-t border-fog pt-4 text-center text-[12px] text-ash">
+                  AI features have a generous monthly allowance so the product stays sustainable for
+                  everyone.
+                </p>
               </div>
 
-              <Link
-                href="/onboarding"
-                className="w-full text-center text-[14px] font-medium text-paper-white bg-lavender py-3 rounded-full hover:opacity-90 transition-opacity"
-                style={{ boxShadow: 'rgba(0,0,0,0.08) 0px 1px 1px 1px, rgba(0,0,0,0.06) 0px 0px 0px 0.5px' }}
-              >
-                Start free
-              </Link>
-
-              <p className="text-[12px] text-ash text-center border-t border-fog pt-4">
-                AI features have a generous monthly allowance so the product stays sustainable for everyone.
-              </p>
+              <div className="flex-1">
+                <h2 className="mb-6 text-xl font-semibold text-white">Everything included</h2>
+                <ul className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
+                  {included.map((item) => (
+                    <li key={item.feature} className="flex items-start gap-4 border-b border-fog py-4">
+                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-mint-wash">
+                        <Check size={10} className="text-mint" strokeWidth={2.5} />
+                      </div>
+                      <div>
+                        <p className="text-[14px] font-medium text-white">{item.feature}</p>
+                        <p className="mt-0.5 text-[13px] text-graphite">{item.detail}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-
-            {/* Feature list */}
-            <div className="flex-1">
-              <h2
-                className="font-semibold text-carbon mb-6"
-                style={{ fontSize: '20px', lineHeight: 1.3, letterSpacing: '-0.4px' }}
-              >
-                Everything included
-              </h2>
-              <ul className="flex flex-col gap-0 divide-y divide-fog">
-                {included.map((item) => (
-                  <li key={item.feature} className="flex items-start gap-4 py-4">
-                    <div className="w-5 h-5 rounded-full bg-mint-wash flex items-center justify-center shrink-0 mt-0.5">
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                        <path d="M2 5l2 2 4-4" stroke="#33c758" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-[14px] font-medium text-carbon">{item.feature}</p>
-                      <p className="text-[13px] text-graphite mt-0.5">{item.detail}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          </RevealUp>
         </section>
 
         {/* FAQ */}
-        <section className="bg-paper-white py-20 px-6">
-          <div className="max-w-[720px] mx-auto">
-            <h2
-              className="font-bold text-carbon mb-10 text-center"
-              style={{ fontSize: '28px', lineHeight: 1.25, letterSpacing: '-0.5px' }}
-            >
-              Common questions
-            </h2>
-            <div className="flex flex-col divide-y divide-fog">
-              {faqs.map((faq) => (
-                <div key={faq.q} className="py-6">
-                  <h3
-                    className="font-semibold text-carbon mb-2"
-                    style={{ fontSize: '15px', letterSpacing: '-0.25px' }}
-                  >
-                    {faq.q}
-                  </h3>
-                  <p className="text-graphite" style={{ fontSize: '14px', lineHeight: 1.6, letterSpacing: '-0.25px' }}>
-                    {faq.a}
-                  </p>
-                </div>
-              ))}
+        <section className="bg-linen px-6 py-24">
+          <RevealUp>
+            <div className="mx-auto max-w-[720px]">
+              <h2 className="mb-12 text-center text-2xl font-semibold text-white">Common questions</h2>
+              <div className="flex flex-col divide-y divide-fog">
+                {faqs.map((faq) => (
+                  <div key={faq.q} className="py-6">
+                    <h3 className="mb-2 text-[15px] font-semibold text-white">{faq.q}</h3>
+                    <p className="font-body-editorial text-[14px] leading-relaxed text-graphite">{faq.a}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          </RevealUp>
         </section>
 
         {/* Bottom CTA */}
-        <section className="bg-linen py-16 px-6 border-t border-fog">
-          <div className="max-w-[560px] mx-auto text-center flex flex-col items-center gap-5">
-            <h2
-              className="font-bold text-carbon text-balance"
-              style={{ fontSize: '28px', lineHeight: 1.25, letterSpacing: '-0.5px' }}
-            >
-              Ready to get started?
-            </h2>
-            <p className="text-graphite" style={{ fontSize: '15px', lineHeight: 1.55 }}>
-              Sign up in under a minute. No credit card, no commitment.
-            </p>
-            <Link
-              href="/onboarding"
-              className="text-[14px] font-medium text-paper-white bg-lavender px-8 py-3 rounded-full hover:opacity-90 transition-opacity"
-              style={{ boxShadow: 'rgba(0,0,0,0.08) 0px 1px 1px 1px, rgba(0,0,0,0.06) 0px 0px 0px 0.5px' }}
-            >
-              Start free
-            </Link>
-          </div>
+        <section className="border-t border-fog bg-mist/30 px-6 py-20">
+          <RevealUp>
+            <div className="mx-auto flex max-w-[560px] flex-col items-center gap-6 text-center">
+              <h2 className="text-display-sm text-white">Ready to get started?</h2>
+              <p className="font-body-editorial text-[15px] text-graphite">
+                Sign up in under a minute. No credit card, no commitment.
+              </p>
+              <Link href="/onboarding" className="btn-editorial">
+                <span className="relative z-10 flex items-center gap-2">
+                  Start free
+                  <ArrowRight size={14} />
+                </span>
+              </Link>
+            </div>
+          </RevealUp>
         </section>
       </main>
       <Footer />

@@ -1,55 +1,62 @@
-const stats = [
-  { value: '12K+', label: 'Creators using CreatorFlow' },
-  { value: '$0', label: 'Taken from your deals' },
-  { value: '2 min', label: 'To get set up' },
-  { value: '100%', label: 'Data ownership — always' },
+import MetricCounter from '@/components/editorial/MetricCounter'
+import RevealUp from '@/components/editorial/RevealUp'
+
+const pills = [
+  { label: 'Gmail integration' },
+  { label: 'YouTube analytics' },
+  { label: 'AI contract review' },
+  { label: 'Team access' },
+  { label: 'Full data export' },
+  { label: 'No deal cut', invert: true },
 ]
 
 export default function TrustBand() {
   return (
-    <section className="bg-linen border-y border-fog py-14 px-6">
-      <div className="max-w-[1200px] mx-auto">
-        <p
-          className="text-center text-[11.5px] font-semibold text-ash uppercase tracking-widest mb-10"
-        >
-          Built for serious creators at every stage
-        </p>
+    <section className="border-y border-fog bg-mist/40 py-16">
+      <div className="container-shell">
+        <RevealUp>
+          <p className="label-eyebrow mb-10 justify-center text-center">Built for serious creators at every stage</p>
+        </RevealUp>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          {stats.map((s) => (
-            <div key={s.label} className="flex flex-col items-center text-center gap-1.5">
-              <span
-                className="font-bold text-carbon"
-                style={{ fontSize: '32px', lineHeight: 1, letterSpacing: '-0.06em' }}
-              >
-                {s.value}
+        <RevealUp delay={1}>
+          <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <span className="text-3xl font-semibold tracking-tighter text-white">
+                <MetricCounter target={12} suffix="K+" />
               </span>
-              <span className="text-[13px] text-graphite" style={{ letterSpacing: '-0.2px' }}>
-                {s.label}
-              </span>
+              <span className="text-[13px] text-graphite">Creators using CreatorFlow</span>
             </div>
-          ))}
-        </div>
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <span className="text-3xl font-semibold tracking-tighter text-white">$0</span>
+              <span className="text-[13px] text-graphite">Taken from your deals</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <span className="text-3xl font-semibold tracking-tighter text-white">2 min</span>
+              <span className="text-[13px] text-graphite">To get set up</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <span className="text-3xl font-semibold tracking-tighter text-white">
+                <MetricCounter target={100} suffix="%" />
+              </span>
+              <span className="text-[13px] text-graphite">Data ownership — always</span>
+            </div>
+          </div>
+        </RevealUp>
 
-        {/* Feature pills */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mt-10">
-          {[
-            { label: 'Gmail integration', color: 'bg-sky/10 text-sky' },
-            { label: 'YouTube analytics', color: 'bg-mint-wash text-mint' },
-            { label: 'AI contract review', color: 'bg-lavender/10 text-lavender' },
-            { label: 'Team access', color: 'bg-amber/10 text-amber' },
-            { label: 'Full data export', color: 'bg-fog text-graphite' },
-            { label: 'No deal cut', color: 'bg-carbon text-paper-white' },
-          ].map((pill) => (
-            <span
-              key={pill.label}
-              className={`inline-flex items-center px-3.5 py-1.5 rounded-full text-[12.5px] font-medium ${pill.color}`}
-              style={{ letterSpacing: '-0.2px' }}
-            >
-              {pill.label}
-            </span>
-          ))}
-        </div>
+        <RevealUp delay={2}>
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
+            {pills.map((pill) => (
+              <span
+                key={pill.label}
+                className={`font-label inline-flex items-center rounded-full border px-3.5 py-1.5 text-[11px] uppercase tracking-wide ${
+                  pill.invert ? 'border-lavender bg-lavender text-black' : 'border-fog text-graphite'
+                }`}
+              >
+                {pill.label}
+              </span>
+            ))}
+          </div>
+        </RevealUp>
       </div>
     </section>
   )

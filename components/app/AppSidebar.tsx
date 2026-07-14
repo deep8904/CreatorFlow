@@ -22,8 +22,14 @@ const secondaryNav = [
   { label: 'Settings', href: '/settings', icon: Settings },
 ]
 
-export default function AppSidebar() {
+export default function AppSidebar({ name, email }: { name: string; email: string }) {
   const pathname = usePathname()
+  const initials = name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '—'
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + '/')
@@ -98,13 +104,13 @@ export default function AppSidebar() {
       <div className="px-4 py-3 border-t border-fog">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-lavender/15 flex items-center justify-center shrink-0">
-            <span className="text-[12px] font-bold text-lavender">JD</span>
+            <span className="text-[12px] font-bold text-lavender">{initials}</span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12.5px] font-semibold text-carbon truncate" style={{ letterSpacing: '-0.25px' }}>
-              Jane Doe
+              {name}
             </p>
-            <p className="text-[11px] text-ash truncate">jane@gmail.com</p>
+            <p className="text-[11px] text-ash truncate">{email}</p>
           </div>
         </div>
       </div>

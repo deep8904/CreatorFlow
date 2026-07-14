@@ -4,15 +4,17 @@ import Hero from '@/components/landing/Hero'
 import HowItWorks from '@/components/landing/HowItWorks'
 import LandingPricing from '@/components/landing/LandingPricing'
 import Nav from '@/components/landing/Nav'
+import Problem from '@/components/landing/Problem'
 import TrustBand from '@/components/landing/TrustBand'
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-paper-white">
+    <div className="min-h-screen bg-linen">
       <Nav />
       <main>
         <Hero />
         <TrustBand />
+        <Problem />
         <Features />
         <HowItWorks />
         <LandingPricing />
