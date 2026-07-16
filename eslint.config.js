@@ -48,5 +48,13 @@ export default [
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    files: ['scripts/**/*.{js,ts}'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+      },
+    },
+  },
   prettier,
 ]

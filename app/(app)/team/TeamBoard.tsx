@@ -48,14 +48,14 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
 
   return (
     <main className="flex-1 overflow-y-auto bg-linen">
-      <div className="max-w-[680px] mx-auto px-8 py-8">
+      <div className="app-container-narrow">
       <div className="mb-8">
-        <h1 className="font-bold text-carbon" style={{ fontSize: '20px', letterSpacing: '-0.04em' }}>Team</h1>
+        <h1 className="text-app-h1 text-carbon">Team</h1>
         <p className="text-[12.5px] text-ash mt-0.5">Bring in a collaborator without giving up control.</p>
       </div>
 
       {/* Members list */}
-      <div className="bg-paper-white border border-fog rounded-2xl overflow-hidden mb-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+      <div className="bg-paper-white border border-fog rounded-xl overflow-hidden mb-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
         <div className="px-5 py-4 border-b border-fog">
           <h2 className="text-[14px] font-semibold text-carbon">Members</h2>
         </div>
@@ -112,7 +112,7 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
 
       {/* Invite */}
       {team?.isOwner && !hasCollaborator && (
-        <div className="bg-paper-white border border-fog rounded-2xl p-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+        <div className="bg-paper-white border border-fog rounded-xl p-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
           <h2 className="text-[14px] font-semibold text-carbon mb-1">Invite by email</h2>
           <p className="text-[13px] text-graphite mb-5">They&apos;ll get an invitation to create their own account.</p>
 

@@ -19,22 +19,35 @@ export default function Hero() {
         <div className="h-full w-px bg-white" />
       </div>
 
+      {/* Registration marks at the grid-line intersections — a print/technical
+          alignment motif (crosshair + circle) that plays off SYSTEM_CORE //
+          CREATOR_OPS, rather than a decorative flourish. Orange, used sparingly. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-[4.5rem] hidden justify-between pt-6 md:flex"
+        style={{ paddingInline: 'clamp(1.5rem, 4vw, 6rem)' }}
+      >
+        <RegistrationMark />
+        <RegistrationMark className="hidden lg:block" />
+        <RegistrationMark className="hidden lg:block" />
+        <RegistrationMark />
+      </div>
+
       <div className="container-shell relative z-10 pb-20 pt-16">
         <RevealUp>
-          <div className="label-eyebrow mb-8">SYSTEM_CORE // CREATOR_OPS</div>
+          <div className="label-eyebrow mb-8">IDEA_TO_PUBLISHED // CREATOR_OPS</div>
           <h1 className="text-display-lg max-w-[880px] text-white">
-            Run your creator business
+            Fewer dropped ideas.
             <br />
-            without losing your Gmail to it.
+            More consistent you.
           </h1>
         </RevealUp>
 
         <RevealUp delay={1}>
           <div className="mt-8 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
             <p className="font-body-editorial max-w-[36rem] text-[1.05rem] leading-relaxed text-graphite">
-              Track brand deals from first email to paid invoice, capture ideas before they slip
-              away, and see what&apos;s actually working — free, with no cut taken from your deals,
-              ever.
+              Every idea captured before it slips away. Every brand deal tracked so nothing falls
+              through the cracks. A faster path from idea to published. And a clear read on what&apos;s
+              actually working, so the next thing you make is better than the last.
             </p>
             <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center">
               <Link href="/onboarding" className="btn-editorial group">
@@ -53,7 +66,7 @@ export default function Hero() {
 
         <RevealUp delay={2}>
           <p className="mt-6 font-label text-[11px] uppercase tracking-widest text-ash">
-            Free means free — no percentage of your deals, no credit card to start.
+            No dropped ideas. No missed deals. No guessing what worked.
           </p>
         </RevealUp>
 
@@ -117,5 +130,15 @@ export default function Hero() {
         </RevealUp>
       </div>
     </section>
+  )
+}
+
+function RegistrationMark({ className = '' }: { className?: string }) {
+  return (
+    <svg width="11" height="11" viewBox="0 0 11 11" className={`text-lavender ${className}`} aria-hidden="true">
+      <line x1="5.5" y1="0" x2="5.5" y2="11" stroke="currentColor" strokeWidth="1" />
+      <line x1="0" y1="5.5" x2="11" y2="5.5" stroke="currentColor" strokeWidth="1" />
+      <circle cx="5.5" cy="5.5" r="3.25" stroke="currentColor" strokeWidth="1" fill="none" />
+    </svg>
   )
 }

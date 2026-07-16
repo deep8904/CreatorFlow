@@ -152,6 +152,31 @@
     padding-inline: clamp(1.5rem, 4vw, 6rem);
   }
 
+  /* Shared in-app content widths — two tiers instead of every screen picking
+     its own max-w-[...] value. Narrow for single-column forms/settings; the
+     default for list/dashboard content. Deals and Drafts deliberately don't
+     use either — the kanban board and split-pane editor need full width. */
+  .app-container-narrow {
+    max-width: 680px;
+    margin-inline: auto;
+    padding-inline: 2rem;
+    padding-block: 2rem;
+  }
+  .app-container {
+    max-width: 960px;
+    margin-inline: auto;
+    padding-inline: 2rem;
+    padding-block: 2rem;
+  }
+
+  /* Shared in-app page-title style, replacing nine separate inline
+     font-size declarations that had already drifted (20px vs 22px). */
+  .text-app-h1 {
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: -0.04em;
+  }
+
   .text-display-lg {
     font-size: clamp(2.75rem, 5vw + 1rem, 5.5rem);
     font-weight: 500;

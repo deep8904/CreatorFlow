@@ -1,6 +1,16 @@
-import { createSupabaseServerClient } from './server'
-import { getAuthenticatedUser } from './auth'
-import type { Automation, Deal, Draft, Idea, Profile, TeamInvite, TeamMember } from './types'
+import { createSupabaseServerClient, getAuthenticatedUser } from './server'
+import type {
+  Automation,
+  ChannelStatsDaily,
+  ChannelVideo,
+  Deal,
+  Draft,
+  Idea,
+  Profile,
+  RepurposedContent,
+  TeamInvite,
+  TeamMember,
+} from './types'
 
 export async function getCurrentProfile(): Promise<Profile | null> {
   const { user } = await getAuthenticatedUser()
@@ -149,4 +159,55 @@ export async function getTeam(): Promise<TeamData | null> {
     pendingInvite: (inviteRows as TeamInvite | null) ?? null,
     isOwner: members.some((m) => m.user_id === user.id && m.role === 'owner'),
   }
+}
+
+// Cached/seeded channel performance — see channel_stats_daily table notes. Stands
+// in for a live YouTube Analytics pull when no real account is connected.
+export async function getChannelStats(days = 120): Promise<ChannelStatsDaily[]> {
+  const { user } = await getAuthenticatedUser()
+  if (!user) return []
+
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) return []
+
+  const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+  const { data } = await supabase
+    .from('channel_stats_daily')
+    .select('*')
+    .eq('user_id', user.id)
+    .gte('stat_date', since)
+    .order('stat_date', { ascending: true })
+  return (data as ChannelStatsDaily[]) ?? []
+}
+
+export async function getChannelVideos(): Promise<ChannelVideo[]> {
+  const { user } = await getAuthenticatedUser()
+  if (!user) return []
+
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) return []
+
+  const { data } = await supabase
+    .from('channel_videos')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('published_at', { ascending: false })
+  return (data as ChannelVideo[]) ?? []
+}
+
+export type RepurposedContentWithVideo = RepurposedContent & { channel_videos: { title: string } | null }
+
+export async function getRepurposedContent(): Promise<RepurposedContentWithVideo[]> {
+  const { user } = await getAuthenticatedUser()
+  if (!user) return []
+
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) return []
+
+  const { data } = await supabase
+    .from('repurposed_content')
+    .select('*, channel_videos(title)')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+  return (data as RepurposedContentWithVideo[]) ?? []
 }

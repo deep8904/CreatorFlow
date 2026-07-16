@@ -1,5 +1,7 @@
+// Client-safe only (createSupabaseBrowserClient has no server-only imports). The
+// server-only getAuthenticatedUser lives in ./server so client components can
+// import from this file without pulling next/headers into the browser bundle.
 import { createSupabaseBrowserClient } from './client'
-import { createSupabaseServerClient } from './server'
 
 export async function signInWithEmail(email: string, password: string) {
   const supabase = createSupabaseBrowserClient()
@@ -34,14 +36,4 @@ export async function signOut() {
   }
 
   return supabase.auth.signOut()
-}
-
-export async function getAuthenticatedUser() {
-  const supabase = await createSupabaseServerClient()
-  if (!supabase) {
-    return { user: null, error: null }
-  }
-
-  const { data, error } = await supabase.auth.getUser()
-  return { user: data.user, error }
 }

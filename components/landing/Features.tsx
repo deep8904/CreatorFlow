@@ -4,45 +4,45 @@ import { Mail, Lightbulb, BarChart2, Download, Repeat2, Zap, Users, Clock } from
 
 const features = [
   {
-    heading: "Deals that don't get lost",
-    body: 'Connect Gmail and brand sponsorship emails get surfaced automatically, tracked from inquiry to paid.',
+    heading: 'Nothing gets forgotten',
+    body: 'Brand emails become tracked deals automatically — nothing slips through your inbox again.',
     icon: <Mail size={26} strokeWidth={1.6} />,
   },
   {
-    heading: 'Ideas, captured on the spot',
-    body: 'Write down a content idea the second you have it, before it slips away.',
+    heading: 'Ideas survive the day',
+    body: "Capture a thought the moment you have it, so it's still there when you sit down to work.",
     icon: <Lightbulb size={26} strokeWidth={1.6} />,
   },
   {
     heading: 'Never locked in',
-    body: "Export everything you've put in, any time, no questions asked.",
+    body: "Your ideas, drafts, and deal history are yours — export everything, any time.",
     icon: <Download size={26} strokeWidth={1.6} />,
     invert: true,
   },
   {
-    heading: "Know what's working",
-    body: 'See your YouTube performance next to your deal pipeline, not in a separate tab.',
+    heading: "Know what's actually working",
+    body: 'See which videos and which deals are paying off, so your next idea is a better bet than your last.',
     icon: <BarChart2 size={26} strokeWidth={1.6} />,
   },
   {
-    heading: 'Repurpose in one click',
-    body: 'Turn a long-form video into a short-form script, thread, or newsletter with AI.',
+    heading: 'One video becomes five things',
+    body: 'Turn a published video into clips, posts, and outlines — instead of moving on and never revisiting it.',
     icon: <Repeat2 size={26} strokeWidth={1.6} />,
   },
   {
-    heading: 'Automations without code',
-    body: 'Let simple, repetitive steps happen without manual work when a deal moves or an email arrives.',
+    heading: 'Less busywork, more making',
+    body: 'The repetitive parts of running a creator business happen on their own, so that time goes back into creating.',
     icon: <Zap size={26} strokeWidth={1.6} />,
   },
   {
     heading: 'Room for your team',
-    body: 'Invite a collaborator to help manage deals and automations without losing control of the account.',
+    body: "Bring in an editor or manager without losing track of what's happening.",
     icon: <Users size={26} strokeWidth={1.6} />,
     invert: true,
   },
   {
-    heading: 'Nothing to migrate',
-    body: "Connect Gmail and YouTube and you're tracking deals the same day — no setup marathon.",
+    heading: 'Up and running today',
+    body: "Connect Gmail and YouTube and you're tracking your first deal the same day — no setup marathon.",
     icon: <Clock size={26} strokeWidth={1.6} />,
   },
 ]
@@ -54,13 +54,13 @@ export default function Features() {
         <RevealUp>
           <div className="mb-16 flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
             <div>
-              <div className="label-eyebrow mb-6">CAPABILITIES</div>
+              <div className="label-eyebrow mb-6">THE_LOOP</div>
               <h2 className="text-display-sm max-w-[24rem] text-white">
-                Everything a creator business actually needs.
+                What it actually takes to publish consistently.
               </h2>
             </div>
             <p className="font-body-editorial max-w-[22rem] text-[15px] leading-relaxed text-graphite md:text-right">
-              Built for creators who are serious about the business side, not just the top 1%.
+              Not more tools. Fewer things falling through the cracks.
             </p>
           </div>
         </RevealUp>

@@ -8,18 +8,18 @@ const steps = [
   },
   {
     number: '02',
-    heading: 'Brand deals get sorted for you',
-    body: 'Sponsorship emails are pulled out of your regular inbox noise into one pipeline view.',
+    heading: 'Capture every idea the moment it hits',
+    body: "Write it down before it's gone — this becomes the one place ideas actually survive.",
   },
   {
     number: '03',
-    heading: 'Capture and develop your ideas',
-    body: 'Turn a passing thought into a scheduled piece of content.',
+    heading: 'Turn ideas into drafts, drafts into published work',
+    body: "Develop what's worth developing, faster than starting from a blank page every time.",
   },
   {
     number: '04',
-    heading: 'See the full picture',
-    body: 'Your deals, your ideas, and your channel performance in one dashboard.',
+    heading: 'See what worked, then do more of that',
+    body: 'Deals and channel performance sit side by side, so the next idea is a better bet.',
   },
 ]
 
@@ -29,9 +29,9 @@ export default function HowItWorks() {
       <div className="container-shell">
         <RevealUp>
           <div className="mb-20 flex flex-col items-center text-center">
-            <div className="label-eyebrow mb-6">HOW_IT_WORKS</div>
+            <div className="label-eyebrow mb-6">THE_LOOP</div>
             <h2 className="text-display-sm max-w-[36rem] text-white">
-              Set up in two minutes. Run your business from day one.
+              From scattered to consistent, in four steps.
             </h2>
           </div>
         </RevealUp>

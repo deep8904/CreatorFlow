@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ArrowRight, Lightbulb } from 'lucide-react'
-import { getDeals, getIdeas, getCurrentProfile } from '@/lib/supabase/queries'
+import { getDeals, getIdeas, getCurrentProfile, getChannelStats, getIntegrations } from '@/lib/supabase/queries'
+
+function formatCompact(n: number) {
+  return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(n)
+}
 
 export const metadata: Metadata = { title: 'Dashboard — CreatorFlow' }
 
@@ -27,7 +31,17 @@ function initialsFor(brand: string | null) {
 }
 
 export default async function DashboardPage() {
-  const [deals, ideas, profile] = await Promise.all([getDeals(), getIdeas(), getCurrentProfile()])
+  const [deals, ideas, profile, channelStats, integrations] = await Promise.all([
+    getDeals(),
+    getIdeas(),
+    getCurrentProfile(),
+    getChannelStats(7),
+    getIntegrations(),
+  ])
+  const youtubeConnected = integrations.some((i) => i.provider === 'youtube')
+  const weekViews = channelStats.reduce((acc, s) => acc + s.views, 0)
+  const weekSubsGained = channelStats.reduce((acc, s) => acc + s.subscribers_gained, 0)
+  const latestSubs = channelStats[channelStats.length - 1]?.subscribers_total ?? null
 
   const openDeals = deals.filter((d) => d.status !== 'paid')
   const revenueMtd = deals
@@ -45,7 +59,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex-1 overflow-y-auto bg-linen">
-      <div className="max-w-[1100px] mx-auto px-8 py-8">
+      <div className="app-container">
 
         {/* Page header */}
         <div className="flex items-end justify-between mb-8">
@@ -53,10 +67,7 @@ export default async function DashboardPage() {
             <p className="text-[12.5px] font-medium text-ash mb-0.5" style={{ letterSpacing: '-0.2px' }}>
               Good morning
             </p>
-            <h1
-              className="font-bold text-carbon"
-              style={{ fontSize: '22px', lineHeight: 1.25, letterSpacing: '-0.04em' }}
-            >
+            <h1 className="text-app-h1 text-carbon">
               {profile?.full_name ?? 'there'}
             </h1>
           </div>
@@ -72,7 +83,7 @@ export default async function DashboardPage() {
 
         {!hasAnyData ? (
           <div className="flex flex-col items-center gap-4 py-24 text-center">
-            <div className="w-11 h-11 rounded-2xl bg-fog flex items-center justify-center">
+            <div className="w-11 h-11 rounded-xl bg-fog flex items-center justify-center">
               <Lightbulb size={18} className="text-ash" strokeWidth={1.8} />
             </div>
             <div>
@@ -101,7 +112,7 @@ export default async function DashboardPage() {
               ].map((s) => (
                 <div
                   key={s.label}
-                  className="bg-paper-white border border-fog rounded-2xl p-5"
+                  className="bg-paper-white border border-fog rounded-xl p-5"
                   style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}
                 >
                   <p className="text-[12px] font-medium text-ash mb-3" style={{ letterSpacing: '-0.2px' }}>
@@ -123,7 +134,7 @@ export default async function DashboardPage() {
 
               {/* Needs attention — 2 cols */}
               <div
-                className="lg:col-span-2 bg-paper-white border border-fog rounded-2xl overflow-hidden"
+                className="lg:col-span-2 bg-paper-white border border-fog rounded-xl overflow-hidden"
                 style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}
               >
                 <div className="flex items-center justify-between px-5 py-4 border-b border-fog">
@@ -169,7 +180,7 @@ export default async function DashboardPage() {
 
               {/* Quick actions — 1 col */}
               <div
-                className="bg-paper-white border border-fog rounded-2xl overflow-hidden"
+                className="bg-paper-white border border-fog rounded-xl overflow-hidden"
                 style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}
               >
                 <div className="px-5 py-4 border-b border-fog">
@@ -199,7 +210,7 @@ export default async function DashboardPage() {
 
               {/* Recent ideas */}
               <div
-                className="bg-paper-white border border-fog rounded-2xl overflow-hidden"
+                className="bg-paper-white border border-fog rounded-xl overflow-hidden"
                 style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}
               >
                 <div className="flex items-center justify-between px-5 py-4 border-b border-fog">
@@ -232,9 +243,9 @@ export default async function DashboardPage() {
                 )}
               </div>
 
-              {/* Channel performance — needs YouTube connected */}
+              {/* Channel performance */}
               <div
-                className="lg:col-span-2 bg-paper-white border border-fog rounded-2xl overflow-hidden"
+                className="lg:col-span-2 bg-paper-white border border-fog rounded-xl overflow-hidden"
                 style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}
               >
                 <div className="flex items-center justify-between px-5 py-4 border-b border-fog">
@@ -245,9 +256,24 @@ export default async function DashboardPage() {
                     Full analytics
                   </Link>
                 </div>
-                <p className="px-5 py-10 text-[13px] text-graphite text-center">
-                  Connect YouTube to see your performance here.
-                </p>
+                {!youtubeConnected || channelStats.length === 0 ? (
+                  <p className="px-5 py-10 text-[13px] text-graphite text-center">
+                    Connect YouTube to see your performance here.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 divide-x divide-fog">
+                    {[
+                      { label: 'Views this week', value: formatCompact(weekViews) },
+                      { label: 'New subscribers', value: `+${formatCompact(weekSubsGained)}` },
+                      { label: 'Total subscribers', value: latestSubs !== null ? formatCompact(latestSubs) : '—' },
+                    ].map((s) => (
+                      <div key={s.label} className="px-5 py-5">
+                        <p className="text-[11.5px] text-ash mb-1.5">{s.label}</p>
+                        <p className="font-bold text-carbon" style={{ fontSize: '19px', letterSpacing: '-0.03em' }}>{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </>

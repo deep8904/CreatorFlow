@@ -1,14 +1,20 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Sparkles, Save, Plus, FileText } from 'lucide-react'
-import { updateDraftContent } from '@/lib/supabase/actions'
+import { updateDraftContent, createDraft } from '@/lib/supabase/actions'
 import type { DraftWithIdeaTitle } from '@/lib/supabase/queries'
 
+const AI_ASSIST_SUGGESTION =
+  '\n\n[AI assist — starting point, edit freely]\nHook: open with the single most surprising line from your notes above.\nBody: expand each bullet into 2-3 sentences of spoken narration.\nClose: one clear call to action tying back to the hook.'
+
 export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWithIdeaTitle[] }) {
+  const router = useRouter()
   const [activeDraft, setActiveDraft] = useState<DraftWithIdeaTitle | null>(initialDrafts[0] ?? null)
   const [content, setContent] = useState(activeDraft?.body ?? '')
   const [isPending, startTransition] = useTransition()
+  const [isCreating, setIsCreating] = useState(false)
 
   const handleSelect = (draft: DraftWithIdeaTitle) => {
     setActiveDraft(draft)
@@ -22,6 +28,17 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
     })
   }
 
+  const handleNewDraft = async () => {
+    setIsCreating(true)
+    const id = await createDraft()
+    setIsCreating(false)
+    if (id) router.refresh()
+  }
+
+  const handleAiAssist = () => {
+    setContent((c) => c + AI_ASSIST_SUGGESTION)
+  }
+
   return (
     <div className="flex h-screen overflow-hidden">
 
@@ -30,7 +47,10 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
         <div className="px-4 py-4 border-b border-fog flex items-center justify-between shrink-0">
           <h1 className="text-[14px] font-bold text-carbon" style={{ letterSpacing: '-0.3px' }}>Drafts</h1>
           <button
-            className="w-7 h-7 flex items-center justify-center rounded-lg bg-lavender/10 text-lavender hover:bg-lavender/20 transition-colors"
+            onClick={handleNewDraft}
+            disabled={isCreating}
+            aria-label="New draft"
+            className="w-7 h-7 flex items-center justify-center rounded-lg bg-lavender/10 text-lavender hover:bg-lavender/20 disabled:opacity-50 transition-colors"
           >
             <Plus size={14} />
           </button>
@@ -85,6 +105,7 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
+                onClick={handleAiAssist}
                 className="inline-flex items-center gap-1.5 text-[13px] font-medium text-graphite border border-fog px-4 py-2 rounded-full hover:bg-linen transition-colors"
                 style={{ letterSpacing: '-0.25px' }}
               >
@@ -113,7 +134,7 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
       ) : (
         <div className="flex-1 flex items-center justify-center bg-paper-white">
           <div className="flex flex-col items-center gap-4 text-center max-w-[280px]">
-            <div className="w-11 h-11 rounded-2xl bg-fog flex items-center justify-center">
+            <div className="w-11 h-11 rounded-xl bg-fog flex items-center justify-center">
               <FileText size={18} className="text-ash" strokeWidth={1.5} />
             </div>
             <div>

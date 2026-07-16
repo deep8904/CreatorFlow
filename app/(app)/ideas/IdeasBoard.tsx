@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { ArrowRight, Lightbulb } from 'lucide-react'
-import { createIdea } from '@/lib/supabase/actions'
+import { createIdea, createDraftFromIdea } from '@/lib/supabase/actions'
 import type { Idea } from '@/lib/supabase/types'
 
 const STATUS_LABEL: Record<Idea['status'], string> = {
@@ -20,10 +21,12 @@ function statusStyle(status: Idea['status']) {
 }
 
 export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
+  const router = useRouter()
   const [filter, setFilter] = useState<Idea['status'] | 'All'>('All')
   const [newOpen, setNewOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [turningIntoDraftId, setTurningIntoDraftId] = useState<string | null>(null)
 
   const filtered = filter === 'All' ? initialIdeas : initialIdeas.filter((i) => i.status === filter)
 
@@ -37,14 +40,21 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
     })
   }
 
+  const turnIntoDraft = async (idea: Idea) => {
+    setTurningIntoDraftId(idea.id)
+    await createDraftFromIdea(idea.id, idea.title)
+    setTurningIntoDraftId(null)
+    router.push('/drafts')
+  }
+
   return (
     <main className="flex-1 overflow-y-auto bg-linen">
-      <div className="max-w-[860px] mx-auto px-8 py-8">
+      <div className="app-container">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="font-bold text-carbon" style={{ fontSize: '20px', letterSpacing: '-0.04em' }}>Ideas</h1>
+            <h1 className="text-app-h1 text-carbon">Ideas</h1>
             <p className="text-[12.5px] text-ash mt-0.5">{initialIdeas.length} ideas captured</p>
           </div>
           <button
@@ -59,7 +69,7 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
         {/* Capture input */}
         {newOpen && (
           <div
-            className="bg-paper-white border border-lavender/40 rounded-2xl p-5 mb-5"
+            className="bg-paper-white border border-lavender/40 rounded-xl p-5 mb-5"
             style={{ boxShadow: '0 0 0 3px rgba(145,141,246,0.08)' }}
           >
             <input
@@ -110,7 +120,7 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
         {/* Ideas list */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-20 text-center">
-            <div className="w-11 h-11 rounded-2xl bg-fog flex items-center justify-center">
+            <div className="w-11 h-11 rounded-xl bg-fog flex items-center justify-center">
               <Lightbulb size={18} className="text-ash" strokeWidth={1.8} />
             </div>
             <div>
@@ -131,7 +141,7 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
             {filtered.map((idea) => (
               <div
                 key={idea.id}
-                className="bg-paper-white border border-fog rounded-2xl p-5 hover:border-fog/80 transition-all"
+                className="bg-paper-white border border-fog rounded-xl p-5 hover:border-fog/80 transition-all"
                 style={{ boxShadow: 'rgba(0,0,0,0.03) 0px 1px 2px 0px' }}
               >
                 <div className="flex items-start gap-4">
@@ -159,10 +169,12 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
                     </div>
                   </div>
                   <button
-                    className="shrink-0 mt-0.5 text-[12px] font-semibold text-lavender hover:opacity-70 transition-opacity whitespace-nowrap"
+                    onClick={() => turnIntoDraft(idea)}
+                    disabled={turningIntoDraftId === idea.id}
+                    className="shrink-0 mt-0.5 text-[12px] font-semibold text-lavender hover:opacity-70 disabled:opacity-50 transition-opacity whitespace-nowrap"
                     style={{ letterSpacing: '-0.2px' }}
                   >
-                    Turn into draft
+                    {turningIntoDraftId === idea.id ? 'Creating draft…' : 'Turn into draft'}
                   </button>
                 </div>
               </div>

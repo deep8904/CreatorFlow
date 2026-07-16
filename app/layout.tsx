@@ -24,9 +24,9 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'CreatorFlow — Run your creator business without losing your Gmail to it',
+  title: 'CreatorFlow — Fewer dropped ideas. More consistent you.',
   description:
-    'Track brand deals from first email to paid invoice, capture ideas before they slip away, and see what\'s actually working — free, with no cut taken from your deals, ever.',
+    'Every idea captured before it slips away. Every brand deal tracked so nothing falls through the cracks. A faster path from idea to published. And a clear read on what\'s actually working.',
   generator: 'v0.app',
 }
 

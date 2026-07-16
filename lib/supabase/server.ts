@@ -27,3 +27,16 @@ export async function createSupabaseServerClient() {
     },
   })
 }
+
+// Server-only (reads next/headers via createSupabaseServerClient). Keep out of
+// lib/supabase/auth.ts, which client components import for signIn/signUp/signOut —
+// mixing the two in one module drags next/headers into the client bundle.
+export async function getAuthenticatedUser() {
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) {
+    return { user: null, error: null }
+  }
+
+  const { data, error } = await supabase.auth.getUser()
+  return { user: data.user, error }
+}

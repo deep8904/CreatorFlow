@@ -4,6 +4,12 @@ import { useTransition } from 'react'
 import { toggleAutomation } from '@/lib/supabase/actions'
 import type { Automation } from '@/lib/supabase/types'
 
+const TRIGGER_LABEL: Record<string, string> = {
+  'gmail.sponsorship_email_detected': 'Gmail trigger',
+  'deals.status_changed_to_paid': 'Deal trigger',
+  'youtube.video_published': 'YouTube trigger',
+}
+
 export default function AutomationsBoard({ initialAutomations }: { initialAutomations: Automation[] }) {
   const [isPending, startTransition] = useTransition()
 
@@ -15,9 +21,9 @@ export default function AutomationsBoard({ initialAutomations }: { initialAutoma
 
   return (
     <main className="flex-1 overflow-y-auto bg-linen">
-    <div className="max-w-[760px] mx-auto px-8 py-8">
+    <div className="app-container">
       <div className="mb-8">
-        <h1 className="font-bold text-carbon" style={{ fontSize: '20px', letterSpacing: '-0.04em' }}>Automations</h1>
+        <h1 className="text-app-h1 text-carbon">Automations</h1>
         <p className="text-[12.5px] text-ash mt-0.5">Save the repetitive steps</p>
       </div>
 
@@ -33,14 +39,14 @@ export default function AutomationsBoard({ initialAutomations }: { initialAutoma
           {initialAutomations.map((auto) => (
             <div
               key={auto.id}
-              className="bg-paper-white border border-fog rounded-2xl p-5 flex items-start gap-4"
+              className="bg-paper-white border border-fog rounded-xl p-5 flex items-start gap-4"
               style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}
             >
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1.5">
                   <p className="text-[14px] font-semibold text-carbon">{auto.name}</p>
                   <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-fog text-graphite">
-                    {auto.trigger_type}
+                    {TRIGGER_LABEL[auto.trigger_type] ?? auto.trigger_type}
                   </span>
                 </div>
                 {typeof auto.config?.description === 'string' && (

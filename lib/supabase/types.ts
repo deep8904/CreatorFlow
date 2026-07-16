@@ -90,3 +90,42 @@ export type TeamInvite = {
   accepted_at: string | null
   accepted_by: string | null
 }
+
+// Cached/seeded YouTube channel performance — stands in for a live API pull
+// when no real YouTube account is connected (see the `integrations` table).
+export type ChannelStatsDaily = {
+  id: string
+  user_id: string
+  stat_date: string
+  views: number
+  watch_time_minutes: number
+  subscribers_total: number
+  subscribers_gained: number
+  created_at: string
+}
+
+export type ChannelVideo = {
+  id: string
+  user_id: string
+  youtube_video_id: string | null
+  title: string
+  published_at: string
+  views: number
+  watch_time_minutes: number
+  likes: number
+  comments: number
+  duration_seconds: number | null
+  created_at: string
+}
+
+export type RepurposedContent = {
+  id: string
+  user_id: string
+  video_id: string | null
+  source_url: string | null
+  summary: string | null
+  clip_worthy_moments: { timestamp: string; description: string }[]
+  social_post_ideas: string[]
+  blog_outline: string | null
+  created_at: string
+}

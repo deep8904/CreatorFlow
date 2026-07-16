@@ -1,11 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Handshake, Lightbulb, FileText, Repeat2,
-  Zap, BarChart2, Users, Settings, ArrowRight,
+  Zap, BarChart2, Users, Settings, LogOut,
 } from 'lucide-react'
+import { signOut } from '@/lib/supabase/auth'
 
 const primaryNav = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -24,6 +25,7 @@ const secondaryNav = [
 
 export default function AppSidebar({ name, email }: { name: string; email: string }) {
   const pathname = usePathname()
+  const router = useRouter()
   const initials = name
     .split(' ')
     .map((w) => w[0])
@@ -37,12 +39,19 @@ export default function AppSidebar({ name, email }: { name: string; email: strin
   return (
     <aside className="w-56 shrink-0 border-r border-fog bg-linen flex flex-col h-screen sticky top-0">
 
-      {/* Logo */}
+      {/* Logo — matches the marketing site's mark exactly, not a variant */}
       <div className="px-4 h-14 flex items-center border-b border-fog">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-lavender flex items-center justify-center">
-            <ArrowRight size={13} stroke="#fff" strokeWidth={2} />
-          </div>
+        <Link href="/" className="group flex items-center gap-2.5">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            className="shrink-0 transition-transform duration-500 ease-out group-hover:rotate-90"
+          >
+            <rect x="2" y="2" width="20" height="20" stroke="#F97316" strokeWidth="2.5" />
+            <circle cx="12" cy="12" r="4" fill="#F97316" />
+          </svg>
           <span className="text-[15px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>
             CreatorFlow
           </span>
@@ -112,6 +121,18 @@ export default function AppSidebar({ name, email }: { name: string; email: strin
             </p>
             <p className="text-[11px] text-ash truncate">{email}</p>
           </div>
+          <button
+            onClick={async () => {
+              await signOut()
+              router.push('/')
+              router.refresh()
+            }}
+            aria-label="Sign out"
+            title="Sign out"
+            className="shrink-0 rounded-lg p-1.5 text-ash transition-colors hover:bg-linen hover:text-carbon"
+          >
+            <LogOut size={15} />
+          </button>
         </div>
       </div>
     </aside>

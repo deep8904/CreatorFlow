@@ -97,10 +97,14 @@ create policy "Users can manage own deals" on public.deals
 create policy "Users can manage own automations" on public.automations
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy "Users can manage own integrations" on public.integrations
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "Integrations are read-only via service role" on public.integrations
-  for select using (false);
+-- Deliberately zero permissive policies on integrations: RLS is enabled with no
+-- policy granting select/insert/update/delete to authenticated clients at all, so
+-- no direct client query can ever return this table's rows (including the token
+-- columns), by construction. All access goes through the service role — reads via
+-- the get-integrations edge function, writes via a server-side OAuth callback.
+-- (A `for all using (auth.uid() = user_id)` policy plus a `for select using (false)`
+-- policy do NOT combine to block reads: Postgres ORs multiple permissive policies
+-- together, so the owner-access policy alone would still allow direct client selects.)
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -187,62 +191,57 @@ create unique index if not exists team_invites_one_pending_per_account
 alter table public.team_members enable row level security;
 alter table public.team_invites enable row level security;
 
-create policy "Account members can view team members" on public.team_members
-  for select using (
-    exists (
-      select 1 from public.team_members tm
-      where tm.account_id = team_members.account_id and tm.user_id = auth.uid()
-    )
+-- Membership/ownership checks live in SECURITY DEFINER functions rather than
+-- inline subqueries on team_members, because a policy ON team_members cannot
+-- itself query team_members without Postgres re-triggering the same policy --
+-- infinite recursion. A SECURITY DEFINER function evaluates as its owner and
+-- so isn't subject to the calling policy's RLS.
+create or replace function public.is_account_member(target_account_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.team_members tm
+    where tm.account_id = target_account_id and tm.user_id = auth.uid()
   );
+$$;
+
+create or replace function public.is_account_owner(target_account_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.team_members tm
+    where tm.account_id = target_account_id and tm.user_id = auth.uid() and tm.role = 'owner'
+  );
+$$;
+
+create policy "Account members can view team members" on public.team_members
+  for select using (public.is_account_member(account_id));
 
 create policy "Owner adds team members" on public.team_members
-  for insert with check (
-    exists (
-      select 1 from public.team_members tm
-      where tm.account_id = team_members.account_id and tm.user_id = auth.uid() and tm.role = 'owner'
-    )
-  );
+  for insert with check (public.is_account_owner(account_id));
 
 create policy "Owner updates team members" on public.team_members
-  for update using (
-    exists (
-      select 1 from public.team_members tm
-      where tm.account_id = team_members.account_id and tm.user_id = auth.uid() and tm.role = 'owner'
-    )
-  );
+  for update using (public.is_account_owner(account_id));
 
 create policy "Owner removes non-owner team members" on public.team_members
-  for delete using (
-    role <> 'owner'
-    and exists (
-      select 1 from public.team_members tm
-      where tm.account_id = team_members.account_id and tm.user_id = auth.uid() and tm.role = 'owner'
-    )
-  );
+  for delete using (role <> 'owner' and public.is_account_owner(account_id));
 
 create policy "Account members can view invites" on public.team_invites
-  for select using (
-    exists (
-      select 1 from public.team_members tm
-      where tm.account_id = team_invites.account_id and tm.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_account_member(account_id));
 
 create policy "Owner creates invites" on public.team_invites
-  for insert with check (
-    exists (
-      select 1 from public.team_members tm
-      where tm.account_id = team_invites.account_id and tm.user_id = auth.uid() and tm.role = 'owner'
-    )
-  );
+  for insert with check (public.is_account_owner(account_id));
 
 create policy "Owner updates invites" on public.team_invites
-  for update using (
-    exists (
-      select 1 from public.team_members tm
-      where tm.account_id = team_invites.account_id and tm.user_id = auth.uid() and tm.role = 'owner'
-    )
-  );
+  for update using (public.is_account_owner(account_id));
 
 create or replace function public.handle_new_team_owner()
 returns trigger
@@ -260,3 +259,58 @@ $$;
 create or replace trigger on_auth_user_created_team_owner
 after insert on auth.users
 for each row execute function public.handle_new_team_owner();
+
+-- Cached/seeded YouTube channel performance, standing in for a live API pull when
+-- no real YouTube account is connected (see integrations table). Daily granularity
+-- so the Analytics screen can compute "this month vs last month" comparisons.
+create table if not exists public.channel_stats_daily (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  stat_date date not null,
+  views integer not null default 0,
+  watch_time_minutes integer not null default 0,
+  subscribers_total integer not null default 0,
+  subscribers_gained integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (user_id, stat_date)
+);
+
+-- A lightweight catalog of the creator's published videos — backs both the
+-- Analytics "Top videos" section and the Repurpose page's video picker.
+create table if not exists public.channel_videos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  youtube_video_id text,
+  title text not null,
+  published_at timestamptz not null default now(),
+  views integer not null default 0,
+  watch_time_minutes integer not null default 0,
+  likes integer not null default 0,
+  comments integer not null default 0,
+  duration_seconds integer,
+  created_at timestamptz not null default now()
+);
+
+-- Saved AI repurposing runs against a published video.
+create table if not exists public.repurposed_content (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  video_id uuid references public.channel_videos(id) on delete set null,
+  source_url text,
+  summary text,
+  clip_worthy_moments jsonb not null default '[]',
+  social_post_ideas jsonb not null default '[]',
+  blog_outline text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.channel_stats_daily enable row level security;
+alter table public.channel_videos enable row level security;
+alter table public.repurposed_content enable row level security;
+
+create policy "Users can manage own channel stats" on public.channel_stats_daily
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can manage own channel videos" on public.channel_videos
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can manage own repurposed content" on public.repurposed_content
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
