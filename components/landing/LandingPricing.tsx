@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { Check, ArrowRight } from 'lucide-react'
 import RevealUp from '@/components/editorial/RevealUp'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 const included = [
   'Unlimited deals tracked',
@@ -19,7 +21,7 @@ export default function LandingPricing() {
           {/* Left — copy */}
           <RevealUp>
             <div className="label-eyebrow mb-6">PRICING</div>
-            <h2 className="text-display-sm mb-6 text-white">Free. Actually free.</h2>
+            <h2 className="text-display-sm mb-6 text-carbon">Free. Actually free.</h2>
             <p className="font-body-editorial mb-8 max-w-[26rem] text-[16px] leading-relaxed text-graphite">
               CreatorFlow doesn&apos;t take a percentage of your brand deals and doesn&apos;t charge a
               monthly subscription for the core product. Connect, track, and capture — no cost, no
@@ -28,10 +30,10 @@ export default function LandingPricing() {
             <ul className="mb-8 flex flex-col gap-3">
               {included.map((item) => (
                 <li key={item} className="flex items-center gap-3">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-mint-wash">
-                    <Check size={10} className="text-mint" strokeWidth={2.5} />
+                  <div className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-lavender/10">
+                    <Check size={9} className="text-lavender" strokeWidth={2.25} />
                   </div>
-                  <span className="text-[14px] text-white">{item}</span>
+                  <span className="text-[14px] text-carbon">{item}</span>
                 </li>
               ))}
             </ul>
@@ -43,16 +45,14 @@ export default function LandingPricing() {
 
           {/* Right — pricing card */}
           <RevealUp delay={1}>
-            <div className="glass-panel flex flex-col gap-6 rounded-lg px-8 py-10">
+            <div className="glass-panel flex flex-col gap-6 rounded-xl px-8 py-10">
               <div>
                 <div className="mb-4 flex items-center justify-between">
                   <span className="font-label text-[11px] uppercase tracking-widest text-ash">Core plan</span>
-                  <span className="rounded-full bg-mint-wash px-2.5 py-1 text-[11px] font-semibold text-mint">
-                    Always free
-                  </span>
+                  <Badge variant="filled">Always free</Badge>
                 </div>
                 <div className="flex items-end gap-1.5">
-                  <span className="text-[52px] font-semibold leading-none tracking-tight text-white">$0</span>
+                  <span className="text-[52px] font-semibold leading-none tracking-tight text-carbon">$0</span>
                   <span className="mb-2 text-[15px] text-graphite">/ month</span>
                 </div>
                 <p className="mt-1 text-[13px] text-ash">No credit card required</p>
@@ -63,17 +63,17 @@ export default function LandingPricing() {
               <ul className="flex flex-col gap-3">
                 {included.map((item) => (
                   <li key={item} className="flex items-center gap-3">
-                    <div className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-mint-wash">
-                      <Check size={9} className="text-mint" strokeWidth={2.5} />
+                    <div className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-lavender/10">
+                      <Check size={9} className="text-lavender" strokeWidth={2.25} />
                     </div>
-                    <span className="text-[13.5px] text-white">{item}</span>
+                    <span className="text-[13.5px] text-carbon">{item}</span>
                   </li>
                 ))}
               </ul>
 
-              <Link href="/onboarding" className="btn-editorial w-full">
-                <span className="relative z-10">Start free — no card needed</span>
-              </Link>
+              <Button href="/onboarding" size="lg" className="w-full">
+                Start free — no card needed
+              </Button>
 
               <p className="text-center text-[12px] text-ash">
                 AI features include a generous monthly allowance so the product stays sustainable.

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { BarChart2, TrendingDown, TrendingUp } from 'lucide-react'
 import { getChannelStats, getChannelVideos, getIntegrations } from '@/lib/supabase/queries'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const metadata: Metadata = { title: 'Analytics — CreatorFlow' }
 
@@ -33,11 +35,16 @@ export default async function AnalyticsPage() {
             <h1 className="text-app-h1 text-carbon">Analytics</h1>
             <p className="text-[12.5px] text-ash mt-0.5">Your YouTube channel performance</p>
           </div>
-          <div className="flex flex-col items-center gap-4 py-24 text-center">
-            <div className="w-11 h-11 rounded-xl bg-fog flex items-center justify-center">
-              <BarChart2 size={18} className="text-ash" strokeWidth={1.8} />
-            </div>
-            <p className="text-[14px] font-semibold text-carbon">Connect YouTube to see your performance here.</p>
+          <div className="py-10">
+            <EmptyState
+              icon={<BarChart2 size={18} className="text-ash" strokeWidth={2} />}
+              title="Connect YouTube to see your performance here."
+              action={
+                <Button href="/settings" size="md">
+                  Connect YouTube
+                </Button>
+              }
+            />
           </div>
         </div>
       </main>
@@ -85,29 +92,28 @@ export default async function AnalyticsPage() {
             <h1 className="text-app-h1 text-carbon">Analytics</h1>
             <p className="text-[12.5px] text-ash mt-0.5">Your YouTube channel performance</p>
           </div>
-          <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-mint-wash text-mint">This month</span>
+          <span className="font-label text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full bg-lavender/10 text-lavender">This month</span>
         </div>
 
-        {/* Stat cards */}
+        {/* Stat cards — number + a small delta badge in the corner */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
           {cards.map((c) => (
-            <div key={c.label} className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}>
-              <p className="text-[12px] font-medium text-ash mb-3" style={{ letterSpacing: '-0.2px' }}>{c.label}</p>
-              <p className="font-bold text-carbon mb-1" style={{ fontSize: '22px', lineHeight: 1, letterSpacing: '-0.04em' }}>{c.value}</p>
-              {c.delta !== null ? (
-                <div className={`flex items-center gap-1 text-[11.5px] font-medium ${c.delta >= 0 ? 'text-mint' : 'text-ember'}`}>
-                  {c.delta >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                  {Math.abs(c.delta).toFixed(1)}% vs last month
+            <div key={c.label} className="relative bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
+              {c.delta !== null && (
+                <div className={`absolute top-4 right-4 flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full ${c.delta >= 0 ? 'bg-lavender/10 text-lavender' : 'bg-fog text-graphite'}`}>
+                  {c.delta >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                  {Math.abs(c.delta).toFixed(1)}%
                 </div>
-              ) : c.sublabel ? (
-                <p className="text-[11.5px] font-medium text-ash">{c.sublabel}</p>
-              ) : null}
+              )}
+              <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">{c.label}</p>
+              <p className="font-bold text-carbon mb-1" style={{ fontSize: '22px', lineHeight: 1, letterSpacing: '-0.04em' }}>{c.value}</p>
+              {c.sublabel && <p className="text-[11.5px] font-medium text-ash">{c.sublabel}</p>}
             </div>
           ))}
         </div>
 
         {/* Trend */}
-        <div className="bg-paper-white border border-fog rounded-xl overflow-hidden mb-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}>
+        <div className="bg-paper-white border border-fog rounded-xl overflow-hidden mb-6" style={{ boxShadow: 'var(--shadow-subtle)' }}>
           <div className="px-5 py-4 border-b border-fog">
             <h2 className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>Views, last 30 days</h2>
           </div>
@@ -126,7 +132,7 @@ export default async function AnalyticsPage() {
         </div>
 
         {/* Top videos */}
-        <div className="bg-paper-white border border-fog rounded-xl overflow-hidden" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}>
+        <div className="bg-paper-white border border-fog rounded-xl overflow-hidden" style={{ boxShadow: 'var(--shadow-subtle)' }}>
           <div className="px-5 py-4 border-b border-fog">
             <h2 className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>Top videos</h2>
           </div>

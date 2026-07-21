@@ -7,7 +7,7 @@ import prettier from 'eslint-config-prettier'
 export default [
   js.configs.recommended,
   {
-    ignores: ['node_modules/**', '.next/**', 'dist/**', 'playwright-report/**', 'test-results/**', 'supabase/functions/**'],
+    ignores: ['node_modules/**', '.next/**', 'dist/**', 'playwright-report/**', 'test-results/**', 'supabase/functions/**', '.claude/**'],
   },
   {
     files: ['**/*.{js,mjs,cjs,ts,tsx}'],
@@ -30,6 +30,14 @@ export default [
         HTMLCanvasElement: 'readonly',
         HTMLSpanElement: 'readonly',
         HTMLDivElement: 'readonly',
+        HTMLButtonElement: 'readonly',
+        HTMLAnchorElement: 'readonly',
+        HTMLInputElement: 'readonly',
+        HTMLTextAreaElement: 'readonly',
+        HTMLLabelElement: 'readonly',
+        BeforeUnloadEvent: 'readonly',
+        KeyboardEvent: 'readonly',
+        getComputedStyle: 'readonly',
         PointerEvent: 'readonly',
         IntersectionObserver: 'readonly',
         requestAnimationFrame: 'readonly',

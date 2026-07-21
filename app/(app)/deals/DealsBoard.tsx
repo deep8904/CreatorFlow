@@ -1,9 +1,17 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { X, ArrowRight, Sparkles, FileText, Pencil, Check, AlertTriangle, Info } from 'lucide-react'
-import { updateDealStage, createDeal, updateDeal, type DealFormInput } from '@/lib/supabase/actions'
+import { useEffect, useState, useTransition } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { X, ArrowRight, Sparkles, FileText, Pencil, Check, AlertTriangle, Info, Handshake, Trash2, Search } from 'lucide-react'
+import { updateDealStage, createDeal, updateDeal, deleteDeal, type DealFormInput } from '@/lib/supabase/actions'
 import type { Deal } from '@/lib/supabase/types'
+import { Avatar } from '@/components/ui/avatar'
+import { Input, Textarea } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useToast } from '@/lib/toast'
+import { useEscapeKey } from '@/lib/useEscapeKey'
 
 const STAGE_LABEL: Record<Deal['status'], string> = {
   inbound: 'Inbound',
@@ -11,26 +19,18 @@ const STAGE_LABEL: Record<Deal['status'], string> = {
   contracted: 'Contracted',
   delivered: 'Delivered',
   paid: 'Paid',
+  lost: 'Lost',
 }
 
-const STAGES: Deal['status'][] = ['inbound', 'negotiating', 'contracted', 'delivered', 'paid']
+const STAGES: Deal['status'][] = ['inbound', 'negotiating', 'contracted', 'delivered', 'paid', 'lost']
 
 const stageConfig: Record<Deal['status'], { color: string; bg: string; dot: string }> = {
   inbound:     { color: 'text-graphite', bg: 'bg-fog', dot: 'bg-ash' },
   negotiating: { color: 'text-graphite', bg: 'bg-fog', dot: 'bg-ash' },
   contracted:  { color: 'text-graphite', bg: 'bg-fog', dot: 'bg-ash' },
   delivered:   { color: 'text-graphite', bg: 'bg-fog', dot: 'bg-ash' },
-  paid:        { color: 'text-mint',     bg: 'bg-mint-wash', dot: 'bg-mint' },
-}
-
-function initialsFor(brand: string | null) {
-  if (!brand) return '?'
-  return brand
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
+  paid:        { color: 'text-lavender',     bg: 'bg-lavender/10', dot: 'bg-lavender' },
+  lost:        { color: 'text-ash',      bg: 'bg-fog', dot: 'bg-ash' },
 }
 
 function formatRate(cents: number | null) {
@@ -56,10 +56,12 @@ function contractReviewFor(deal: Deal) {
   ]
 }
 
+/* Severity communicated by weight, not hue — critical is a solid fill,
+   risk is a wash of the same accent, info is neutral. No new colors. */
 const reviewStyle = {
-  critical: { icon: AlertTriangle, color: 'text-ember', bg: 'bg-ember/10' },
-  risk: { icon: AlertTriangle, color: 'text-amber', bg: 'bg-amber/10' },
-  info: { icon: Info, color: 'text-sky', bg: 'bg-sky/10' },
+  critical: { icon: AlertTriangle, color: 'text-carbon', bg: 'bg-lavender' },
+  risk: { icon: AlertTriangle, color: 'text-lavender', bg: 'bg-lavender/10' },
+  info: { icon: Info, color: 'text-graphite', bg: 'bg-fog' },
 }
 
 function DealModal({
@@ -73,6 +75,7 @@ function DealModal({
   onSubmit: (input: DealFormInput) => void
   isPending: boolean
 }) {
+  useEscapeKey(onClose)
   const [brandName, setBrandName] = useState(initial?.brand_name ?? '')
   const [contactName, setContactName] = useState(initial?.contact_name ?? '')
   const [rate, setRate] = useState(initial?.rate_amount_cents ? String(initial.rate_amount_cents / 100) : '')
@@ -100,52 +103,42 @@ function DealModal({
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-[15px] font-bold text-carbon">{initial ? 'Edit deal' : 'Add deal'}</h2>
-          <button onClick={onClose} aria-label="Close" className="w-7 h-7 flex items-center justify-center text-ash hover:text-carbon rounded-lg hover:bg-linen transition-colors">
+          <button onClick={onClose} aria-label="Close" className="w-7 h-7 flex items-center justify-center text-ash hover:text-carbon rounded-full hover:bg-linen transition-colors">
             <X size={15} />
           </button>
         </div>
 
         <div className="flex flex-col gap-3.5">
           <div>
-            <label className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest block mb-1.5">Brand name</label>
-            <input autoFocus value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Aura Skincare"
-              className="w-full bg-linen border border-fog rounded-xl px-3.5 py-2.5 text-[14px] text-carbon outline-none focus:border-lavender/60 transition-colors" />
+            <Label htmlFor="deal-brand">Brand name</Label>
+            <Input id="deal-brand" autoFocus value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Aura Skincare" />
           </div>
           <div>
-            <label className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest block mb-1.5">Contact</label>
-            <input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Priya Nair"
-              className="w-full bg-linen border border-fog rounded-xl px-3.5 py-2.5 text-[14px] text-carbon outline-none focus:border-lavender/60 transition-colors" />
+            <Label htmlFor="deal-contact">Contact</Label>
+            <Input id="deal-contact" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Priya Nair" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest block mb-1.5">Rate ($)</label>
-              <input type="number" min="0" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="1500"
-                className="w-full bg-linen border border-fog rounded-xl px-3.5 py-2.5 text-[14px] text-carbon outline-none focus:border-lavender/60 transition-colors" />
+              <Label htmlFor="deal-rate">Rate ($)</Label>
+              <Input id="deal-rate" type="number" min="0" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="1500" />
             </div>
             <div>
-              <label className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest block mb-1.5">Due date</label>
-              <input type="date" value={dueDate ?? ''} onChange={(e) => setDueDate(e.target.value)}
-                className="w-full bg-linen border border-fog rounded-xl px-3.5 py-2.5 text-[14px] text-carbon outline-none focus:border-lavender/60 transition-colors" />
+              <Label htmlFor="deal-due">Due date</Label>
+              <Input id="deal-due" type="date" value={dueDate ?? ''} onChange={(e) => setDueDate(e.target.value)} />
             </div>
           </div>
           <div>
-            <label className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest block mb-1.5">Deliverables</label>
-            <input value={deliverables} onChange={(e) => setDeliverables(e.target.value)} placeholder="1 dedicated video"
-              className="w-full bg-linen border border-fog rounded-xl px-3.5 py-2.5 text-[14px] text-carbon outline-none focus:border-lavender/60 transition-colors" />
+            <Label htmlFor="deal-deliverables">Deliverables</Label>
+            <Input id="deal-deliverables" value={deliverables} onChange={(e) => setDeliverables(e.target.value)} placeholder="1 dedicated video" />
           </div>
           <div>
-            <label className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest block mb-1.5">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-              className="w-full bg-linen border border-fog rounded-xl px-3.5 py-2.5 text-[14px] text-carbon outline-none focus:border-lavender/60 transition-colors resize-none" />
+            <Label htmlFor="deal-notes">Notes</Label>
+            <Textarea id="deal-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
           </div>
 
-          <button
-            onClick={submit}
-            disabled={!brandName.trim() || isPending}
-            className="mt-1 text-[13px] font-semibold text-paper-white bg-lavender px-5 py-2.5 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
-          >
+          <Button onClick={submit} disabled={!brandName.trim() || isPending} size="md" className="mt-1">
             {initial ? 'Save changes' : 'Add deal'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -153,19 +146,54 @@ function DealModal({
 }
 
 export default function DealsBoard({ initialDeals, gmailConnected }: { initialDeals: Deal[]; gmailConnected: boolean }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const toast = useToast()
+  // Deep link from the dashboard's "Needs your attention" list.
+  const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get('deal'))
   const [isPending, startTransition] = useTransition()
-  const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null)
+  // Deep link from the dashboard's "Log a deal" action — jump straight into
+  // the add-deal modal instead of landing on the board first.
+  const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(() =>
+    searchParams.get('new') === '1' ? 'add' : null
+  )
   const [revealAiReply, setRevealAiReply] = useState(false)
   const [revealReview, setRevealReview] = useState(false)
+  const [query, setQuery] = useState('')
   const selected = initialDeals.find((d) => d.id === selectedId) ?? null
 
-  const totalRevenue = initialDeals.reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0) / 100
+  useEffect(() => {
+    if (searchParams.get('new') === '1' || searchParams.get('deal')) {
+      router.replace('/deals')
+    }
+  }, [searchParams, router])
 
-  const moveStage = (id: string, stage: Deal['status']) => {
-    startTransition(() => {
-      updateDealStage(id, stage)
+  const activeDeals = initialDeals.filter((d) => d.status !== 'lost')
+  const totalRevenue = activeDeals.reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0) / 100
+  const visibleDeals = query.trim()
+    ? initialDeals.filter((d) => (d.brand_name ?? '').toLowerCase().includes(query.trim().toLowerCase()))
+    : initialDeals
+
+  const moveStage = (deal: Deal, stage: Deal['status']) => {
+    const currentRank = STAGES.indexOf(deal.status)
+    const nextRank = STAGES.indexOf(stage)
+    // Confirm on anything that isn't a plain forward move — going backward
+    // (or to Lost) silently changes the revenue totals shown elsewhere.
+    const isBackwardOrLost = stage === 'lost' || (deal.status !== 'lost' && nextRank < currentRank)
+    if (isBackwardOrLost && !window.confirm(`Move "${deal.brand_name ?? 'this deal'}" to ${STAGE_LABEL[stage]}?`)) return
+    startTransition(async () => {
+      const result = await updateDealStage(deal.id, stage)
+      if (result.error) toast.error(result.error)
     })
+  }
+
+  const removeDeal = (deal: Deal) => {
+    if (!window.confirm(`Delete "${deal.brand_name ?? 'this deal'}"? This can’t be undone.`)) return
+    startTransition(async () => {
+      const result = await deleteDeal(deal.id)
+      if (result.error) toast.error(result.error)
+    })
+    setSelectedId(null)
   }
 
   const selectDeal = (id: string) => {
@@ -175,12 +203,9 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
   }
 
   const handleModalSubmit = (input: DealFormInput) => {
-    startTransition(() => {
-      if (modalMode === 'edit' && selected) {
-        updateDeal(selected.id, input)
-      } else {
-        createDeal(input)
-      }
+    startTransition(async () => {
+      const result = modalMode === 'edit' && selected ? await updateDeal(selected.id, input) : await createDeal(input)
+      if (result.error) toast.error(result.error)
     })
     setModalMode(null)
   }
@@ -192,45 +217,64 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="px-8 py-5 border-b border-fog bg-paper-white flex items-center justify-between shrink-0">
+        <div className="px-8 py-5 border-b border-fog bg-paper-white flex flex-wrap items-center justify-between gap-x-4 gap-y-3 shrink-0">
           <div>
             <h1 className="text-app-h1 text-carbon">Deals</h1>
             <p className="text-[12.5px] text-ash mt-0.5">
-              {initialDeals.length} active · ${totalRevenue.toLocaleString()} pipeline value
+              {activeDeals.length} active · ${totalRevenue.toLocaleString()} pipeline value
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {gmailConnected && (
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-mint">
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-lavender">
                 <Check size={13} /> Gmail connected
               </span>
             )}
-            <button
-              onClick={() => setModalMode('add')}
-              className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-paper-white bg-lavender px-4 py-2 rounded-full hover:opacity-90 transition-opacity"
-              style={{ boxShadow: 'rgba(145,141,246,0.3) 0px 3px 10px 0px', letterSpacing: '-0.25px' }}
-            >
-              Add deal <ArrowRight size={13} />
-            </button>
+            <div className="relative shrink-0">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ash pointer-events-none" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search deals"
+                className="text-[13px] bg-linen border border-fog rounded-full pl-8 pr-3 py-1.5 outline-none focus:border-lavender/60 transition-colors w-[160px]"
+              />
+            </div>
+            <Button onClick={() => setModalMode('add')} size="md" iconRight={<ArrowRight size={13} />}>
+              Add deal
+            </Button>
           </div>
         </div>
 
         {initialDeals.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-6">
-            <p className="text-[14px] font-semibold text-carbon">No deals yet.</p>
-            <p className="text-[13px] text-graphite max-w-[320px]">
-              Connect Gmail to auto-detect sponsorship emails, or add a deal manually.
-            </p>
+          <div className="flex-1 flex items-center justify-center px-6">
+            <EmptyState
+              icon={<Handshake size={18} className="text-ash" strokeWidth={2} />}
+              title="No deals yet."
+              description="Connect Gmail to auto-detect sponsorship emails, or add a deal manually."
+              action={
+                <Button onClick={() => setModalMode('add')} size="md">
+                  Add a deal
+                </Button>
+              }
+            />
+          </div>
+        ) : visibleDeals.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center px-6">
+            <EmptyState
+              icon={<Search size={18} className="text-ash" strokeWidth={2} />}
+              title="No deals match your search."
+              description="Try a different search term."
+            />
           </div>
         ) : (
           /* Kanban */
           <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 py-6">
             <div className="flex gap-3 h-full" style={{ minWidth: 'max-content' }}>
               {STAGES.map((stage) => {
-                const stageDeals = initialDeals.filter((d) => d.status === stage)
+                const stageDeals = visibleDeals.filter((d) => d.status === stage)
                 const cfg = stageConfig[stage]
                 return (
-                  <div key={stage} className="w-[228px] shrink-0 flex flex-col gap-2.5">
+                  <div key={stage} className={`w-[228px] shrink-0 flex flex-col gap-2.5 ${stage === 'lost' ? 'opacity-60' : ''}`}>
                     {/* Column header */}
                     <div className="flex items-center justify-between px-1">
                       <div className="flex items-center gap-1.5">
@@ -252,15 +296,13 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
                           onClick={() => selectDeal(deal.id)}
                           className={`w-full text-left bg-paper-white border rounded-xl p-4 transition-all hover:shadow-sm ${
                             selectedId === deal.id
-                              ? 'border-lavender/50 shadow-[0_0_0_2px_rgba(145,141,246,0.15)]'
+                              ? 'border-lavender/50 shadow-[0_0_0_2px_rgba(249,115,22,0.15)]'
                               : 'border-fog hover:border-fog/80'
                           }`}
-                          style={{ boxShadow: selectedId === deal.id ? undefined : 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}
+                          style={{ boxShadow: selectedId === deal.id ? undefined : 'var(--shadow-subtle)' }}
                         >
                           <div className="flex items-center gap-2.5 mb-2.5">
-                            <div className="w-7 h-7 rounded-xl bg-lavender/10 flex items-center justify-center shrink-0">
-                              <span className="text-[10px] font-bold text-lavender">{initialsFor(deal.brand_name)}</span>
-                            </div>
+                            <Avatar name={deal.brand_name ?? '?'} size="sm" />
                             <p className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>
                               {deal.brand_name ?? 'Untitled deal'}
                             </p>
@@ -300,9 +342,7 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
         <aside className="w-[340px] shrink-0 border-l border-fog bg-paper-white flex flex-col overflow-y-auto">
           <div className="flex items-center justify-between px-5 py-4 border-b border-fog shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-lavender/10 flex items-center justify-center">
-                <span className="text-[11px] font-bold text-lavender">{initialsFor(selected.brand_name)}</span>
-              </div>
+              <Avatar name={selected.brand_name ?? '?'} size="md" />
               <h2 className="text-[15px] font-bold text-carbon" style={{ letterSpacing: '-0.3px' }}>
                 {selected.brand_name ?? 'Untitled deal'}
               </h2>
@@ -310,7 +350,7 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
             <button
               onClick={() => setSelectedId(null)}
               aria-label="Close deal details"
-              className="w-7 h-7 flex items-center justify-center text-ash hover:text-carbon transition-colors rounded-lg hover:bg-linen"
+              className="w-7 h-7 flex items-center justify-center text-ash hover:text-carbon transition-colors rounded-full hover:bg-linen"
             >
               <X size={15} />
             </button>
@@ -318,7 +358,7 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
 
           <div className="flex flex-col gap-5 p-5">
             {/* Stage */}
-            <div className={`inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full text-[12px] font-semibold ${stageConfig[selected.status].bg} ${stageConfig[selected.status].color}`}>
+            <div className={`inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full font-label text-[10.5px] font-semibold uppercase tracking-widest ${stageConfig[selected.status].bg} ${stageConfig[selected.status].color}`}>
               <div className={`w-1.5 h-1.5 rounded-full ${stageConfig[selected.status].dot}`} />
               {STAGE_LABEL[selected.status]}
             </div>
@@ -364,8 +404,8 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
                     <button
                       key={s}
                       disabled={isPending}
-                      onClick={() => moveStage(selected.id, s)}
-                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.color} hover:opacity-80 disabled:opacity-50 transition-opacity`}
+                      onClick={() => moveStage(selected, s)}
+                      className={`font-label text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.color} hover:opacity-80 disabled:opacity-50 transition-opacity`}
                     >
                       {STAGE_LABEL[s]}
                     </button>
@@ -376,35 +416,44 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
 
             {/* Actions */}
             <div className="flex flex-col gap-2 pt-1 border-t border-fog">
-              <button
-                onClick={() => setRevealAiReply((v) => !v)}
-                className="flex items-center justify-center gap-1.5 w-full text-[13px] font-semibold text-paper-white bg-lavender py-2.5 rounded-full hover:opacity-90 transition-opacity"
-              >
-                <Sparkles size={13} /> {revealAiReply ? 'Hide AI reply' : 'Draft AI reply'}
-              </button>
-              <button
+              <Button onClick={() => setRevealAiReply((v) => !v)} size="md" className="w-full" iconLeft={<Sparkles size={13} />}>
+                {revealAiReply ? 'Hide reply preview' : 'Draft reply — preview'}
+              </Button>
+              <Button
+                variant="secondary"
                 onClick={() => setRevealReview((v) => !v)}
-                className="flex items-center justify-center gap-1.5 w-full text-[13px] font-medium text-carbon border border-fog py-2.5 rounded-full hover:bg-linen transition-colors"
+                size="md"
+                className="w-full"
+                iconLeft={<FileText size={13} className="text-graphite" />}
               >
-                <FileText size={13} className="text-graphite" /> {revealReview ? 'Hide contract review' : 'Review contract'}
-              </button>
-              <button
-                onClick={() => setModalMode('edit')}
-                className="flex items-center justify-center gap-1.5 w-full text-[13px] font-medium text-graphite py-2 hover:text-carbon transition-colors"
-              >
-                <Pencil size={12} /> Edit deal
-              </button>
+                {revealReview ? 'Hide contract review' : 'Review contract — preview'}
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" onClick={() => setModalMode('edit')} size="sm" className="flex-1" iconLeft={<Pencil size={12} />}>
+                  Edit deal
+                </Button>
+                <button
+                  onClick={() => removeDeal(selected)}
+                  disabled={isPending}
+                  aria-label="Delete deal"
+                  title="Delete deal"
+                  className="w-8 h-8 flex items-center justify-center rounded-xl text-ash hover:text-carbon hover:bg-linen transition-colors disabled:opacity-50 shrink-0"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
 
             {revealAiReply && (
               <div className="bg-linen border border-fog rounded-xl p-4">
-                <p className="font-label text-[10px] font-semibold text-ash uppercase tracking-widest mb-2">Draft reply</p>
+                <p className="font-label text-[10px] font-semibold text-ash uppercase tracking-widest mb-2">Draft reply — preview</p>
                 <pre className="text-[12.5px] text-carbon leading-relaxed whitespace-pre-wrap font-sans">{aiReplyFor(selected)}</pre>
               </div>
             )}
 
             {revealReview && (
               <div className="flex flex-col gap-2.5">
+                <p className="font-label text-[10px] font-semibold text-ash uppercase tracking-widest">Contract review — preview</p>
                 {contractReviewFor(selected).map((item, i) => {
                   const style = reviewStyle[item.level]
                   const Icon = style.icon
@@ -422,7 +471,7 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
             )}
 
             <p className="text-[11px] text-ash text-center" style={{ letterSpacing: '-0.15px' }}>
-              AI draft is based on your rate card. Nothing sends until you approve.
+              Preview only — built from a template and your rate card, not a live AI call. Nothing sends until you approve.
             </p>
           </div>
         </aside>

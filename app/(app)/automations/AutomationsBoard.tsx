@@ -1,8 +1,12 @@
 'use client'
 
 import { useTransition } from 'react'
+import { Zap } from 'lucide-react'
 import { toggleAutomation } from '@/lib/supabase/actions'
 import type { Automation } from '@/lib/supabase/types'
+import { Card } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useToast } from '@/lib/toast'
 
 const TRIGGER_LABEL: Record<string, string> = {
   'gmail.sponsorship_email_detected': 'Gmail trigger',
@@ -12,10 +16,12 @@ const TRIGGER_LABEL: Record<string, string> = {
 
 export default function AutomationsBoard({ initialAutomations }: { initialAutomations: Automation[] }) {
   const [isPending, startTransition] = useTransition()
+  const toast = useToast()
 
   const toggle = (id: string, enabled: boolean) => {
-    startTransition(() => {
-      toggleAutomation(id, !enabled)
+    startTransition(async () => {
+      const result = await toggleAutomation(id, !enabled)
+      if (result.error) toast.error(result.error)
     })
   }
 
@@ -28,24 +34,19 @@ export default function AutomationsBoard({ initialAutomations }: { initialAutoma
       </div>
 
       {initialAutomations.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-16 text-center">
-          <p className="text-[14px] font-semibold text-carbon">No automations set up yet.</p>
-          <p className="text-[13px] text-graphite max-w-[320px]">
-            Automations save you the repetitive steps. Turn on the ones that fit how you work.
-          </p>
-        </div>
+        <EmptyState
+          icon={<Zap size={18} className="text-ash" strokeWidth={2} />}
+          title="No automations set up yet."
+          description="Automations save you the repetitive steps. Turn on the ones that fit how you work."
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {initialAutomations.map((auto) => (
-            <div
-              key={auto.id}
-              className="bg-paper-white border border-fog rounded-xl p-5 flex items-start gap-4"
-              style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}
-            >
+            <Card key={auto.id} variant="subtle" className="flex items-start gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1.5">
                   <p className="text-[14px] font-semibold text-carbon">{auto.name}</p>
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-fog text-graphite">
+                  <span className="font-label text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full bg-fog text-graphite">
                     {TRIGGER_LABEL[auto.trigger_type] ?? auto.trigger_type}
                   </span>
                 </div>
@@ -69,7 +70,7 @@ export default function AutomationsBoard({ initialAutomations }: { initialAutoma
                   }`}
                 />
               </button>
-            </div>
+            </Card>
           ))}
         </div>
       )}

@@ -3,6 +3,15 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateProfile, disconnectIntegration, deleteAccount } from '@/lib/supabase/actions'
+import { updateEmail, updatePassword } from '@/lib/supabase/auth'
+import { Avatar } from '@/components/ui/avatar'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { GmailGlyph, YouTubeGlyph } from '@/components/ui/oauth-glyphs'
+import { useToast } from '@/lib/toast'
+import { useEscapeKey } from '@/lib/useEscapeKey'
 
 interface Props {
   fullName: string
@@ -22,24 +31,72 @@ export default function SettingsBoard({
   youtubeAccountLabel,
 }: Props) {
   const router = useRouter()
+  const toast = useToast()
   const [name, setName] = useState(fullName)
+  const [emailInput, setEmailInput] = useState(email)
   const [isPending, startTransition] = useTransition()
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isSavingPassword, setIsSavingPassword] = useState(false)
   const [disconnecting, setDisconnecting] = useState<'gmail' | 'youtube' | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  useEscapeKey(() => { if (deleteOpen && !isDeleting) setDeleteOpen(false) })
 
   const save = () => {
-    startTransition(() => {
-      updateProfile(name)
+    const trimmedEmail = emailInput.trim()
+    const emailChanged = trimmedEmail && trimmedEmail !== email
+    startTransition(async () => {
+      const [profileResult, emailResult] = await Promise.all([
+        updateProfile(name),
+        emailChanged ? updateEmail(trimmedEmail) : Promise.resolve(null),
+      ])
+      if (profileResult.error) {
+        toast.error(profileResult.error)
+        return
+      }
+      if (emailResult?.error) {
+        toast.error(emailResult.error.message)
+        return
+      }
+      toast.success(emailChanged ? `Profile saved. Check ${trimmedEmail} to confirm your new email.` : 'Profile saved.')
     })
+  }
+
+  const savePassword = async () => {
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords don’t match.')
+      return
+    }
+    setIsSavingPassword(true)
+    try {
+      const { error } = await updatePassword(newPassword)
+      if (error) {
+        toast.error(error.message)
+        return
+      }
+      toast.success('Password updated.')
+      setNewPassword('')
+      setConfirmPassword('')
+    } finally {
+      setIsSavingPassword(false)
+    }
   }
 
   const handleDisconnect = async (provider: 'gmail' | 'youtube') => {
     setDisconnecting(provider)
-    await disconnectIntegration(provider)
+    const result = await disconnectIntegration(provider)
     setDisconnecting(null)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
     router.refresh()
   }
 
@@ -55,13 +112,6 @@ export default function SettingsBoard({
     router.push('/')
   }
 
-  const initials = name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || '—'
-
   const accounts = [
     {
       key: 'gmail' as const,
@@ -69,13 +119,7 @@ export default function SettingsBoard({
       connected: gmailConnected,
       accountLabel: gmailAccountLabel,
       description: 'Brand deal email detection',
-      iconBg: 'bg-sky/10',
-      icon: (
-        <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
-          <rect width="18" height="14" rx="2" fill="#38BDF8" />
-          <path d="M2 3l7 5 7-5" stroke="#000" strokeWidth="1.3" strokeLinecap="round" />
-        </svg>
-      ),
+      icon: <GmailGlyph />,
     },
     {
       key: 'youtube' as const,
@@ -83,13 +127,7 @@ export default function SettingsBoard({
       connected: youtubeConnected,
       accountLabel: youtubeAccountLabel,
       description: 'Channel analytics and performance',
-      iconBg: 'bg-[#ff0000]/10',
-      icon: (
-        <svg width="18" height="13" viewBox="0 0 18 13" fill="none">
-          <rect width="18" height="13" rx="3" fill="#FF0000" />
-          <path d="M7 4l6 2.5-6 2.5V4z" fill="white" />
-        </svg>
-      ),
+      icon: <YouTubeGlyph />,
     },
   ]
 
@@ -103,49 +141,81 @@ export default function SettingsBoard({
       <div className="flex flex-col gap-6">
 
         {/* Profile */}
-        <section className="bg-paper-white border border-fog rounded-xl p-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+        <Card variant="subtle" padding="lg">
           <h2 className="text-[14px] font-semibold text-carbon mb-4">Profile</h2>
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-lavender/10 flex items-center justify-center shrink-0">
-                <span className="text-[15px] font-bold text-lavender">{initials}</span>
-              </div>
+              <Avatar name={name} size="lg" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-label text-[11px] font-semibold text-ash uppercase tracking-wider block mb-1.5">Full name</label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-linen border border-fog rounded-xl px-3.5 py-2.5 text-[14px] text-carbon outline-none focus:border-lavender/60 transition-colors"
-                />
+                <Label htmlFor="settings-name">Full name</Label>
+                <Input id="settings-name" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
-                <label className="font-label text-[11px] font-semibold text-ash uppercase tracking-wider block mb-1.5">Email</label>
-                <input
-                  defaultValue={email}
-                  disabled
-                  className="w-full bg-linen border border-fog rounded-xl px-3.5 py-2.5 text-[14px] text-carbon outline-none disabled:opacity-70"
+                <Label htmlFor="settings-email">Email</Label>
+                <Input
+                  id="settings-email"
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
                 />
               </div>
             </div>
-            <button
-              onClick={save}
-              disabled={isPending}
-              className="text-[13px] font-medium text-paper-white bg-lavender px-5 py-2.5 rounded-full w-fit hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
+            <Button onClick={save} disabled={isPending || !name.trim() || !emailInput.trim()} loading={isPending} size="md" className="w-fit">
               Save changes
-            </button>
+            </Button>
           </div>
-        </section>
+        </Card>
+
+        {/* Password */}
+        <Card variant="subtle" padding="lg">
+          <h2 className="text-[14px] font-semibold text-carbon mb-1">Password</h2>
+          <p className="text-[13px] text-graphite mb-4">Change your password without signing out.</p>
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="settings-new-password">New password</Label>
+                <Input
+                  id="settings-new-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                />
+              </div>
+              <div>
+                <Label htmlFor="settings-confirm-password">Confirm password</Label>
+                <Input
+                  id="settings-confirm-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+            <Button
+              onClick={savePassword}
+              disabled={isSavingPassword || !newPassword || !confirmPassword}
+              loading={isSavingPassword}
+              size="md"
+              className="w-fit"
+            >
+              Update password
+            </Button>
+          </div>
+        </Card>
 
         {/* Connected accounts */}
-        <section className="bg-paper-white border border-fog rounded-xl p-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+        <Card variant="subtle" padding="lg">
           <h2 className="text-[14px] font-semibold text-carbon mb-4">Connected accounts</h2>
           <div className="flex flex-col divide-y divide-fog">
             {accounts.map((acct) => (
               <div key={acct.key} className="flex items-center gap-4 py-4">
-                <div className={`w-10 h-10 rounded-xl ${acct.iconBg} flex items-center justify-center shrink-0`}>
+                <div className="w-10 h-10 rounded-xl bg-fog text-carbon flex items-center justify-center shrink-0">
                   {acct.icon}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -155,13 +225,15 @@ export default function SettingsBoard({
                   </p>
                 </div>
                 {acct.connected ? (
-                  <button
+                  <Button
+                    variant="secondary"
                     onClick={() => handleDisconnect(acct.key)}
                     disabled={disconnecting === acct.key}
-                    className="text-[12px] font-medium px-4 py-2 rounded-full transition-colors text-graphite border border-fog hover:bg-linen disabled:opacity-50"
+                    loading={disconnecting === acct.key}
+                    size="sm"
                   >
-                    {disconnecting === acct.key ? 'Disconnecting…' : 'Disconnect'}
-                  </button>
+                    Disconnect
+                  </Button>
                 ) : (
                   <span
                     title="Connecting a real account requires production Google OAuth credentials"
@@ -173,36 +245,29 @@ export default function SettingsBoard({
               </div>
             ))}
           </div>
-        </section>
+        </Card>
 
         {/* Data export */}
-        <section className="bg-paper-white border border-fog rounded-xl p-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+        <Card variant="subtle" padding="lg">
           <h2 className="text-[14px] font-semibold text-carbon mb-1">Data export</h2>
           <p className="text-[13px] text-graphite mb-4">
             Download everything you&apos;ve put into CreatorFlow — deals, ideas, drafts, and settings — as files you can keep, any time.
           </p>
-          <a
-            href="/api/export"
-            download
-            className="inline-block text-[13px] font-medium text-carbon border border-fog px-5 py-2.5 rounded-full hover:bg-linen transition-colors"
-          >
+          <Button href="/api/export" download variant="secondary" size="md">
             Export my data
-          </a>
-        </section>
+          </Button>
+        </Card>
 
         {/* Danger zone */}
-        <section className="bg-paper-white border border-fog rounded-xl p-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+        <Card variant="subtle" padding="lg">
           <h2 className="text-[14px] font-semibold text-carbon mb-1">Delete account</h2>
           <p className="text-[13px] text-graphite mb-4">
             This permanently deletes your account and data. You can export your data first above.
           </p>
-          <button
-            onClick={() => setDeleteOpen(true)}
-            className="text-[13px] font-medium text-ember border border-ember/30 px-5 py-2.5 rounded-full hover:bg-ember/5 transition-colors"
-          >
+          <Button variant="secondary" onClick={() => setDeleteOpen(true)} size="md">
             Delete account
-          </button>
-        </section>
+          </Button>
+        </Card>
       </div>
       </div>
 
@@ -213,31 +278,29 @@ export default function SettingsBoard({
             <p className="text-[13px] text-graphite mb-4">
               This permanently deletes your account and every deal, idea, draft, and automation in it. This can&apos;t be undone.
             </p>
-            <label className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest block mb-1.5">
-              Type DELETE to confirm
-            </label>
-            <input
+            <Label htmlFor="delete-confirm">Type DELETE to confirm</Label>
+            <Input
+              id="delete-confirm"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
               placeholder="DELETE"
-              className="w-full bg-linen border border-fog rounded-xl px-3.5 py-2.5 text-[14px] text-carbon outline-none focus:border-ember/60 transition-colors mb-4"
+              className="mb-4"
             />
-            {deleteError && <p className="text-[12.5px] text-ember mb-4">{deleteError}</p>}
+            {deleteError && <p className="text-[12.5px] font-semibold text-carbon mb-4">{deleteError}</p>}
             <div className="flex gap-2">
-              <button
+              <Button
+                variant="destructive"
                 onClick={handleDelete}
                 disabled={deleteConfirmText !== 'DELETE' || isDeleting}
-                className="flex-1 text-[13px] font-semibold text-white bg-ember px-4 py-2.5 rounded-full hover:opacity-90 disabled:opacity-40 transition-opacity"
+                loading={isDeleting}
+                size="md"
+                className="flex-1"
               >
-                {isDeleting ? 'Deleting…' : 'Permanently delete'}
-              </button>
-              <button
-                onClick={() => setDeleteOpen(false)}
-                disabled={isDeleting}
-                className="text-[13px] font-medium text-graphite px-4 py-2.5 hover:text-carbon transition-colors disabled:opacity-40"
-              >
+                Permanently delete
+              </Button>
+              <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={isDeleting} size="md">
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         </div>

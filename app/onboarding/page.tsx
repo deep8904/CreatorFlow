@@ -1,10 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState, type FormEvent, type ReactNode } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Check } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { ArrowRight, Check, Mail } from 'lucide-react'
+import { signUpWithEmail } from '@/lib/supabase/auth'
+import { Logo } from '@/components/ui/logo'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { GmailGlyph, YouTubeGlyph } from '@/components/ui/oauth-glyphs'
 
-type Step = 'welcome' | 'youtube' | 'gmail' | 'done'
+type Step = 'welcome' | 'check-email' | 'youtube' | 'gmail' | 'done'
 
 const STEPS: Step[] = ['welcome', 'youtube', 'gmail', 'done']
 
@@ -16,7 +23,7 @@ function StepIndicator({ current }: { current: Step }) {
         <div key={step} className="flex items-center gap-2">
           <div
             className={`h-2 w-2 rounded-full transition-colors ${
-              i < index - 1 ? 'bg-mint' : i === index - 1 ? 'bg-lavender' : 'bg-fog'
+              i < index - 1 ? 'bg-lavender' : i === index - 1 ? 'bg-lavender' : 'bg-fog'
             }`}
           />
           {i < 2 && <div className="h-px w-8 bg-fog" />}
@@ -26,55 +33,170 @@ function StepIndicator({ current }: { current: Step }) {
   )
 }
 
+/** Honest "connect" affordance — matches Settings' disabled-with-tooltip pattern
+    rather than faking a working OAuth connection. */
+function ConnectRow({ icon, name, description }: { icon: ReactNode; name: string; description: string }) {
+  return (
+    <div className="glass-panel flex flex-col gap-5 rounded-xl p-6">
+      <div className="flex items-center gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-fog text-carbon">{icon}</div>
+        <div>
+          <p className="text-[14px] font-semibold text-carbon">{name}</p>
+          <p className="text-[13px] text-graphite">{description}</p>
+        </div>
+      </div>
+      <span
+        title="Connecting a real account requires production Google OAuth credentials"
+        className="w-full rounded-full border border-fog py-2.5 text-center text-[14px] font-medium text-ash opacity-60 cursor-not-allowed"
+      >
+        Connect {name}
+      </span>
+    </div>
+  )
+}
+
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingFlow />
+    </Suspense>
+  )
+}
+
+function OnboardingFlow() {
+  const searchParams = useSearchParams()
+  const nextHref = searchParams.get('next') || '/dashboard'
   const [step, setStep] = useState<Step>('welcome')
-  const [youtubeConnected, setYoutubeConnected] = useState(false)
-  const [gmailConnected, setGmailConnected] = useState(false)
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSignUp = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!fullName.trim() || !email.trim() || !password) return
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      const { data, error: signUpError } = await signUpWithEmail(email.trim(), password, {
+        full_name: fullName.trim(),
+      })
+      if (signUpError) {
+        setError(signUpError.message)
+        return
+      }
+      // If email confirmation is required on this Supabase project, signUp()
+      // returns a user but no session — there's nothing authenticated to do
+      // yet, so stop here rather than walking through steps that need a
+      // signed-in user.
+      setStep(data.session ? 'youtube' : 'check-email')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-linen">
       {/* Minimal nav */}
-      <header className="flex w-full items-center justify-between border-b border-fog px-6 py-4">
-        <Link href="/" className="flex items-center gap-2.5">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <rect x="2" y="2" width="20" height="20" stroke="#F97316" strokeWidth="2.5" />
-            <circle cx="12" cy="12" r="4" fill="#F97316" />
-          </svg>
-          <span className="text-[15px] font-semibold text-white">CreatorFlow</span>
+      <header className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-fog px-6 py-4">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <Logo size={24} />
+          <span className="text-[15px] font-semibold text-carbon">CreatorFlow</span>
         </Link>
-        {step !== 'welcome' && step !== 'done' && <StepIndicator current={step} />}
+        {(step === 'youtube' || step === 'gmail') && <StepIndicator current={step} />}
       </header>
 
       <main className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-[480px]">
-          {/* Step: Welcome */}
+          {/* Step: Welcome — real signup form */}
           {step === 'welcome' && (
-            <div className="flex flex-col items-center gap-8 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-lavender/10">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3L12 17l-6.2 4.8 2.4-7.3L2 10.2h7.6L12 2z"
-                    stroke="#F97316"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h1 className="mb-3 text-[28px] font-semibold leading-tight tracking-tight text-white">
-                  Let&apos;s get your creator business set up.
-                </h1>
+            <div className="flex flex-col gap-8">
+              <div className="text-center">
+                <h1 className="text-auth-h1 mb-3 text-carbon">Let&apos;s get your creator business set up.</h1>
                 <p className="font-body-editorial text-[16px] leading-relaxed text-graphite">
-                  This takes about five minutes — and you can skip any step and come back later.
+                  Takes about a minute. Free, no credit card.
                 </p>
               </div>
-              <button onClick={() => setStep('youtube')} className="btn-editorial w-full">
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  Get started
-                  <ArrowRight size={15} className="icon-arrow" />
-                </span>
-              </button>
+
+              <form onSubmit={handleSignUp} className="glass-panel flex flex-col gap-4 rounded-xl p-6">
+                <div>
+                  <Label htmlFor="onboard-name">Full name</Label>
+                  <Input
+                    id="onboard-name"
+                    autoFocus
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Priya Nair"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="onboard-email">Email</Label>
+                  <Input
+                    id="onboard-email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@gmail.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="onboard-password">Password</Label>
+                  <Input
+                    id="onboard-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                {error && <p className="text-[13px] font-semibold text-carbon">{error}</p>}
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="mt-2 w-full"
+                  disabled={isSubmitting || !fullName.trim() || !email.trim() || !password}
+                  loading={isSubmitting}
+                  iconRight={!isSubmitting ? <ArrowRight size={15} /> : undefined}
+                >
+                  {isSubmitting ? 'Creating account…' : 'Get started'}
+                </Button>
+              </form>
+
+              <p className="text-center text-[12.5px] text-ash">
+                Already have an account?{' '}
+                <Link
+                  href={searchParams.get('next') ? `/login?next=${encodeURIComponent(searchParams.get('next')!)}` : '/login'}
+                  className="font-medium text-carbon hover:text-lavender transition-colors"
+                >
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          )}
+
+          {/* Step: Check email (only reached if the project requires email confirmation) */}
+          {step === 'check-email' && (
+            <div className="flex flex-col items-center gap-6 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-lavender/10">
+                <Mail size={22} className="text-lavender" strokeWidth={2} />
+              </div>
+              <div>
+                <h1 className="text-auth-h1 mb-3 text-carbon">Check your inbox.</h1>
+                <p className="font-body-editorial text-[15px] leading-relaxed text-graphite">
+                  We sent a confirmation link to <span className="font-semibold text-carbon">{email}</span>. Click it
+                  to finish setting up your account.
+                </p>
+              </div>
+              <Link href="/login" className="text-[13px] font-medium text-graphite hover:text-carbon transition-colors">
+                Back to sign in
+              </Link>
             </div>
           )}
 
@@ -82,61 +204,23 @@ export default function OnboardingPage() {
           {step === 'youtube' && (
             <div className="flex flex-col gap-8">
               <div>
-                <p className="font-label mb-2 text-[11px] uppercase tracking-widest text-ash">Step 1 of 3</p>
-                <h1 className="mb-3 text-[26px] font-semibold leading-tight tracking-tight text-white">
-                  Connect YouTube
-                </h1>
+                <p className="font-label mb-2 text-[11px] uppercase tracking-widest text-ash">Step 1 of 2</p>
+                <h1 className="text-auth-h1 mb-3 text-carbon">Connect YouTube</h1>
                 <p className="font-body-editorial text-[15px] leading-relaxed text-graphite">
                   Connect YouTube to see your performance alongside everything else. We only read
                   analytics — we never post or modify anything.
                 </p>
               </div>
 
-              <div className="glass-panel flex flex-col gap-5 rounded-lg p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ff0000]/10">
-                    <svg width="22" height="16" viewBox="0 0 22 16" fill="none">
-                      <rect width="22" height="16" rx="4" fill="#FF0000" />
-                      <path d="M9 4.8l6 3.2-6 3.2V4.8z" fill="white" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-semibold text-white">YouTube Analytics</p>
-                    <p className="text-[13px] text-graphite">Views, watch time, subscribers, top videos</p>
-                  </div>
-                  {youtubeConnected && (
-                    <div className="ml-auto flex items-center gap-1.5 rounded-full bg-mint-wash px-2.5 py-1 text-mint">
-                      <Check size={10} strokeWidth={2.5} />
-                      <span className="text-[12px] font-medium">Connected</span>
-                    </div>
-                  )}
-                </div>
+              <ConnectRow
+                icon={<YouTubeGlyph size={22} />}
+                name="YouTube Analytics"
+                description="Views, watch time, subscribers, top videos"
+              />
 
-                {!youtubeConnected ? (
-                  <button
-                    onClick={() => setYoutubeConnected(true)}
-                    className="w-full border border-fog bg-linen py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-mist"
-                  >
-                    Connect YouTube
-                  </button>
-                ) : (
-                  <p className="text-center text-[13px] text-graphite">
-                    Connected as <span className="font-medium text-white">your-channel@gmail.com</span>
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <button onClick={() => setStep('gmail')} className="btn-editorial w-full">
-                  <span className="relative z-10">Continue</span>
-                </button>
-                <button
-                  onClick={() => setStep('gmail')}
-                  className="py-2 text-[14px] font-medium text-graphite transition-colors hover:text-white"
-                >
-                  Skip for now
-                </button>
-              </div>
+              <Button onClick={() => setStep('gmail')} size="lg" className="w-full">
+                Continue
+              </Button>
             </div>
           )}
 
@@ -144,10 +228,8 @@ export default function OnboardingPage() {
           {step === 'gmail' && (
             <div className="flex flex-col gap-8">
               <div>
-                <p className="font-label mb-2 text-[11px] uppercase tracking-widest text-ash">Step 2 of 3</p>
-                <h1 className="mb-3 text-[26px] font-semibold leading-tight tracking-tight text-white">
-                  Connect Gmail
-                </h1>
+                <p className="font-label mb-2 text-[11px] uppercase tracking-widest text-ash">Step 2 of 2</p>
+                <h1 className="text-auth-h1 mb-3 text-carbon">Connect Gmail</h1>
                 <p className="font-body-editorial text-[15px] leading-relaxed text-graphite">
                   Connect Gmail so brand deal emails get sorted automatically. We only look at
                   sponsorship-related emails — we never read, delete, or send anything without your
@@ -155,93 +237,30 @@ export default function OnboardingPage() {
                 </p>
               </div>
 
-              <div className="glass-panel flex flex-col gap-5 rounded-lg p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky/10">
-                    <svg width="22" height="17" viewBox="0 0 22 17" fill="none">
-                      <rect width="22" height="17" rx="3" fill="#38BDF8" />
-                      <path d="M2 3l9 6.5L20 3" stroke="#000" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-semibold text-white">Gmail</p>
-                    <p className="text-[13px] text-graphite">Brand deal detection from your inbox</p>
-                  </div>
-                  {gmailConnected && (
-                    <div className="ml-auto flex items-center gap-1.5 rounded-full bg-mint-wash px-2.5 py-1 text-mint">
-                      <Check size={10} strokeWidth={2.5} />
-                      <span className="text-[12px] font-medium">Connected</span>
-                    </div>
-                  )}
-                </div>
+              <ConnectRow icon={<GmailGlyph size={22} />} name="Gmail" description="Brand deal detection from your inbox" />
 
-                {!gmailConnected ? (
-                  <button
-                    onClick={() => setGmailConnected(true)}
-                    className="w-full border border-fog bg-linen py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-mist"
-                  >
-                    Connect Gmail
-                  </button>
-                ) : (
-                  <p className="text-center text-[13px] text-graphite">
-                    Connected as <span className="font-medium text-white">you@gmail.com</span>
-                  </p>
-                )}
-
-                <p className="border-t border-fog pt-4 text-center text-[12px] text-ash">
-                  We never read, delete, or send anything without your explicit approval.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <button onClick={() => setStep('done')} className="btn-editorial w-full">
-                  <span className="relative z-10">Continue</span>
-                </button>
-                <button
-                  onClick={() => setStep('done')}
-                  className="py-2 text-[14px] font-medium text-graphite transition-colors hover:text-white"
-                >
-                  Skip for now
-                </button>
-              </div>
+              <Button onClick={() => setStep('done')} size="lg" className="w-full">
+                Continue
+              </Button>
             </div>
           )}
 
           {/* Step: Done */}
           {step === 'done' && (
             <div className="flex flex-col items-center gap-8 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-mint-wash">
-                <Check size={28} className="text-mint" strokeWidth={2} />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-lavender/10">
+                <Check size={28} className="text-lavender" strokeWidth={2.25} />
               </div>
               <div>
-                <h1 className="mb-3 text-[26px] font-semibold leading-tight tracking-tight text-white">
-                  You&apos;re set up.
-                </h1>
+                <h1 className="text-auth-h1 mb-3 text-carbon">You&apos;re set up.</h1>
                 <p className="font-body-editorial text-[15px] leading-relaxed text-graphite">
                   Here&apos;s your Dashboard. You can connect accounts or adjust settings any time.
                 </p>
               </div>
 
-              <div className="w-full rounded-lg bg-mist p-5">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] text-graphite">YouTube</span>
-                    <span className={`text-[13px] font-medium ${youtubeConnected ? 'text-mint' : 'text-ash'}`}>
-                      {youtubeConnected ? 'Connected' : 'Not connected'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] text-graphite">Gmail</span>
-                    <span className={`text-[13px] font-medium ${gmailConnected ? 'text-mint' : 'text-ash'}`}>
-                      {gmailConnected ? 'Connected' : 'Not connected'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <Link href="/dashboard" className="btn-editorial w-full">
-                <span className="relative z-10">Go to Dashboard</span>
-              </Link>
+              <Button href={nextHref} size="lg" className="w-full">
+                {nextHref === '/dashboard' ? 'Go to Dashboard' : 'Continue'}
+              </Button>
             </div>
           )}
         </div>

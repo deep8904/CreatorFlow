@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { ArrowRight, Lightbulb } from 'lucide-react'
+import { ArrowRight, Handshake, Lightbulb, FileText, Link2 } from 'lucide-react'
 import { getDeals, getIdeas, getCurrentProfile, getChannelStats, getIntegrations } from '@/lib/supabase/queries'
+import { Card } from '@/components/ui/card'
+import { Avatar } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 
 function formatCompact(n: number) {
   return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(n)
@@ -25,11 +29,6 @@ const DEAL_STAGE_LABEL: Record<string, string> = {
   paid: 'Paid',
 }
 
-function initialsFor(brand: string | null) {
-  if (!brand) return '?'
-  return brand.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
-}
-
 export default async function DashboardPage() {
   const [deals, ideas, profile, channelStats, integrations] = await Promise.all([
     getDeals(),
@@ -43,14 +42,14 @@ export default async function DashboardPage() {
   const weekSubsGained = channelStats.reduce((acc, s) => acc + s.subscribers_gained, 0)
   const latestSubs = channelStats[channelStats.length - 1]?.subscribers_total ?? null
 
-  const openDeals = deals.filter((d) => d.status !== 'paid')
+  const openDeals = deals.filter((d) => d.status !== 'paid' && d.status !== 'lost')
   const revenueMtd = deals
     .filter((d) => d.status === 'paid')
     .reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0) / 100
   const ideasInProgress = ideas.filter((i) => i.status === 'in_progress').length
 
   const needsAttention = deals
-    .filter((d) => d.status !== 'paid' && d.status !== 'delivered')
+    .filter((d) => d.status !== 'paid' && d.status !== 'delivered' && d.status !== 'lost')
     .slice(0, 5)
 
   const recentIdeas = ideas.slice(0, 3)
@@ -62,45 +61,43 @@ export default async function DashboardPage() {
       <div className="app-container">
 
         {/* Page header */}
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <p className="text-[12.5px] font-medium text-ash mb-0.5" style={{ letterSpacing: '-0.2px' }}>
-              Good morning
-            </p>
-            <h1 className="text-app-h1 text-carbon">
-              {profile?.full_name ?? 'there'}
-            </h1>
-          </div>
-          <Link
-            href="/deals"
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-paper-white bg-lavender px-4 py-2 rounded-full hover:opacity-90 transition-opacity"
-            style={{ letterSpacing: '-0.25px', boxShadow: 'rgba(145,141,246,0.3) 0px 3px 12px 0px' }}
-          >
-            New deal
-            <ArrowRight size={13} />
-          </Link>
+        <div className="mb-6">
+          <p className="text-[12.5px] font-medium text-ash mb-0.5" style={{ letterSpacing: '-0.2px' }}>
+            Good morning
+          </p>
+          <h1 className="text-app-h1 text-carbon">
+            {profile?.full_name ?? 'there'}
+          </h1>
+        </div>
+
+        {/* Primary actions — greeting, then the things you actually came here
+            to do, before any stats. */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          {[
+            { label: 'Log a deal', href: '/deals?new=1', icon: Handshake },
+            { label: 'Capture an idea', href: '/ideas?new=1', icon: Lightbulb },
+            { label: 'Start a draft', href: '/drafts?new=1', icon: FileText },
+          ].map((action) => (
+            <Link key={action.label} href={action.href} className="group">
+              <Card variant="subtle" padding="sm" className="flex items-center gap-3 hover:border-lavender/40 transition-colors">
+                <div className="w-9 h-9 rounded-xl bg-lavender/10 flex items-center justify-center shrink-0 group-hover:bg-lavender/15 transition-colors">
+                  <action.icon size={16} className="text-lavender" strokeWidth={2} />
+                </div>
+                <span className="text-[13.5px] font-semibold text-carbon flex-1" style={{ letterSpacing: '-0.25px' }}>
+                  {action.label}
+                </span>
+                <ArrowRight size={14} className="text-ash shrink-0" />
+              </Card>
+            </Link>
+          ))}
         </div>
 
         {!hasAnyData ? (
-          <div className="flex flex-col items-center gap-4 py-24 text-center">
-            <div className="w-11 h-11 rounded-xl bg-fog flex items-center justify-center">
-              <Lightbulb size={18} className="text-ash" strokeWidth={1.8} />
-            </div>
-            <div>
-              <p className="text-[14px] font-semibold text-carbon mb-1">Nothing here yet.</p>
-              <p className="text-[13px] text-graphite max-w-[340px]">
-                Connect Gmail to start tracking deals, or add your first idea to get going.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href="/deals" className="text-[13px] font-medium text-lavender hover:opacity-70 transition-opacity">
-                Connect Gmail
-              </Link>
-              <Link href="/ideas" className="text-[13px] font-medium text-lavender hover:opacity-70 transition-opacity">
-                Add your first idea
-              </Link>
-            </div>
-          </div>
+          <EmptyState
+            icon={<Lightbulb size={18} className="text-ash" strokeWidth={2} />}
+            title="Nothing here yet."
+            description="Pick one of the actions above to get started."
+          />
         ) : (
           <>
             {/* Stat cards */}
@@ -110,12 +107,8 @@ export default async function DashboardPage() {
                 { label: 'Revenue MTD', value: `$${revenueMtd.toLocaleString()}` },
                 { label: 'Ideas Captured', value: String(ideas.length), delta: `${ideasInProgress} in progress` },
               ].map((s) => (
-                <div
-                  key={s.label}
-                  className="bg-paper-white border border-fog rounded-xl p-5"
-                  style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}
-                >
-                  <p className="text-[12px] font-medium text-ash mb-3" style={{ letterSpacing: '-0.2px' }}>
+                <Card key={s.label} variant="subtle" padding="lg">
+                  <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">
                     {s.label}
                   </p>
                   <p
@@ -125,7 +118,7 @@ export default async function DashboardPage() {
                     {s.value}
                   </p>
                   {s.delta && <p className="text-[11.5px] font-medium text-ash">{s.delta}</p>}
-                </div>
+                </Card>
               ))}
             </div>
 
@@ -133,10 +126,7 @@ export default async function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
               {/* Needs attention — 2 cols */}
-              <div
-                className="lg:col-span-2 bg-paper-white border border-fog rounded-xl overflow-hidden"
-                style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}
-              >
+              <Card variant="subtle" padding="none" className="lg:col-span-2 overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-fog">
                   <h2 className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>
                     Needs your attention
@@ -152,13 +142,11 @@ export default async function DashboardPage() {
                     {needsAttention.map((deal, i) => (
                       <Link
                         key={deal.id}
-                        href="/deals"
+                        href={`/deals?deal=${deal.id}`}
                         className={`flex items-center justify-between px-5 py-4 hover:bg-linen transition-colors ${i < needsAttention.length - 1 ? 'border-b border-fog' : ''}`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-lavender/10 flex items-center justify-center shrink-0">
-                            <span className="text-[11px] font-bold text-lavender">{initialsFor(deal.brand_name)}</span>
-                          </div>
+                          <Avatar name={deal.brand_name ?? '?'} size="md" />
                           <div>
                             <p className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>
                               {deal.brand_name ?? 'Untitled deal'}
@@ -167,7 +155,7 @@ export default async function DashboardPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-fog text-graphite">
+                          <span className="font-label text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full bg-fog text-graphite">
                             {DEAL_STAGE_LABEL[deal.status]}
                           </span>
                           <ArrowRight size={13} className="text-fog" />
@@ -176,43 +164,10 @@ export default async function DashboardPage() {
                     ))}
                   </div>
                 )}
-              </div>
-
-              {/* Quick actions — 1 col */}
-              <div
-                className="bg-paper-white border border-fog rounded-xl overflow-hidden"
-                style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}
-              >
-                <div className="px-5 py-4 border-b border-fog">
-                  <h2 className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>
-                    Quick actions
-                  </h2>
-                </div>
-                <div className="p-4 flex flex-col gap-2">
-                  {[
-                    { label: 'Log a new deal', href: '/deals', accent: 'bg-lavender text-paper-white' },
-                    { label: 'Capture an idea', href: '/ideas', accent: 'bg-paper-white border border-fog text-carbon' },
-                    { label: 'Start a draft', href: '/drafts', accent: 'bg-paper-white border border-fog text-carbon' },
-                    { label: 'View analytics', href: '/analytics', accent: 'bg-paper-white border border-fog text-carbon' },
-                  ].map((action) => (
-                    <Link
-                      key={action.label}
-                      href={action.href}
-                      className={`flex items-center justify-between px-4 py-3 rounded-xl text-[13px] font-medium transition-opacity hover:opacity-80 ${action.accent}`}
-                      style={{ letterSpacing: '-0.25px' }}
-                    >
-                      {action.label}
-                      <ArrowRight size={13} />
-                    </Link>
-                  ))}
-                </div>
-              </div>
+              </Card>
 
               {/* Recent ideas */}
-              <div
-                className="bg-paper-white border border-fog rounded-xl overflow-hidden"
-                style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}
-              >
+              <Card variant="subtle" padding="none" className="overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-fog">
                   <h2 className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>
                     Recent ideas
@@ -228,26 +183,23 @@ export default async function DashboardPage() {
                     {recentIdeas.map((idea, i) => (
                       <Link
                         key={idea.id}
-                        href="/ideas"
+                        href={`/ideas?open=${idea.id}`}
                         className={`flex items-start justify-between gap-3 px-5 py-3.5 hover:bg-linen transition-colors ${i < recentIdeas.length - 1 ? 'border-b border-fog' : ''}`}
                       >
                         <p className="text-[13px] font-medium text-carbon flex-1 leading-snug" style={{ letterSpacing: '-0.25px' }}>
                           {idea.title}
                         </p>
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${idea.status === 'done' ? 'bg-mint-wash text-mint' : 'bg-fog text-graphite'}`}>
+                        <span className={`font-label text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${idea.status === 'done' ? 'bg-lavender/10 text-lavender' : 'bg-fog text-graphite'}`}>
                           {IDEA_STATUS_LABEL[idea.status]}
                         </span>
                       </Link>
                     ))}
                   </div>
                 )}
-              </div>
+              </Card>
 
               {/* Channel performance */}
-              <div
-                className="lg:col-span-2 bg-paper-white border border-fog rounded-xl overflow-hidden"
-                style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 3px 0px' }}
-              >
+              <Card variant="subtle" padding="none" className="lg:col-span-2 overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-fog">
                   <h2 className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>
                     This week&apos;s performance
@@ -257,9 +209,17 @@ export default async function DashboardPage() {
                   </Link>
                 </div>
                 {!youtubeConnected || channelStats.length === 0 ? (
-                  <p className="px-5 py-10 text-[13px] text-graphite text-center">
-                    Connect YouTube to see your performance here.
-                  </p>
+                  <div className="py-6">
+                    <EmptyState
+                      icon={<Link2 size={16} className="text-ash" strokeWidth={2} />}
+                      title="Connect YouTube to see your performance here."
+                      action={
+                        <Button href="/settings" size="sm">
+                          Connect YouTube
+                        </Button>
+                      }
+                    />
+                  </div>
                 ) : (
                   <div className="grid grid-cols-3 divide-x divide-fog">
                     {[
@@ -268,13 +228,13 @@ export default async function DashboardPage() {
                       { label: 'Total subscribers', value: latestSubs !== null ? formatCompact(latestSubs) : '—' },
                     ].map((s) => (
                       <div key={s.label} className="px-5 py-5">
-                        <p className="text-[11.5px] text-ash mb-1.5">{s.label}</p>
+                        <p className="font-label text-[10px] font-semibold text-ash uppercase tracking-widest mb-1.5">{s.label}</p>
                         <p className="font-bold text-carbon" style={{ fontSize: '19px', letterSpacing: '-0.03em' }}>{s.value}</p>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
+              </Card>
             </div>
           </>
         )}

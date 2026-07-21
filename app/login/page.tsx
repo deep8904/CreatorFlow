@@ -1,13 +1,26 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, type FormEvent } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { signInWithEmail } from '@/lib/supabase/auth'
+import { Logo } from '@/components/ui/logo'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +37,7 @@ export default function LoginPage() {
         setError(signInError.message)
         return
       }
-      router.push('/dashboard')
+      router.push(searchParams.get('next') || '/dashboard')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Try again.')
@@ -35,15 +48,15 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-linen">
-      <header className="flex w-full items-center justify-between border-b border-fog px-6 py-4">
-        <Link href="/" className="flex items-center gap-2.5">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <rect x="2" y="2" width="20" height="20" stroke="#F97316" strokeWidth="2.5" />
-            <circle cx="12" cy="12" r="4" fill="#F97316" />
-          </svg>
-          <span className="text-[15px] font-semibold text-white">CreatorFlow</span>
+      <header className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-fog px-6 py-4">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <Logo size={24} />
+          <span className="text-[15px] font-semibold text-carbon">CreatorFlow</span>
         </Link>
-        <Link href="/onboarding" className="text-[13px] font-medium text-graphite transition-colors hover:text-white">
+        <Link
+          href={searchParams.get('next') ? `/onboarding?next=${encodeURIComponent(searchParams.get('next')!)}` : '/onboarding'}
+          className="text-[13px] font-medium text-graphite transition-colors hover:text-carbon"
+        >
           Don&apos;t have an account? Start free
         </Link>
       </header>
@@ -51,20 +64,16 @@ export default function LoginPage() {
       <main className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-[400px]">
           <div className="mb-8 text-center">
-            <h1 className="mb-3 text-[26px] font-semibold leading-tight tracking-tight text-white">
-              Welcome back
-            </h1>
+            <h1 className="text-auth-h1 mb-3 text-carbon">Welcome back</h1>
             <p className="font-body-editorial text-[15px] leading-relaxed text-graphite">
               Sign in to pick up where you left off.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="glass-panel flex flex-col gap-4 rounded-lg p-6">
+          <form onSubmit={handleSubmit} className="glass-panel flex flex-col gap-4 rounded-xl p-6">
             <div>
-              <label htmlFor="email" className="font-label mb-1.5 block text-[11px] uppercase tracking-widest text-ash">
-                Email
-              </label>
-              <input
+              <Label htmlFor="email">Email</Label>
+              <Input
                 id="email"
                 type="email"
                 autoComplete="email"
@@ -72,15 +81,17 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@gmail.com"
-                className="w-full border border-fog bg-linen px-3.5 py-2.5 text-[14px] text-white placeholder-ash outline-none transition-colors focus:border-lavender/60"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="font-label mb-1.5 block text-[11px] uppercase tracking-widest text-ash">
-                Password
-              </label>
-              <input
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link href="/forgot-password" className="text-[12px] font-medium text-graphite hover:text-carbon transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
+              <Input
                 id="password"
                 type="password"
                 autoComplete="current-password"
@@ -88,22 +99,21 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full border border-fog bg-linen px-3.5 py-2.5 text-[14px] text-white placeholder-ash outline-none transition-colors focus:border-lavender/60"
               />
             </div>
 
-            {error && <p className="text-[13px] text-ember">{error}</p>}
+            {error && <p className="text-[13px] font-semibold text-carbon">{error}</p>}
 
-            <button
+            <Button
               type="submit"
+              size="lg"
+              className="mt-2 w-full"
               disabled={isSubmitting || !email.trim() || !password}
-              className="btn-editorial mt-2 w-full disabled:pointer-events-none disabled:opacity-50"
+              loading={isSubmitting}
+              iconRight={!isSubmitting ? <ArrowRight size={15} /> : undefined}
             >
-              <span className="relative z-10 flex items-center justify-center gap-2">
-                {isSubmitting ? 'Signing in…' : 'Sign in'}
-                {!isSubmitting && <ArrowRight size={15} className="icon-arrow" />}
-              </span>
-            </button>
+              {isSubmitting ? 'Signing in…' : 'Sign in'}
+            </Button>
           </form>
 
           <p className="mt-6 text-center text-[12px] text-ash">

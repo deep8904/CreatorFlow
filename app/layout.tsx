@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Playfair_Display, JetBrains_Mono } from 'next/font/google'
+import { ToastProvider } from '@/lib/toast'
+import { ToastViewport } from '@/components/ui/toast'
 import './globals.css'
 
 const inter = Inter({
@@ -31,8 +33,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'dark',
-  themeColor: '#000000',
+  colorScheme: 'light',
+  themeColor: '#fafaf9',
 }
 
 export default function RootLayout({
@@ -43,10 +45,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${playfair.variable} ${jetbrainsMono.variable} dark bg-linen`}
+      className={`${inter.variable} ${playfair.variable} ${jetbrainsMono.variable} bg-linen`}
     >
       <body className="antialiased font-sans">
-        {children}
+        <ToastProvider>
+          {children}
+          <ToastViewport />
+        </ToastProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

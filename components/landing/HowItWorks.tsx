@@ -3,8 +3,8 @@ import RevealUp from '@/components/editorial/RevealUp'
 const steps = [
   {
     number: '01',
-    heading: 'Connect Gmail and YouTube',
-    body: 'Takes two minutes. Nothing is shared or sold. Disconnect any time.',
+    heading: 'Sign in with Google, connect YouTube',
+    body: 'Takes two minutes. We only read what CreatorFlow needs — nothing is shared or sold.',
   },
   {
     number: '02',
@@ -30,7 +30,7 @@ export default function HowItWorks() {
         <RevealUp>
           <div className="mb-20 flex flex-col items-center text-center">
             <div className="label-eyebrow mb-6">THE_LOOP</div>
-            <h2 className="text-display-sm max-w-[36rem] text-white">
+            <h2 className="text-display-sm max-w-[36rem] text-carbon">
               From scattered to consistent, in four steps.
             </h2>
           </div>
@@ -42,11 +42,11 @@ export default function HowItWorks() {
           {steps.map((step, i) => (
             <RevealUp key={step.number} delay={(Math.min(i, 3)) as 0 | 1 | 2 | 3}>
               <div className="flex flex-col gap-5">
-                <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-fog bg-linen font-label text-[12px] text-white">
+                <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-fog bg-linen font-label text-[12px] text-carbon">
                   {step.number}
                 </div>
                 <div>
-                  <h3 className="mb-2 text-[15px] font-semibold text-white">{step.heading}</h3>
+                  <h3 className="mb-2 text-[15px] font-semibold text-carbon">{step.heading}</h3>
                   <p className="font-body-editorial text-[14px] leading-relaxed text-graphite">{step.body}</p>
                 </div>
               </div>

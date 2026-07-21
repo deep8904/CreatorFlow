@@ -1,3 +1,5 @@
+> **Superseded.** This file predates the light-theme/orange rebrand (it still references OpenRunde and a purple `#918df6` palette). The current source of truth is [`docs/DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md). Kept for history only.
+
 # Design System Addendum — Resolved Decisions
 
 This supplements `design.pdf`. Where the two conflict on the items below, this file wins.

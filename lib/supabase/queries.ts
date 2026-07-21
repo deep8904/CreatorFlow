@@ -111,12 +111,17 @@ async function getAccountId(userId: string): Promise<string> {
   const supabase = await createSupabaseServerClient()
   if (!supabase) return userId
 
+  // .limit(1) instead of .maybeSingle() — if a user ever ends up with more
+  // than one team_members row, .maybeSingle() errors out silently on the
+  // extra row and this fell back to using the user's own id as a fake
+  // account id, which matches nothing and made every team_members/
+  // team_invites lookup for that user come back empty with no error.
   const { data } = await supabase
     .from('team_members')
     .select('account_id')
     .eq('user_id', userId)
-    .maybeSingle()
-  return (data?.account_id as string | undefined) ?? userId
+    .limit(1)
+  return (data?.[0]?.account_id as string | undefined) ?? userId
 }
 
 export type TeamData = {
@@ -137,12 +142,18 @@ export async function getTeam(): Promise<TeamData | null> {
 
   const [{ data: memberRows }, { data: inviteRows }] = await Promise.all([
     supabase.from('team_members').select('*').eq('account_id', accountId).order('joined_at', { ascending: true }),
+    // .limit(1) instead of .maybeSingle() — if more than one pending invite
+    // ever exists for an account (shouldn't happen given the partial unique
+    // index, but .maybeSingle() errors out silently on multiple rows and
+    // that error was going unchecked, hiding every pending invite from the
+    // owner with no way to see or revoke it), this still surfaces one.
     supabase
       .from('team_invites')
       .select('*')
       .eq('account_id', accountId)
       .eq('status', 'pending')
-      .maybeSingle(),
+      .order('created_at', { ascending: false })
+      .limit(1),
   ])
 
   const members = (memberRows as TeamMember[]) ?? []
@@ -156,9 +167,20 @@ export async function getTeam(): Promise<TeamData | null> {
   return {
     accountId,
     members: members.map((m) => ({ ...m, profile: profilesById.get(m.user_id) ?? null })),
-    pendingInvite: (inviteRows as TeamInvite | null) ?? null,
+    pendingInvite: ((inviteRows as TeamInvite[] | null) ?? [])[0] ?? null,
     isOwner: members.some((m) => m.user_id === user.id && m.role === 'owner'),
   }
+}
+
+// RLS scopes this to pending invites addressed to the caller's own email
+// (see the "Invited user can view their own pending invite" migration) —
+// this is what lets a not-yet-a-member user see what they're accepting.
+export async function getInviteById(id: string): Promise<TeamInvite | null> {
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) return null
+
+  const { data } = await supabase.from('team_invites').select('*').eq('id', id).maybeSingle()
+  return (data as TeamInvite) ?? null
 }
 
 // Cached/seeded channel performance — see channel_stats_daily table notes. Stands

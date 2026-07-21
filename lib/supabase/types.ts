@@ -37,7 +37,7 @@ export type Deal = {
   brand_name: string | null
   contact_name: string | null
   contact_email: string | null
-  status: 'inbound' | 'negotiating' | 'contracted' | 'delivered' | 'paid'
+  status: 'inbound' | 'negotiating' | 'contracted' | 'delivered' | 'paid' | 'lost'
   rate_amount_cents: number | null
   deliverables: string | null
   notes: string | null

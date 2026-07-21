@@ -1,21 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { sendTeamInvite, revokeInvite } from '@/lib/supabase/actions'
+import { sendTeamInvite, revokeInvite, removeMember, updateMemberRole } from '@/lib/supabase/actions'
 import type { TeamData } from '@/lib/supabase/queries'
-
-function initialsFor(name: string) {
-  return (
-    name
-      .split(' ')
-      .map((w) => w[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() || '—'
-  )
-}
+import { Avatar } from '@/components/ui/avatar'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/lib/toast'
 
 export default function TeamBoard({ team }: { team: TeamData | null }) {
+  const toast = useToast()
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'Member' | 'Owner'>('Member')
   const [error, setError] = useState<string | null>(null)
@@ -27,6 +22,9 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
 
   const sendInvite = async () => {
     if (!inviteEmail.trim()) return
+    if (inviteRole === 'Owner' && !window.confirm(
+      `Grant ${inviteEmail.trim()} full Owner access, including billing and team management? This can’t be undone by revoking the invite once they’ve accepted.`
+    )) return
     setIsBusy(true)
     setError(null)
     const result = await sendTeamInvite(inviteEmail, inviteRole === 'Owner' ? 'owner' : 'member')
@@ -43,7 +41,28 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
     setIsBusy(true)
     const result = await revokeInvite(pendingInvite.id)
     setIsBusy(false)
-    if (result.error) setError(result.error)
+    if (result.error) toast.error(result.error)
+  }
+
+  const changeRole = async (memberId: string, name: string, role: 'Member' | 'Owner') => {
+    // An account has exactly one owner — promoting someone else to Owner
+    // transfers it away from you, the opposite of "without giving up
+    // control." Confirm before doing something that surprising.
+    if (role === 'Owner' && !window.confirm(
+      `Make ${name} the account owner? You'll become a Member and lose access to billing and team management — they'll have full control instead.`
+    )) return
+    setIsBusy(true)
+    const result = await updateMemberRole(memberId, role === 'Owner' ? 'owner' : 'member')
+    setIsBusy(false)
+    if (result.error) toast.error(result.error)
+  }
+
+  const remove = async (memberId: string, name: string) => {
+    if (!window.confirm(`Remove ${name} from your team?`)) return
+    setIsBusy(true)
+    const result = await removeMember(memberId)
+    setIsBusy(false)
+    if (result.error) toast.error(result.error)
   }
 
   return (
@@ -55,7 +74,7 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
       </div>
 
       {/* Members list */}
-      <div className="bg-paper-white border border-fog rounded-xl overflow-hidden mb-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+      <Card variant="subtle" padding="none" className="overflow-hidden mb-6">
         <div className="px-5 py-4 border-b border-fog">
           <h2 className="text-[14px] font-semibold text-carbon">Members</h2>
         </div>
@@ -63,26 +82,44 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
         <div className="divide-y divide-fog">
           {members.map((m) => {
             const name = m.profile?.full_name ?? 'You'
+            const manageable = team?.isOwner && m.role === 'member'
             return (
               <div key={m.id} className="flex items-center gap-4 px-5 py-4">
-                <div className="w-9 h-9 rounded-full bg-lavender/10 flex items-center justify-center shrink-0">
-                  <span className="text-[12px] font-semibold text-lavender">{initialsFor(name)}</span>
-                </div>
+                <Avatar name={name} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-medium text-carbon">{name}</p>
                 </div>
-                <span className="text-[12px] font-medium text-graphite bg-linen px-2.5 py-1 rounded-full capitalize">
-                  {m.role}
-                </span>
+                {manageable ? (
+                  <select
+                    value={m.role === 'owner' ? 'Owner' : 'Member'}
+                    onChange={(e) => changeRole(m.id, name, e.target.value as 'Member' | 'Owner')}
+                    disabled={isBusy}
+                    className="font-label text-[11px] font-semibold text-graphite bg-linen px-2.5 py-1.5 rounded-full uppercase tracking-widest outline-none focus:border-lavender/60 border border-transparent disabled:opacity-50"
+                  >
+                    <option value="Member">Member</option>
+                    <option value="Owner">Owner</option>
+                  </select>
+                ) : (
+                  <span className="font-label text-[10px] font-semibold text-graphite bg-linen px-2.5 py-1 rounded-full uppercase tracking-widest">
+                    {m.role}
+                  </span>
+                )}
+                {manageable && (
+                  <button
+                    onClick={() => remove(m.id, name)}
+                    disabled={isBusy}
+                    className="text-[12px] font-medium text-ash hover:text-carbon transition-colors disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
             )
           })}
 
           {pendingInvite && (
             <div className="flex items-center gap-4 px-5 py-4">
-              <div className="w-9 h-9 rounded-full bg-fog flex items-center justify-center shrink-0">
-                <span className="text-[12px] font-semibold text-graphite">{initialsFor(pendingInvite.invited_email)}</span>
-              </div>
+              <Avatar name={pendingInvite.invited_email} size="sm" tone="neutral" />
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-medium text-carbon">{pendingInvite.invited_email}</p>
               </div>
@@ -108,22 +145,22 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
             <p className="text-[13px] text-graphite">Invite a collaborator to help manage deals and automations.</p>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Invite */}
       {team?.isOwner && !hasCollaborator && (
-        <div className="bg-paper-white border border-fog rounded-xl p-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+        <Card variant="subtle" padding="lg">
           <h2 className="text-[14px] font-semibold text-carbon mb-1">Invite by email</h2>
           <p className="text-[13px] text-graphite mb-5">They&apos;ll get an invitation to create their own account.</p>
 
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
-            <input
+            <Input
               type="email"
               placeholder="colleague@gmail.com"
               value={inviteEmail}
               onChange={(e) => { setInviteEmail(e.target.value); setError(null) }}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendInvite() }}
-              className="flex-1 bg-linen border border-fog rounded-xl px-4 py-2.5 text-[14px] text-carbon placeholder-ash outline-none focus:border-lavender/60 transition-colors"
+              className="flex-1"
             />
             <select
               value={inviteRole}
@@ -133,16 +170,12 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
               <option value="Member">Member</option>
               <option value="Owner">Owner</option>
             </select>
-            <button
-              onClick={sendInvite}
-              disabled={!inviteEmail.trim() || isBusy}
-              className="text-[13px] font-medium text-paper-white bg-lavender px-5 py-2.5 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
+            <Button onClick={sendInvite} disabled={!inviteEmail.trim() || isBusy} loading={isBusy} size="md">
               Send invite
-            </button>
+            </Button>
           </div>
 
-          {error && <p className="text-[12.5px] text-ember mb-4">{error}</p>}
+          {error && <p className="text-[12.5px] font-semibold text-carbon mb-4">{error}</p>}
 
           {/* Role descriptions */}
           <div className="flex flex-col gap-2 bg-linen rounded-xl p-4">
@@ -155,7 +188,7 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
               <p className="text-[12px] text-graphite">Can manage deals, ideas, and automations, but not settings or billing.</p>
             </div>
           </div>
-        </div>
+        </Card>
       )}
       </div>
     </main>

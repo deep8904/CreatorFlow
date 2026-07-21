@@ -37,3 +37,32 @@ export async function signOut() {
 
   return supabase.auth.signOut()
 }
+
+export async function requestPasswordReset(email: string) {
+  const supabase = createSupabaseBrowserClient()
+  if (!supabase) {
+    throw new Error('Supabase environment variables are not configured.')
+  }
+
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+  })
+}
+
+export async function updatePassword(password: string) {
+  const supabase = createSupabaseBrowserClient()
+  if (!supabase) {
+    throw new Error('Supabase environment variables are not configured.')
+  }
+
+  return supabase.auth.updateUser({ password })
+}
+
+export async function updateEmail(email: string) {
+  const supabase = createSupabaseBrowserClient()
+  if (!supabase) {
+    throw new Error('Supabase environment variables are not configured.')
+  }
+
+  return supabase.auth.updateUser({ email })
+}

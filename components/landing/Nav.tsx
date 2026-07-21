@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { Menu, X, ArrowUpRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Logo } from '@/components/ui/logo'
 
 const links = [
   { label: 'Features', href: '#features' },
@@ -18,17 +20,8 @@ export default function Nav() {
       <div className="container-shell flex h-[4.5rem] items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="group flex shrink-0 items-center gap-2.5">
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            className="transition-transform duration-500 ease-out group-hover:rotate-90"
-          >
-            <rect x="2" y="2" width="20" height="20" stroke="#F97316" strokeWidth="2.5" />
-            <circle cx="12" cy="12" r="4" fill="#F97316" />
-          </svg>
-          <span className="font-sans text-[15px] font-semibold uppercase tracking-tight text-white">
+          <Logo size={22} className="transition-transform duration-500 ease-out group-hover:rotate-90" />
+          <span className="font-sans text-[15px] font-semibold uppercase tracking-tight text-carbon">
             CreatorFlow
           </span>
         </Link>
@@ -39,7 +32,7 @@ export default function Nav() {
             <Link
               key={item.href}
               href={item.href}
-              className="text-[13.5px] font-medium text-graphite transition-colors hover:text-white"
+              className="text-[13.5px] font-medium text-graphite transition-colors hover:text-carbon"
             >
               {item.label}
             </Link>
@@ -48,21 +41,17 @@ export default function Nav() {
 
         {/* Desktop CTA */}
         <div className="hidden items-center gap-5 md:flex">
-          <Link href="/login" className="text-[13.5px] font-medium text-graphite transition-colors hover:text-white">
+          <Link href="/login" className="text-[13.5px] font-medium text-graphite transition-colors hover:text-carbon">
             Log in
           </Link>
-          <Link
-            href="/onboarding"
-            className="inline-flex items-center gap-1.5 border border-lavender/40 px-4 py-2 font-label text-[11px] uppercase tracking-widest text-white transition-all hover:bg-lavender hover:text-black"
-          >
+          <Button href="/onboarding" size="sm" iconRight={<ArrowUpRight size={13} />}>
             Start free
-            <ArrowUpRight size={13} />
-          </Link>
+          </Button>
         </div>
 
         {/* Mobile toggle */}
         <button
-          className="rounded-lg p-2 text-white transition-colors hover:bg-white/5 md:hidden"
+          className="rounded-full p-2 text-carbon transition-colors hover:bg-mist md:hidden"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
         >
@@ -72,27 +61,24 @@ export default function Nav() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="flex flex-col gap-1 border-t border-white/10 bg-black px-6 py-4 md:hidden">
+        <div className="flex flex-col gap-1 border-t border-fog bg-paper-white px-6 py-4 md:hidden">
           {links.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="py-2.5 text-[14px] font-medium text-white transition-colors hover:text-lavender"
+              className="py-2.5 text-[14px] font-medium text-carbon transition-colors hover:text-lavender"
               onClick={() => setMobileOpen(false)}
             >
               {item.label}
             </Link>
           ))}
-          <hr className="my-2 border-white/10" />
+          <hr className="my-2 border-fog" />
           <Link href="/login" className="py-2 text-[14px] font-medium text-graphite">
             Log in
           </Link>
-          <Link
-            href="/onboarding"
-            className="mt-1 bg-lavender px-4 py-2.5 text-center text-[14px] font-semibold text-black"
-          >
+          <Button href="/onboarding" size="sm" className="mt-1 w-full py-2.5 text-[14px]" onClick={() => setMobileOpen(false)}>
             Start free
-          </Link>
+          </Button>
         </div>
       )}
     </header>

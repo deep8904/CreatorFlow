@@ -3,6 +3,10 @@
 import { useState } from 'react'
 import { Film, Sparkles } from 'lucide-react'
 import type { ChannelVideo, RepurposedContent } from '@/lib/supabase/types'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/lib/toast'
 
 type RepurposedWithVideo = RepurposedContent & { channel_videos: { title: string } | null }
 
@@ -17,6 +21,7 @@ export default function RepurposeBoard({
   videos: ChannelVideo[]
   repurposed: RepurposedWithVideo[]
 }) {
+  const toast = useToast()
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(videos[0]?.id ?? null)
   const [urlInput, setUrlInput] = useState('')
 
@@ -28,10 +33,12 @@ export default function RepurposeBoard({
     const trimmed = urlInput.trim()
     if (!trimmed) return
     const match = videos.find((v) => v.youtube_video_id && trimmed.includes(v.youtube_video_id))
-    if (match) {
-      setSelectedVideoId(match.id)
-      setUrlInput('')
+    if (!match) {
+      toast.info('This demo only recognizes pre-seeded videos from your connected channel — try picking one from the list instead.')
+      return
     }
+    setSelectedVideoId(match.id)
+    setUrlInput('')
   }
 
   return (
@@ -43,30 +50,26 @@ export default function RepurposeBoard({
         </div>
 
         {/* URL input */}
-        <div className="bg-paper-white border border-fog rounded-xl p-5 mb-6" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+        <Card variant="subtle" className="mb-6">
           <p className="text-[14px] font-medium text-carbon mb-3">Paste a YouTube link, or pick one of your connected channel&apos;s videos below.</p>
           <div className="flex gap-2">
-            <input
+            <Input
               type="url"
               placeholder="https://youtube.com/watch?v=..."
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleUrlSubmit() }}
-              className="flex-1 bg-linen border border-fog rounded-xl px-4 py-2.5 text-[14px] text-carbon placeholder-ash outline-none focus:border-lavender/60 transition-colors"
+              className="flex-1"
             />
-            <button
-              onClick={handleUrlSubmit}
-              disabled={!urlInput.trim()}
-              className="text-[13px] font-medium text-paper-white bg-lavender px-5 py-2.5 rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
+            <Button onClick={handleUrlSubmit} disabled={!urlInput.trim()} size="md">
               Analyze
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
           {/* Video picker */}
-          <div className="bg-paper-white border border-fog rounded-xl overflow-hidden h-fit" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+          <Card variant="subtle" padding="none" className="overflow-hidden h-fit">
             <div className="px-4 py-3 border-b border-fog">
               <h2 className="text-[12.5px] font-semibold text-carbon">Your videos</h2>
             </div>
@@ -83,13 +86,13 @@ export default function RepurposeBoard({
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-ash">{formatCompact(v.views)} views</span>
                     {repurposedByVideoId.has(v.id) && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-mint-wash text-mint">Ready</span>
+                      <span className="font-label text-[9.5px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-lavender/10 text-lavender">Ready</span>
                     )}
                   </div>
                 </button>
               ))}
             </div>
-          </div>
+          </Card>
 
           {/* Result panel */}
           <div>
@@ -100,12 +103,12 @@ export default function RepurposeBoard({
               </div>
             ) : selectedResult ? (
               <div className="flex flex-col gap-4">
-                <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+                <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
                   <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-2">Summary</p>
                   <p className="text-[13.5px] text-carbon leading-relaxed">{selectedResult.summary}</p>
                 </div>
 
-                <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+                <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
                   <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">Clip-worthy moments</p>
                   <div className="flex flex-col gap-3">
                     {selectedResult.clip_worthy_moments.map((m, i) => (
@@ -117,7 +120,7 @@ export default function RepurposeBoard({
                   </div>
                 </div>
 
-                <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+                <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
                   <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">Social post ideas</p>
                   <div className="flex flex-col gap-2.5">
                     {selectedResult.social_post_ideas.map((idea, i) => (
@@ -130,18 +133,18 @@ export default function RepurposeBoard({
                 </div>
 
                 {selectedResult.blog_outline && (
-                  <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+                  <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
                     <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-2">Blog post outline</p>
                     <pre className="text-[13px] text-graphite leading-relaxed whitespace-pre-wrap font-sans">{selectedResult.blog_outline}</pre>
                   </div>
                 )}
 
                 <p className="text-[11px] text-ash text-center">
-                  These are AI-generated starting points — review before you publish.
+                  Preview only — seeded example suggestions, not a live AI call. In production, generating this calls Gemini against the video's real transcript.
                 </p>
               </div>
             ) : (
-              <div className="bg-paper-white border border-fog rounded-xl p-8 text-center" style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 1px 2px 0px' }}>
+              <div className="bg-paper-white border border-fog rounded-xl p-8 text-center" style={{ boxShadow: 'var(--shadow-subtle)' }}>
                 <p className="text-[14px] font-semibold text-carbon mb-1.5">No repurposing generated for this video yet.</p>
                 <p className="text-[13px] text-graphite max-w-[360px] mx-auto">
                   This demo includes pre-generated suggestions for a few videos, marked &quot;Ready&quot; in the list.
