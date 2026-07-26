@@ -208,7 +208,7 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
         {newOpen && (
           <div
             className="bg-paper-white border border-lavender/40 rounded-xl p-5 mb-5"
-            style={{ boxShadow: '0 0 0 3px rgba(249,115,22,0.08)' }}
+            style={{ boxShadow: '0 0 0 3px rgba(34,197,94,0.08)' }}
           >
             <input
               autoFocus
@@ -216,7 +216,7 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) addIdea() }}
-              className="text-[15px] text-carbon placeholder-ash bg-transparent outline-none w-full mb-4"
+              className="text-[15px] text-carbon placeholder-ash bg-transparent outline-none w-full mb-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-lavender focus-visible:outline-offset-2"
               style={{ letterSpacing: '-0.3px' }}
             />
             <div className="flex gap-2">
@@ -254,7 +254,7 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search ideas"
-              className="text-[13px] bg-linen border border-fog rounded-full pl-8 pr-3 py-1.5 outline-none focus:border-lavender/60 transition-colors w-full"
+              className="text-[13px] bg-linen border border-fog rounded-full pl-8 pr-3 py-1.5 outline-none focus:border-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-lavender focus-visible:outline-offset-2 transition-colors w-full"
             />
           </div>
         </div>

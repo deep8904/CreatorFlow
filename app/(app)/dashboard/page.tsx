@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import RevealUp from '@/components/editorial/RevealUp'
 
 function formatCompact(n: number) {
   return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(n)
@@ -100,25 +101,29 @@ export default async function DashboardPage() {
           />
         ) : (
           <>
-            {/* Stat cards */}
+            {/* Stat cards — the one authored motion moment on this page: data
+                arriving in a quick, deliberate stagger. Everything below
+                (lists, links) stays instant, per Operate mode. */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
               {[
                 { label: 'Open Deals', value: String(openDeals.length) },
                 { label: 'Revenue MTD', value: `$${revenueMtd.toLocaleString()}` },
                 { label: 'Ideas Captured', value: String(ideas.length), delta: `${ideasInProgress} in progress` },
-              ].map((s) => (
-                <Card key={s.label} variant="subtle" padding="lg">
-                  <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">
-                    {s.label}
-                  </p>
-                  <p
-                    className="font-bold text-carbon mb-1"
-                    style={{ fontSize: '22px', lineHeight: 1, letterSpacing: '-0.04em' }}
-                  >
-                    {s.value}
-                  </p>
-                  {s.delta && <p className="text-[11.5px] font-medium text-ash">{s.delta}</p>}
-                </Card>
+              ].map((s, i) => (
+                <RevealUp key={s.label} delay={i as 0 | 1 | 2}>
+                  <Card variant="subtle" padding="lg">
+                    <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">
+                      {s.label}
+                    </p>
+                    <p
+                      className="font-bold text-carbon mb-1"
+                      style={{ fontSize: '22px', lineHeight: 1, letterSpacing: '-0.04em' }}
+                    >
+                      {s.value}
+                    </p>
+                    {s.delta && <p className="text-[11.5px] font-medium text-ash">{s.delta}</p>}
+                  </Card>
+                </RevealUp>
               ))}
             </div>
 

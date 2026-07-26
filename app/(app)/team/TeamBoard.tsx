@@ -94,7 +94,7 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
                     value={m.role === 'owner' ? 'Owner' : 'Member'}
                     onChange={(e) => changeRole(m.id, name, e.target.value as 'Member' | 'Owner')}
                     disabled={isBusy}
-                    className="font-label text-[11px] font-semibold text-graphite bg-linen px-2.5 py-1.5 rounded-full uppercase tracking-widest outline-none focus:border-lavender/60 border border-transparent disabled:opacity-50"
+                    className="font-label text-[11px] font-semibold text-graphite bg-linen px-2.5 py-1.5 rounded-full uppercase tracking-widest outline-none focus:border-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-lavender focus-visible:outline-offset-2 border border-transparent disabled:opacity-50"
                   >
                     <option value="Member">Member</option>
                     <option value="Owner">Owner</option>
@@ -165,7 +165,7 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value as 'Member' | 'Owner')}
-              className="bg-linen border border-fog rounded-xl px-3 py-2.5 text-[13px] text-carbon outline-none focus:border-lavender/60 transition-colors"
+              className="bg-linen border border-fog rounded-xl px-3 py-2.5 text-[13px] text-carbon outline-none focus:border-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-lavender focus-visible:outline-offset-2 transition-colors"
             >
               <option value="Member">Member</option>
               <option value="Owner">Owner</option>

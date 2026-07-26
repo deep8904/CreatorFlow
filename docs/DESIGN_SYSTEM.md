@@ -1,41 +1,18 @@
 # CreatorFlow Design System
 
-Source of truth as of the design-system unification pass. Extracted from the homepage (`app/page.tsx` + `components/landing/*`), formalized into `components/ui/*`, and rolled out across every marketing, in-app, and auth surface. Supersedes `docs/DESIGN_SYSTEM_ADDENDUM.md`.
+**Superseded 2026-07-25.** The orange/black editorial system this file originally documented was fully replaced by a dark/green visual reset (Nexus Architecture as primary reference, Skymetrics dashboard screenshots as secondary reference for in-app data density), per explicit product direction. **`/DESIGN.md` at the project root is now the source of truth** for tokens, typography, motion, and component rules — read that file first. This file is kept as a historical/component-inventory reference; treat any color value below as stale.
 
 ## Tokens (`app/globals.css`)
 
-### Color
-| Token | Value | Role |
-|---|---|---|
-| `--color-carbon` | `#18181b` | primary text |
-| `--color-paper-white` | `#ffffff` | card surface |
-| `--color-linen` | `#fafaf9` | page background |
-| `--color-mist` | `#f4f4f5` | elevated surface (input bg, hover wash) |
-| `--color-fog` | `#e4e4e7` | border/divider |
-| `--color-ash` | `#71717a` | tertiary/placeholder text |
-| `--color-graphite` | `#52525b` | secondary body text |
-| `--color-lavender` | `#f97316` | primary orange — the one accent hue |
-| `--color-iris` | `#ea580c` | deep-orange accent (hover fill) |
-
-No other hue is used anywhere in the product. Status/severity is communicated by weight and icon, not by introducing new colors (e.g. a "critical" contract-review flag is solid orange + white text, not red).
-
-### Type
-- `--font-sans` (Inter) — default UI/body font, used everywhere except the two exceptions below.
-- `--font-serif` (Playfair Display) — **marketing/editorial pages only** (Hero, Problem, Features, HowItWorks, LandingPricing, Pricing hero copy). Never used in-app. See "Two-voice rule" below.
-- `--font-mono` (JetBrains Mono) — labels, eyebrows, stat captions, badges. Used on both marketing and in-app surfaces (this is the one typographic thread that ties the whole product together).
+Token *names* (`--color-carbon`, `--color-lavender`, etc.) are unchanged from the original system so every existing `bg-`/`text-` utility re-skinned automatically on the reset — only the underlying hex values changed. See `DESIGN.md`'s `Colors` section for current values (dark ground, `#22C55E` single accent) and `Typography` for the current Inter + JetBrains Mono system (Playfair Display is retired — no third typeface in the new world).
 
 ### Radius, shadow
-- Radius scale `--radius-sm`(6px) through `--radius-full`(9999px). Pills (`rounded-full`) for every button/badge/toggle; `rounded-xl`(16px) for every card/panel; `rounded-xl` for form inputs.
-- `--shadow-subtle`, `--shadow-subtle-2`, `--shadow-panel` — the canonical card-shadow recipes. Every card in the product should resolve to one of these via `<Card>`, not a hand-typed `boxShadow`.
+- Radius scale `--radius-sm`(6px) through `--radius-full`(9999px) — unchanged by the reset. Pills (`rounded-full`) for every button/badge/toggle; `rounded-xl`(16px) for every card/panel; `rounded-xl` for form inputs.
+- `--shadow-subtle`, `--shadow-subtle-2`, `--shadow-panel` — same three-tier recipe, now dark-mode-correct (opaque black shadows instead of the prior semi-transparent-on-white values).
 
-## Two-voice rule (deliberate, not an oversight)
+## One voice now (was two)
 
-CreatorFlow has **two typographic voices sharing one component/color/radius language**:
-
-1. **Marketing voice** — Playfair Display serif body copy, large `.text-display-*` headlines, decorative dot-grid/swiss-grid texture, `.label-eyebrow` tick-mark captions. Used only on `app/page.tsx`, `app/pricing/page.tsx`, and `components/landing/*`.
-2. **Product voice** — Inter throughout, dense `.text-app-h1` page titles, no decorative texture. Used on every screen under `app/(app)/*` and the auth/onboarding pages.
-
-Why: the in-app product is a dense, task-oriented tool (kanban boards, tables, forms, stat grids). A display serif at UI sizes hurts readability and information density. The two voices are bridged by sharing everything else — the same orange, the same button shape, the same card treatment, the same mono-label system for captions/badges — so the product reads as one brand without forcing an editorial font into a productivity surface where it doesn't belong.
+The prior system deliberately ran two typographic voices (Playfair Display serif for marketing, Inter for the in-app product) sharing one component language. The 2026-07-25 reset retires that split: **Inter (display) + JetBrains Mono (everything else) applies everywhere**, marketing included — matching Nexus Architecture's single-voice system. See `DESIGN.md`'s Typography section for the current ramp.
 
 ## Shared components (`components/ui/*`)
 

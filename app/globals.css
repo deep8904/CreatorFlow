@@ -5,20 +5,21 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  /* CreatorFlow — editorial redesign: orange-on-white, per
-     lexicon-for-creators-DESIGN.md reinterpreted for a light canvas.
-     Token names kept stable across the earlier dark pass so every existing
-     bg- and text- utility re-skins automatically; a handful of spots needed
-     a literal value swap instead (see the inline notes below). */
-  --color-carbon: #18181b;         /* primary text: near-black on white */
-  --color-paper-white: #ffffff;    /* card surface: pure white, sits on the off-white canvas */
-  --color-linen: #fafaf9;          /* page background: soft off-white canvas */
-  --color-mist: #f4f4f5;           /* subtle elevated surface: input backgrounds, hover washes */
-  --color-fog: #e4e4e7;            /* border: light neutral divider line */
-  --color-ash: #71717a;            /* tertiary/placeholder text — meets AA on white at this weight */
-  --color-graphite: #52525b;       /* secondary body text — darker than ash for readability on white */
-  --color-lavender: #f97316;       /* primary orange — unchanged, the one hue in the system */
-  --color-iris: #ea580c;           /* accent/deep orange — unchanged */
+  /* CreatorFlow — Nexus system: dark ground, single green accent, per
+     DESIGN.md (2026-07-25 full visual reset). Token names kept stable so
+     every existing bg-/text- utility re-skins automatically; the underlying
+     hex values below are the only thing that changed for the old
+     orange/light editorial pass. */
+  --color-carbon: #ffffff;         /* primary text: white on dark */
+  --color-paper-white: #232323;    /* card surface: raised dark surface */
+  --color-linen: #000000;          /* page background: near-black canvas */
+  --color-mist: #161616;           /* subtle elevated surface: input backgrounds, hover washes */
+  --color-fog: #2a2a2a;            /* border: dark neutral divider line */
+  --color-ash: #6b6b70;            /* tertiary/placeholder text */
+  --color-graphite: #a1a1aa;       /* secondary body text — lighter than ash for readability on dark */
+  --color-lavender: #22c55e;       /* primary green — the one accent hue in the system */
+  --color-iris: #16a34a;           /* accent/deep green — hover/active state of the accent */
+  --color-negative: #f87171;       /* negative delta / destructive — paired with the accent for charts */
 
   /* shadcn semantic tokens */
   --color-background: var(--background);
@@ -53,8 +54,13 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  /* DESIGN.md: Inter for display, JetBrains Mono for everything else.
+     --font-serif retired from the type system (no third typeface in the
+     new world) — repointed at the mono stack so any lingering
+     .font-body-editorial call site degrades to the documented voice
+     instead of pulling Playfair back in while surfaces are migrated. */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-serif: var(--font-playfair), Georgia, serif;
+  --font-serif: var(--font-jetbrains), ui-monospace, 'SF Mono', Menlo, monospace;
   --font-mono: var(--font-jetbrains), ui-monospace, 'SF Mono', Menlo, monospace;
 
   --radius-sm: 6px;
@@ -65,12 +71,53 @@
   --radius-3xl: 24px;
   --radius-full: 9999px;
 
-  --shadow-subtle: rgba(24, 24, 27, 0.08) 0px 1px 2px 0px, rgba(24, 24, 27, 0.04) 0px 0px 0px 1px;
-  --shadow-subtle-2: rgba(24, 24, 27, 0.1) 0px 1px 2px 0px, rgba(24, 24, 27, 0.05) 0px 0px 0px 1px;
-  --shadow-panel: rgba(24, 24, 27, 0.06) 0px 1px 3px 0px, rgba(24, 24, 27, 0.08) 0px 8px 24px 0px, rgba(24, 24, 27, 0.06) 0px 0px 0px 1px;
+  --shadow-subtle: rgba(0, 0, 0, 0.24) 0px 1px 2px 0px, rgba(0, 0, 0, 0.32) 0px 0px 0px 1px;
+  --shadow-subtle-2: rgba(0, 0, 0, 0.3) 0px 1px 2px 0px, rgba(0, 0, 0, 0.4) 0px 0px 0px 1px;
+  --shadow-panel: rgba(0, 0, 0, 0.4) 0px 1px 3px 0px, rgba(0, 0, 0, 0.5) 0px 8px 24px 0px, rgba(0, 0, 0, 0.3) 0px 0px 0px 1px;
 }
 
 :root {
+  color-scheme: dark;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #232323;
+  --card-foreground: #ffffff;
+  --popover: #232323;
+  --popover-foreground: #ffffff;
+  --primary: #22c55e;
+  --primary-foreground: #000000;
+  --secondary: #161616;
+  --secondary-foreground: #ffffff;
+  --muted: #161616;
+  --muted-foreground: #a1a1aa;
+  --accent: #161616;
+  --accent-foreground: #ffffff;
+  --destructive: #f87171;
+  --border: #2a2a2a;
+  --input: #2a2a2a;
+  --ring: #22c55e;
+  --chart-1: #22c55e;
+  --chart-2: #22c55e;
+  --chart-3: #22c55e;
+  --chart-4: #22c55e;
+  --chart-5: #22c55e;
+  --radius: 0.5rem;
+  --sidebar: #161616;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #22c55e;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #232323;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #2a2a2a;
+  --sidebar-ring: #22c55e;
+}
+
+/* Explicit light-mode companion state for in-app Operate surfaces only
+   (DESIGN.md Colors: "Light mode is a secondary, explicit companion state
+   for in-app Operate surfaces only... Marketing/Persuade surfaces stay
+   dark-only."). Applied via a `.light` class on a scoping ancestor, not a
+   media query, so marketing pages are never accidentally inverted. */
+:root.light {
   color-scheme: light;
   --background: #fafaf9;
   --foreground: #18181b;
@@ -78,32 +125,19 @@
   --card-foreground: #18181b;
   --popover: #ffffff;
   --popover-foreground: #18181b;
-  --primary: #f97316;
-  --primary-foreground: #ffffff;
   --secondary: #f4f4f5;
   --secondary-foreground: #18181b;
   --muted: #f4f4f5;
-  --muted-foreground: #71717a;
+  --muted-foreground: #52525b;
   --accent: #f4f4f5;
   --accent-foreground: #18181b;
-  --destructive: #f97316;
   --border: #e4e4e7;
   --input: #e4e4e7;
-  --ring: #f97316;
-  --chart-1: #f97316;
-  --chart-2: #f97316;
-  --chart-3: #f97316;
-  --chart-4: #f97316;
-  --chart-5: #f97316;
-  --radius: 0.5rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #18181b;
-  --sidebar-primary: #f97316;
-  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f4f4f5;
   --sidebar-accent-foreground: #18181b;
   --sidebar-border: #e4e4e7;
-  --sidebar-ring: #f97316;
 }
 
 @layer base {
@@ -118,7 +152,37 @@
   }
   ::selection {
     background: var(--color-lavender);
-    color: #ffffff;
+    color: #000000;
+  }
+  /* Closes the audit's verified P1 finding: no visible focus indicator
+     existed anywhere in the prior system (outline-none on 9 inputs, 3 with
+     zero replacement; no focus-visible ring on the shared Button
+     component). One consistent, visible, sufficient-contrast ring on every
+     keyboard-focused interactive element, everywhere, by default. */
+  :focus-visible {
+    outline: 2px solid var(--color-lavender);
+    outline-offset: 2px;
+  }
+}
+
+/* Closes the audit's verified P2 finding: zero prefers-reduced-motion
+   handling despite real motion (hover-lift, sweep-fill, reveal-up scroll
+   reveals, staggered entrance). Preserves the end state (content visible,
+   final position) and cuts the transition to nearly instant rather than a
+   blanket 0.01ms kill that would also silence purposeful state-change
+   feedback for users who still want *some* signal. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal-up {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -223,10 +287,10 @@
   }
 
   .glass-panel {
-    background: rgba(255, 255, 255, 0.75);
+    background: rgba(35, 35, 35, 0.75);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(24, 24, 27, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .swiss-grid {
@@ -260,7 +324,7 @@
     gap: 0.5rem;
     padding: 0.9rem 1.75rem;
     background: var(--color-lavender);
-    color: #ffffff;
+    color: #000000;
     font-weight: 600;
     font-size: 14px;
     letter-spacing: -0.01em;
@@ -302,7 +366,7 @@
     gap: 0.4rem;
     padding: 0.5rem 1.1rem;
     background: var(--color-lavender);
-    color: #ffffff;
+    color: #000000;
     font-weight: 600;
     font-size: 13px;
     letter-spacing: -0.01em;
@@ -344,13 +408,13 @@
     gap: 0.4rem;
     padding: 0.625rem 1.25rem;
     background: var(--color-lavender);
-    color: #ffffff;
+    color: #000000;
     font-weight: 600;
     font-size: 13px;
     letter-spacing: -0.01em;
     border-radius: var(--radius-full);
     overflow: hidden;
-    box-shadow: rgba(249, 115, 22, 0.3) 0px 3px 10px 0px;
+    box-shadow: rgba(34, 197, 94, 0.35) 0px 3px 10px 0px;
     transition: color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 1;
   }

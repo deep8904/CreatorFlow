@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Sparkles, Save, Plus, FileText, Trash2 } from 'lucide-react'
+import { Sparkles, Save, Plus, FileText, Trash2, ArrowLeft } from 'lucide-react'
 import { updateDraftContent, createDraft, deleteDraft } from '@/lib/supabase/actions'
 import type { DraftWithIdeaTitle } from '@/lib/supabase/queries'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,11 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
   const [isPending, startTransition] = useTransition()
   const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  // Below md, the list+editor split can't fit side by side (a fixed 240px
+  // list alone eats most of a 375px screen) — show one at a time instead,
+  // defaulting to the list rather than dropping the visitor straight into
+  // whichever draft happened to load first.
+  const [mobileShowEditor, setMobileShowEditor] = useState(false)
   const pendingSelectId = useRef<string | null>(null)
   const isDirty = activeDraft !== null && (content !== activeDraft.body || title !== activeDraft.title)
 
@@ -34,6 +39,7 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
       setActiveDraft(created)
       setContent(created.body)
       setTitle(created.title)
+      setMobileShowEditor(true)
       pendingSelectId.current = null
     }
   }, [initialDrafts])
@@ -54,6 +60,7 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
     setActiveDraft(draft)
     setContent(draft.body)
     setTitle(draft.title)
+    setMobileShowEditor(true)
   }
 
   const handleSave = () => {
@@ -112,8 +119,9 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
   return (
     <div className="flex h-screen overflow-hidden">
 
-      {/* Draft list sidebar */}
-      <div className="w-[240px] shrink-0 border-r border-fog bg-linen flex flex-col">
+      {/* Draft list sidebar — full-width standalone view below md, fixed
+          240px column alongside the editor at md and up. */}
+      <div className={`w-full md:w-[240px] shrink-0 border-r border-fog bg-linen flex-col ${mobileShowEditor ? 'hidden md:flex' : 'flex'}`}>
         <div className="px-4 py-4 border-b border-fog flex items-center justify-between shrink-0">
           <h1 className="text-app-h1 text-carbon">Drafts</h1>
           <button
@@ -154,33 +162,46 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
         </div>
       </div>
 
-      {/* Editor */}
+      {/* Editor — standalone full-width view below md (entered by tapping a
+          draft, left via the back arrow), alongside the list at md+. */}
       {activeDraft ? (
-        <div className="flex-1 flex flex-col overflow-hidden bg-paper-white">
-          {/* Editor header */}
-          <div className="px-8 py-4 border-b border-fog flex items-center justify-between shrink-0">
-            <div className="min-w-0 flex-1 mr-4">
-              {activeDraft.ideas?.title && (
-                <p className="text-[11px] text-ash mb-0.5">
-                  From: <span className="text-graphite font-medium">{activeDraft.ideas.title}</span>
-                </p>
-              )}
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                aria-label="Draft title"
-                className="font-bold text-carbon truncate bg-transparent outline-none w-full rounded px-1 -mx-1 hover:bg-linen focus:bg-linen transition-colors"
-                style={{ fontSize: '16px', letterSpacing: '-0.03em' }}
-              />
+        <div className={`flex-1 flex-col overflow-hidden bg-paper-white ${mobileShowEditor ? 'flex' : 'hidden md:flex'}`}>
+          {/* Editor header — stacks (title row, then actions row) below md;
+              a single row of title + actions no longer fits a 375px screen
+              once the back arrow and full-width title are added. */}
+          <div className="px-4 md:px-8 py-4 border-b border-fog flex flex-col md:flex-row md:items-center md:justify-between gap-3 shrink-0">
+            <div className="flex items-center min-w-0">
+              <button
+                onClick={() => setMobileShowEditor(false)}
+                aria-label="Back to drafts list"
+                className="md:hidden w-9 h-9 -ml-1 mr-2 flex items-center justify-center rounded-xl text-ash hover:text-carbon hover:bg-linen transition-colors shrink-0"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <div className="min-w-0 flex-1 md:mr-4">
+                {activeDraft.ideas?.title && (
+                  <p className="text-[11px] text-ash mb-0.5 truncate">
+                    From: <span className="text-graphite font-medium">{activeDraft.ideas.title}</span>
+                  </p>
+                )}
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  aria-label="Draft title"
+                  className="font-bold text-carbon truncate bg-transparent outline-none w-full rounded px-1 -mx-1 hover:bg-linen focus:bg-linen focus-visible:outline focus-visible:outline-2 focus-visible:outline-lavender focus-visible:outline-offset-2 transition-colors"
+                  style={{ fontSize: '16px', letterSpacing: '-0.03em' }}
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {isDirty && !isPending && <span className="text-[11px] text-ash">Unsaved changes</span>}
+            <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
+              {isDirty && !isPending && <span className="text-[11px] text-ash whitespace-nowrap">Unsaved changes</span>}
               <Button
                 variant="secondary"
                 onClick={handleAiAssist}
                 size="md"
                 iconLeft={<Sparkles size={13} className="text-lavender" />}
                 title="Inserts a structure template — preview only, not a live AI call"
+                className="whitespace-nowrap"
               >
                 AI assist — preview
               </Button>
@@ -201,7 +222,7 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
 
           {/* Text area */}
           <textarea
-            className="flex-1 resize-none px-12 py-10 text-carbon bg-paper-white outline-none placeholder-ash"
+            className="flex-1 resize-none px-6 md:px-12 py-6 md:py-10 text-carbon bg-paper-white outline-none placeholder-ash focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-lavender"
             style={{ fontSize: '16px', letterSpacing: '-0.3px', lineHeight: '1.75' }}
             value={content}
             onChange={(e) => setContent(e.target.value)}

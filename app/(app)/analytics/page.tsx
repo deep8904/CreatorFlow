@@ -3,6 +3,7 @@ import { BarChart2, TrendingDown, TrendingUp } from 'lucide-react'
 import { getChannelStats, getChannelVideos, getIntegrations } from '@/lib/supabase/queries'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import RevealUp from '@/components/editorial/RevealUp'
 
 export const metadata: Metadata = { title: 'Analytics — CreatorFlow' }
 
@@ -95,20 +96,24 @@ export default async function AnalyticsPage() {
           <span className="font-label text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full bg-lavender/10 text-lavender">This month</span>
         </div>
 
-        {/* Stat cards — number + a small delta badge in the corner */}
+        {/* Stat cards — same authored entrance grammar as Dashboard's stat
+            tiles: data arriving in a quick stagger, the one motion moment
+            this page earns. */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          {cards.map((c) => (
-            <div key={c.label} className="relative bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
-              {c.delta !== null && (
-                <div className={`absolute top-4 right-4 flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full ${c.delta >= 0 ? 'bg-lavender/10 text-lavender' : 'bg-fog text-graphite'}`}>
-                  {c.delta >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                  {Math.abs(c.delta).toFixed(1)}%
-                </div>
-              )}
-              <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">{c.label}</p>
-              <p className="font-bold text-carbon mb-1" style={{ fontSize: '22px', lineHeight: 1, letterSpacing: '-0.04em' }}>{c.value}</p>
-              {c.sublabel && <p className="text-[11.5px] font-medium text-ash">{c.sublabel}</p>}
-            </div>
+          {cards.map((c, i) => (
+            <RevealUp key={c.label} delay={i as 0 | 1 | 2}>
+              <div className="relative bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
+                {c.delta !== null && (
+                  <div className={`absolute top-4 right-4 flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full ${c.delta >= 0 ? 'bg-lavender/10 text-lavender' : 'bg-fog text-graphite'}`}>
+                    {c.delta >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                    {Math.abs(c.delta).toFixed(1)}%
+                  </div>
+                )}
+                <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">{c.label}</p>
+                <p className="font-bold text-carbon mb-1" style={{ fontSize: '22px', lineHeight: 1, letterSpacing: '-0.04em' }}>{c.value}</p>
+                {c.sublabel && <p className="text-[11.5px] font-medium text-ash">{c.sublabel}</p>}
+              </div>
+            </RevealUp>
           ))}
         </div>
 

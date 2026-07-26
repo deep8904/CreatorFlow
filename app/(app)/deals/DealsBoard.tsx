@@ -236,7 +236,7 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search deals"
-                className="text-[13px] bg-linen border border-fog rounded-full pl-8 pr-3 py-1.5 outline-none focus:border-lavender/60 transition-colors w-[160px]"
+                className="text-[13px] bg-linen border border-fog rounded-full pl-8 pr-3 py-1.5 outline-none focus:border-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-lavender focus-visible:outline-offset-2 transition-colors w-[160px]"
               />
             </div>
             <Button onClick={() => setModalMode('add')} size="md" iconRight={<ArrowRight size={13} />}>
@@ -268,13 +268,13 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
           </div>
         ) : (
           /* Kanban */
-          <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 py-6">
+          <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 py-6 snap-x snap-mandatory md:snap-none">
             <div className="flex gap-3 h-full" style={{ minWidth: 'max-content' }}>
               {STAGES.map((stage) => {
                 const stageDeals = visibleDeals.filter((d) => d.status === stage)
                 const cfg = stageConfig[stage]
                 return (
-                  <div key={stage} className={`w-[228px] shrink-0 flex flex-col gap-2.5 ${stage === 'lost' ? 'opacity-60' : ''}`}>
+                  <div key={stage} className={`w-[85vw] sm:w-[320px] md:w-[228px] shrink-0 flex flex-col gap-2.5 snap-center md:snap-align-none ${stage === 'lost' ? 'opacity-60' : ''}`}>
                     {/* Column header */}
                     <div className="flex items-center justify-between px-1">
                       <div className="flex items-center gap-1.5">
@@ -296,7 +296,7 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
                           onClick={() => selectDeal(deal.id)}
                           className={`w-full text-left bg-paper-white border rounded-xl p-4 transition-all hover:shadow-sm ${
                             selectedId === deal.id
-                              ? 'border-lavender/50 shadow-[0_0_0_2px_rgba(249,115,22,0.15)]'
+                              ? 'border-lavender/50 shadow-[0_0_0_2px_rgba(34,197,94,0.15)]'
                               : 'border-fog hover:border-fog/80'
                           }`}
                           style={{ boxShadow: selectedId === deal.id ? undefined : 'var(--shadow-subtle)' }}

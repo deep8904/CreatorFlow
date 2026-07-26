@@ -13,7 +13,7 @@ interface DotGridProps {
  * performant and dependency-free; falls back to a static grid when the
  * viewer prefers reduced motion).
  */
-export default function DotGrid({ className = '', color = '249, 115, 22' }: DotGridProps) {
+export default function DotGrid({ className = '', color = '34, 197, 94' }: DotGridProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {

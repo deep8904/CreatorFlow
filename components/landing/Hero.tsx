@@ -71,7 +71,7 @@ export default function Hero() {
 
         {/* Product preview panel */}
         <RevealUp delay={3} className="mt-16">
-          <div className="glass-panel relative aspect-[16/10] w-full overflow-hidden rounded-xl shadow-[0_20px_60px_-15px_rgba(249,115,22,0.12)] md:aspect-[21/9]">
+          <div className="glass-panel relative aspect-[16/10] w-full overflow-hidden rounded-xl shadow-[0_20px_60px_-15px_rgba(34,197,94,0.12)] md:aspect-[21/9]">
             {/* UI chrome header — mirrors the real app sidebar's mono-label nav treatment */}
             <div className="flex h-12 items-center gap-4 border-b border-fog bg-mist px-6">
               <div className="flex gap-2">
@@ -106,7 +106,7 @@ export default function Hero() {
                     <div
                       key={i}
                       className="w-full rounded-t bg-fog transition-colors duration-300 group-hover:bg-lavender/40"
-                      style={{ height: `${h}%`, background: i === 6 ? '#F97316' : undefined }}
+                      style={{ height: `${h}%`, background: i === 6 ? 'var(--color-lavender)' : undefined }}
                     />
                   ))}
                 </div>
