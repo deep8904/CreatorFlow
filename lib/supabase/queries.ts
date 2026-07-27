@@ -4,6 +4,7 @@ import type {
   ChannelStatsDaily,
   ChannelVideo,
   Deal,
+  DealStageHistory,
   Draft,
   Idea,
   Profile,
@@ -68,6 +69,26 @@ export async function getDeals(): Promise<Deal[]> {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
   return (data as Deal[]) ?? []
+}
+
+/**
+ * All history rows for the user in one query — grouped by `deal_id` on the
+ * client. A handful of deals with a few transitions each is small enough
+ * that this beats an N+1 per-deal fetch.
+ */
+export async function getDealStageHistory(): Promise<DealStageHistory[]> {
+  const { user } = await getAuthenticatedUser()
+  if (!user) return []
+
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) return []
+
+  const { data } = await supabase
+    .from('deal_stage_history')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('changed_at', { ascending: false })
+  return (data as DealStageHistory[]) ?? []
 }
 
 export async function getAutomations(): Promise<Automation[]> {

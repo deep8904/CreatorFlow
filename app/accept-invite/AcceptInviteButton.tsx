@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight } from 'lucide-react'
 import { acceptTeamInvite } from '@/lib/supabase/actions'
-import { Button } from '@/components/ui/button'
+import { AuthAlert, AuthButton } from '@/components/auth'
 
 export function AcceptInviteButton({ inviteId }: { inviteId: string }) {
   const router = useRouter()
@@ -25,11 +24,11 @@ export function AcceptInviteButton({ inviteId }: { inviteId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 w-full">
-      {error && <p className="text-[13px] font-semibold text-carbon text-center">{error}</p>}
-      <Button onClick={accept} size="lg" className="w-full" loading={isPending} iconRight={!isPending ? <ArrowRight size={15} /> : undefined}>
+    <div className="flex w-full flex-col gap-3">
+      <AuthAlert message={error} />
+      <AuthButton type="button" onClick={accept} disabled={isPending} loading={isPending}>
         {isPending ? 'Joining…' : 'Accept invite'}
-      </Button>
+      </AuthButton>
     </div>
   )
 }

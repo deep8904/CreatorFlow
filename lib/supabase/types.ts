@@ -6,6 +6,7 @@ export type Profile = {
   onboarding_completed: boolean
   timezone: string | null
   locale: string | null
+  notify_deal_reminders: boolean
   created_at: string
   updated_at: string
 }
@@ -43,8 +44,19 @@ export type Deal = {
   notes: string | null
   email_thread_id: string | null
   due_date: string | null
+  invoiced_at: string | null
+  paid_at: string | null
   created_at: string
   updated_at: string
+}
+
+export type DealStageHistory = {
+  id: string
+  deal_id: string
+  user_id: string
+  from_status: Deal['status'] | null
+  to_status: Deal['status']
+  changed_at: string
 }
 
 export type Integration = {

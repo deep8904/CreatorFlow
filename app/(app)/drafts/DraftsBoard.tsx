@@ -5,12 +5,41 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Sparkles, Save, Plus, FileText, Trash2, ArrowLeft } from 'lucide-react'
 import { updateDraftContent, createDraft, deleteDraft } from '@/lib/supabase/actions'
 import type { DraftWithIdeaTitle } from '@/lib/supabase/queries'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/ui/empty-state'
+import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
 import { useToast } from '@/lib/toast'
 
-const AI_ASSIST_SUGGESTION =
-  '\n\n[Structure template — preview only, not a live AI call. Starting point, edit freely.]\nHook: open with the single most surprising line from your notes above.\nBody: expand each bullet into 2-3 sentences of spoken narration.\nClose: one clear call to action tying back to the hook.'
+function firstNonEmptyLine(text: string) {
+  return text.split('\n').map((l) => l.trim()).find(Boolean) ?? null
+}
+
+function trimTo(text: string, max: number) {
+  return text.length <= max ? text : text.slice(0, max).replace(/\s+\S*$/, '') + '…'
+}
+
+/**
+ * Idea-aware, not generic — reads what's actually been written (or the
+ * linked idea's title) instead of a fixed Hook/Body/Close skeleton with no
+ * relationship to the content. Still a template, still honestly labelled;
+ * just built from the real draft instead of nothing.
+ */
+function buildAiAssistSuggestion(title: string, existingContent: string, linkedIdeaTitle: string | null) {
+  const topic = linkedIdeaTitle || title || 'this piece'
+  const anchor = firstNonEmptyLine(existingContent)
+  const lineCount = existingContent.split('\n').filter((l) => l.trim()).length
+
+  const hook = anchor
+    ? `Hook: open with "${trimTo(anchor, 90)}" — that's your strongest line so far, lead with it.`
+    : `Hook: open with the single most surprising thing about "${topic}."`
+
+  const body =
+    lineCount > 1
+      ? `Body: you've already got ${lineCount} lines down — expand each into 2-3 sentences of spoken narration, in order.`
+      : `Body: break "${topic}" into 3 beats — what happened, why it mattered, what you'd do differently.`
+
+  const close = `Close: one clear call to action tying back to ${topic}.`
+
+  return `\n\n[Structure template — preview only, not a live AI call. Built from what you've written, not a generic skeleton. Starting point, edit freely.]\n${hook}\n${body}\n${close}`
+}
 
 export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWithIdeaTitle[] }) {
   const router = useRouter()
@@ -22,16 +51,10 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
   const [isPending, startTransition] = useTransition()
   const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  // Below md, the list+editor split can't fit side by side (a fixed 240px
-  // list alone eats most of a 375px screen) — show one at a time instead,
-  // defaulting to the list rather than dropping the visitor straight into
-  // whichever draft happened to load first.
   const [mobileShowEditor, setMobileShowEditor] = useState(false)
   const pendingSelectId = useRef<string | null>(null)
   const isDirty = activeDraft !== null && (content !== activeDraft.body || title !== activeDraft.title)
 
-  // Once a freshly created draft shows up in the refreshed list, select it —
-  // otherwise it's created but never opened, leaving an extra manual click.
   useEffect(() => {
     if (!pendingSelectId.current) return
     const created = initialDrafts.find((d) => d.id === pendingSelectId.current)
@@ -44,8 +67,6 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
     }
   }, [initialDrafts])
 
-  // Warn on tab close/refresh with unsaved edits — browsers show their own
-  // generic confirmation text, the string here is ignored by modern ones.
   useEffect(() => {
     if (!isDirty) return
     const handler = (e: BeforeUnloadEvent) => {
@@ -103,8 +124,6 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
     router.refresh()
   }
 
-  // Deep link from the dashboard's "Start a draft" action. Deferred to a
-  // microtask so the mutation isn't triggered synchronously within the effect.
   useEffect(() => {
     if (searchParams.get('new') !== '1') return
     router.replace('/drafts')
@@ -113,129 +132,142 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
   }, [searchParams])
 
   const handleAiAssist = () => {
-    setContent((c) => c + AI_ASSIST_SUGGESTION)
+    setContent((c) => c + buildAiAssistSuggestion(title, c, activeDraft?.ideas?.title ?? null))
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-
-      {/* Draft list sidebar — full-width standalone view below md, fixed
-          240px column alongside the editor at md and up. */}
-      <div className={`w-full md:w-[240px] shrink-0 border-r border-fog bg-linen flex-col ${mobileShowEditor ? 'hidden md:flex' : 'flex'}`}>
-        <div className="px-4 py-4 border-b border-fog flex items-center justify-between shrink-0">
-          <h1 className="text-app-h1 text-carbon">Drafts</h1>
+    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
+      <div
+        className={`w-full shrink-0 flex-col border-r border-white/[0.06] bg-white/[0.02] backdrop-blur-xl md:flex md:w-[260px] ${
+          mobileShowEditor ? 'hidden md:flex' : 'flex'
+        }`}
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-4">
+          <div>
+            <p className="flex items-center gap-1.5 font-nebula-mono text-[10.5px] font-medium uppercase tracking-[0.16em] text-orange-400">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-[9999px] bg-orange-400" />
+              Drafts
+            </p>
+            <h1 className="mt-1 font-nebula-heading text-[17px] font-semibold text-white">Drafts</h1>
+          </div>
           <button
+            type="button"
             onClick={handleNewDraft}
             disabled={isCreating}
             aria-label="New draft"
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-lavender/10 text-lavender hover:bg-lavender/20 disabled:opacity-50 transition-colors"
+            className={`grid h-8 w-8 shrink-0 place-items-center rounded-[9999px] bg-orange-500/[0.15] text-orange-300 hover:bg-orange-500/[0.25] disabled:opacity-50 ${HOVER} ${FOCUS}`}
           >
-            <Plus size={14} />
+            <Plus size={14} strokeWidth={2.5} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
+        <div className="console-scroll flex flex-1 flex-col gap-1 overflow-y-auto p-2">
           {initialDrafts.length === 0 ? (
             <div className="p-4 text-center">
-              <p className="text-[13px] text-graphite">No drafts yet.</p>
-              <p className="text-[12px] text-ash mt-1">Turn one of your ideas into a draft to start writing.</p>
+              <p className="font-nebula-ui text-[13px] text-zinc-400">No drafts yet.</p>
+              <p className="mt-1 font-nebula-ui text-[12px] text-zinc-600">Turn one of your ideas into a draft to start writing.</p>
             </div>
           ) : (
             initialDrafts.map((draft) => (
               <button
                 key={draft.id}
+                type="button"
                 onClick={() => handleSelect(draft)}
-                className={`w-full text-left px-3 py-3 rounded-xl transition-colors ${
-                  activeDraft?.id === draft.id ? 'bg-paper-white border border-fog' : 'hover:bg-paper-white/70'
+                className={`w-full rounded-[12px] px-3 py-3 text-left transition-colors ${FOCUS_INSET} ${
+                  activeDraft?.id === draft.id ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]'
                 }`}
-                style={activeDraft?.id === draft.id ? { boxShadow: 'var(--shadow-subtle)' } : undefined}
               >
-                <p
-                  className="font-semibold text-carbon leading-snug mb-1 line-clamp-2"
-                  style={{ fontSize: '13px', letterSpacing: '-0.25px' }}
-                >
+                <p className="mb-1 line-clamp-2 font-nebula-ui text-[13px] font-semibold leading-snug text-zinc-100">
                   {draft.title}
                 </p>
-                <p className="text-[11px] text-ash">{new Date(draft.updated_at).toLocaleDateString()}</p>
+                <p className="font-nebula-ui text-[11px] text-zinc-600">{new Date(draft.updated_at).toLocaleDateString()}</p>
               </button>
             ))
           )}
         </div>
       </div>
 
-      {/* Editor — standalone full-width view below md (entered by tapping a
-          draft, left via the back arrow), alongside the list at md+. */}
       {activeDraft ? (
-        <div className={`flex-1 flex-col overflow-hidden bg-paper-white ${mobileShowEditor ? 'flex' : 'hidden md:flex'}`}>
-          {/* Editor header — stacks (title row, then actions row) below md;
-              a single row of title + actions no longer fits a 375px screen
-              once the back arrow and full-width title are added. */}
-          <div className="px-4 md:px-8 py-4 border-b border-fog flex flex-col md:flex-row md:items-center md:justify-between gap-3 shrink-0">
-            <div className="flex items-center min-w-0">
+        <div className={`flex-1 flex-col overflow-hidden ${mobileShowEditor ? 'flex' : 'hidden md:flex'}`}>
+          <div className="flex shrink-0 flex-col gap-3 border-b border-white/[0.06] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8">
+            <div className="flex min-w-0 items-center">
               <button
+                type="button"
                 onClick={() => setMobileShowEditor(false)}
                 aria-label="Back to drafts list"
-                className="md:hidden w-9 h-9 -ml-1 mr-2 flex items-center justify-center rounded-xl text-ash hover:text-carbon hover:bg-linen transition-colors shrink-0"
+                className={`-ml-1 mr-2 grid h-9 w-9 shrink-0 place-items-center rounded-[9999px] text-zinc-400 hover:bg-white/[0.06] hover:text-white md:hidden ${HOVER} ${FOCUS_INSET}`}
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft size={16} strokeWidth={2} />
               </button>
               <div className="min-w-0 flex-1 md:mr-4">
                 {activeDraft.ideas?.title && (
-                  <p className="text-[11px] text-ash mb-0.5 truncate">
-                    From: <span className="text-graphite font-medium">{activeDraft.ideas.title}</span>
+                  <p className="mb-0.5 truncate font-nebula-ui text-[11px] text-zinc-600">
+                    From: <span className="font-medium text-zinc-400">{activeDraft.ideas.title}</span>
                   </p>
                 )}
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   aria-label="Draft title"
-                  className="font-bold text-carbon truncate bg-transparent outline-none w-full rounded px-1 -mx-1 hover:bg-linen focus:bg-linen focus-visible:outline focus-visible:outline-2 focus-visible:outline-lavender focus-visible:outline-offset-2 transition-colors"
-                  style={{ fontSize: '16px', letterSpacing: '-0.03em' }}
+                  className={`w-full truncate rounded-[6px] bg-transparent px-1 -mx-1 font-nebula-heading text-[16px] font-semibold text-white outline-none hover:bg-white/[0.04] focus:bg-white/[0.04] ${FOCUS}`}
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
-              {isDirty && !isPending && <span className="text-[11px] text-ash whitespace-nowrap">Unsaved changes</span>}
-              <Button
-                variant="secondary"
-                onClick={handleAiAssist}
-                size="md"
-                iconLeft={<Sparkles size={13} className="text-lavender" />}
-                title="Inserts a structure template — preview only, not a live AI call"
-                className="whitespace-nowrap"
-              >
-                AI assist — preview
-              </Button>
-              <Button onClick={handleSave} disabled={isPending || !title.trim()} loading={isPending} size="md" iconLeft={!isPending ? <Save size={13} /> : undefined}>
-                Save
-              </Button>
+            <div className="flex shrink-0 items-center gap-2 overflow-x-auto">
+              {isDirty && !isPending && (
+                <span className="whitespace-nowrap font-nebula-ui text-[11px] text-zinc-600">Unsaved changes</span>
+              )}
               <button
+                type="button"
+                onClick={handleAiAssist}
+                title="Inserts a structure template — preview only, not a live AI call"
+                className={`flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[9999px] border border-white/10 px-3.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
+              >
+                <Sparkles size={13} strokeWidth={2} className="text-orange-400" />
+                AI assist — preview
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isPending || !title.trim()}
+                className={`nebula-cta-static flex h-9 items-center gap-1.5 rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium disabled:pointer-events-none disabled:opacity-50 ${FOCUS}`}
+              >
+                <span className="nebula-cta__label flex items-center gap-1.5">
+                  {!isPending && <Save size={13} strokeWidth={2} />}
+                  {isPending ? 'Saving…' : 'Save'}
+                </span>
+              </button>
+              <button
+                type="button"
                 onClick={handleDelete}
                 disabled={isDeleting}
                 aria-label="Delete draft"
                 title="Delete draft"
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-ash hover:text-carbon hover:bg-linen transition-colors disabled:opacity-50 shrink-0"
+                className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9999px] text-zinc-500 hover:bg-white/[0.08] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
               >
-                <Trash2 size={15} />
+                <Trash2 size={15} strokeWidth={2} />
               </button>
             </div>
           </div>
 
-          {/* Text area */}
           <textarea
-            className="flex-1 resize-none px-6 md:px-12 py-6 md:py-10 text-carbon bg-paper-white outline-none placeholder-ash focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-lavender"
-            style={{ fontSize: '16px', letterSpacing: '-0.3px', lineHeight: '1.75' }}
+            className={`flex-1 resize-none bg-transparent px-6 py-6 font-nebula-ui text-[15px] leading-[1.75] text-zinc-200 outline-none placeholder:text-zinc-600 md:px-12 md:py-10 ${FOCUS}`}
+            style={{ letterSpacing: '-0.2px' }}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Start writing..."
           />
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center bg-paper-white">
-          <EmptyState
-            icon={<FileText size={18} className="text-ash" strokeWidth={2} />}
-            title="No draft selected."
-            description="Turn one of your ideas into a draft to start writing."
-          />
+        <div className={`flex-1 items-center justify-center ${mobileShowEditor ? 'flex' : 'hidden md:flex'}`}>
+          <div className="text-center">
+            <span aria-hidden className="mx-auto grid h-11 w-11 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
+              <FileText size={18} strokeWidth={2} />
+            </span>
+            <p className="mt-4 font-nebula-heading text-[16px] font-semibold text-white">No draft selected.</p>
+            <p className="mt-1 font-nebula-ui text-[13px] text-zinc-500">
+              Turn one of your ideas into a draft to start writing.
+            </p>
+          </div>
         </div>
       )}
     </div>

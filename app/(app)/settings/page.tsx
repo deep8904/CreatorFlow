@@ -23,6 +23,7 @@ export default async function SettingsPage() {
       gmailAccountLabel={gmail?.accountLabel ?? null}
       youtubeConnected={!!youtube}
       youtubeAccountLabel={youtube?.accountLabel ?? null}
+      notifyDealReminders={profile?.notify_deal_reminders ?? true}
     />
   )
 }

@@ -2,16 +2,17 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { updateProfile, disconnectIntegration, deleteAccount } from '@/lib/supabase/actions'
+import { Trash2, Download, BellRing } from 'lucide-react'
+import { updateProfile, disconnectIntegration, deleteAccount, updateNotifyDealReminders } from '@/lib/supabase/actions'
 import { updateEmail, updatePassword } from '@/lib/supabase/auth'
-import { Avatar } from '@/components/ui/avatar'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
+import { InitialsChip } from '@/components/dash/InitialsChip'
+import { Panel } from '@/components/dash/Panel'
+import { DashboardHeader } from '@/components/dash/DashboardHeader'
+import { GlassModal } from '@/components/dash/GlassModal'
+import { FieldLabel, FieldInput } from '@/components/dash/FormField'
 import { GmailGlyph, YouTubeGlyph } from '@/components/ui/oauth-glyphs'
+import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
 import { useToast } from '@/lib/toast'
-import { useEscapeKey } from '@/lib/useEscapeKey'
 
 interface Props {
   fullName: string
@@ -20,6 +21,7 @@ interface Props {
   gmailAccountLabel: string | null
   youtubeConnected: boolean
   youtubeAccountLabel: string | null
+  notifyDealReminders: boolean
 }
 
 export default function SettingsBoard({
@@ -29,6 +31,7 @@ export default function SettingsBoard({
   gmailAccountLabel,
   youtubeConnected,
   youtubeAccountLabel,
+  notifyDealReminders,
 }: Props) {
   const router = useRouter()
   const toast = useToast()
@@ -39,11 +42,12 @@ export default function SettingsBoard({
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isSavingPassword, setIsSavingPassword] = useState(false)
   const [disconnecting, setDisconnecting] = useState<'gmail' | 'youtube' | null>(null)
+  const [remindersOn, setRemindersOn] = useState(notifyDealReminders)
+  const [isSavingReminders, setIsSavingReminders] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  useEscapeKey(() => { if (deleteOpen && !isDeleting) setDeleteOpen(false) })
 
   const save = () => {
     const trimmedEmail = emailInput.trim()
@@ -100,6 +104,20 @@ export default function SettingsBoard({
     router.refresh()
   }
 
+  const toggleReminders = async () => {
+    const next = !remindersOn
+    setRemindersOn(next)
+    setIsSavingReminders(true)
+    const result = await updateNotifyDealReminders(next)
+    setIsSavingReminders(false)
+    if (result.error) {
+      setRemindersOn(!next)
+      toast.error(result.error)
+      return
+    }
+    router.refresh()
+  }
+
   const handleDelete = async () => {
     setIsDeleting(true)
     setDeleteError(null)
@@ -132,51 +150,43 @@ export default function SettingsBoard({
   ]
 
   return (
-    <main className="flex-1 overflow-y-auto bg-linen">
-      <div className="app-container-narrow">
-      <div className="mb-8">
-        <h1 className="text-app-h1 text-carbon">Settings</h1>
-      </div>
+    <main id="dashboard-main" className="console-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <DashboardHeader eyebrow="Settings" title="Settings" description="Your account, connected accounts, and data." />
 
-      <div className="flex flex-col gap-6">
-
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {/* Profile */}
-        <Card variant="subtle" padding="lg">
-          <h2 className="text-[14px] font-semibold text-carbon mb-4">Profile</h2>
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-4">
-              <Avatar name={name} size="lg" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Panel title="Profile" titleId="settings-profile-heading">
+          <div className="flex flex-col gap-4 px-5 py-4">
+            <InitialsChip name={name || 'You'} size={44} />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <Label htmlFor="settings-name">Full name</Label>
-                <Input id="settings-name" value={name} onChange={(e) => setName(e.target.value)} />
+                <FieldLabel htmlFor="settings-name">Full name</FieldLabel>
+                <FieldInput id="settings-name" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
-                <Label htmlFor="settings-email">Email</Label>
-                <Input
-                  id="settings-email"
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                />
+                <FieldLabel htmlFor="settings-email">Email</FieldLabel>
+                <FieldInput id="settings-email" type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} />
               </div>
             </div>
-            <Button onClick={save} disabled={isPending || !name.trim() || !emailInput.trim()} loading={isPending} size="md" className="w-fit">
-              Save changes
-            </Button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={isPending || !name.trim() || !emailInput.trim()}
+              className={`nebula-cta-static inline-flex h-9 w-fit items-center rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium disabled:pointer-events-none disabled:opacity-50 ${FOCUS}`}
+            >
+              <span className="nebula-cta__label">{isPending ? 'Saving…' : 'Save changes'}</span>
+            </button>
           </div>
-        </Card>
+        </Panel>
 
         {/* Password */}
-        <Card variant="subtle" padding="lg">
-          <h2 className="text-[14px] font-semibold text-carbon mb-1">Password</h2>
-          <p className="text-[13px] text-graphite mb-4">Change your password without signing out.</p>
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Panel title="Password" titleId="settings-password-heading">
+          <div className="flex flex-col gap-4 px-5 py-4">
+            <p className="-mt-1 font-nebula-ui text-[12.5px] text-zinc-500">Change your password without signing out.</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <Label htmlFor="settings-new-password">New password</Label>
-                <Input
+                <FieldLabel htmlFor="settings-new-password">New password</FieldLabel>
+                <FieldInput
                   id="settings-new-password"
                   type="password"
                   autoComplete="new-password"
@@ -186,8 +196,8 @@ export default function SettingsBoard({
                 />
               </div>
               <div>
-                <Label htmlFor="settings-confirm-password">Confirm password</Label>
-                <Input
+                <FieldLabel htmlFor="settings-confirm-password">Confirm password</FieldLabel>
+                <FieldInput
                   id="settings-confirm-password"
                   type="password"
                   autoComplete="new-password"
@@ -197,47 +207,84 @@ export default function SettingsBoard({
                 />
               </div>
             </div>
-            <Button
+            <button
+              type="button"
               onClick={savePassword}
               disabled={isSavingPassword || !newPassword || !confirmPassword}
-              loading={isSavingPassword}
-              size="md"
-              className="w-fit"
+              className={`nebula-cta-static inline-flex h-9 w-fit items-center rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium disabled:pointer-events-none disabled:opacity-50 ${FOCUS}`}
             >
-              Update password
-            </Button>
+              <span className="nebula-cta__label">{isSavingPassword ? 'Updating…' : 'Update password'}</span>
+            </button>
           </div>
-        </Card>
+        </Panel>
+
+        {/* Notifications */}
+        <Panel title="Notifications" titleId="settings-notifications-heading">
+          <div className="flex items-center gap-4 px-5 py-4">
+            <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
+              <BellRing size={16} strokeWidth={2} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-nebula-ui text-[13.5px] font-medium text-zinc-100">Deal reminders</p>
+              <p className="font-nebula-ui text-[12px] text-zinc-500">
+                The bell in the sidebar flags deals due or overdue in the next 3 days. In-app only — no email or push.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={toggleReminders}
+              disabled={isSavingReminders}
+              role="switch"
+              aria-checked={remindersOn}
+              aria-label="Toggle deal reminders"
+              className={`relative h-6 w-10 shrink-0 rounded-[9999px] transition-colors disabled:opacity-50 ${HOVER} ${FOCUS_INSET} ${
+                remindersOn ? 'bg-orange-500' : 'bg-white/[0.12]'
+              }`}
+            >
+              <span
+                className={`absolute top-1 h-4 w-4 rounded-[9999px] bg-white transition-transform ${HOVER} ${
+                  remindersOn ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </Panel>
 
         {/* Connected accounts */}
-        <Card variant="subtle" padding="lg">
-          <h2 className="text-[14px] font-semibold text-carbon mb-4">Connected accounts</h2>
-          <div className="flex flex-col divide-y divide-fog">
+        <Panel title="Connected accounts" titleId="settings-accounts-heading">
+          <div className="divide-y divide-white/[0.06] border-t border-white/[0.06]">
             {accounts.map((acct) => (
-              <div key={acct.key} className="flex items-center gap-4 py-4">
-                <div className="w-10 h-10 rounded-xl bg-fog text-carbon flex items-center justify-center shrink-0">
-                  {acct.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-semibold text-carbon">{acct.name}</p>
-                  <p className="text-[12px] text-ash">
-                    {acct.connected ? `Connected as ${acct.accountLabel ?? email}` : acct.description}
+              <div key={acct.key} className="flex items-center gap-4 px-5 py-4">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-white/[0.06] text-zinc-300">{acct.icon}</div>
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 font-nebula-ui text-[13.5px] font-medium text-zinc-100">
+                    {acct.name}
+                    {acct.connected && (
+                      <span
+                        title="Seeded demo data, not a live OAuth session — this build has no production Google credentials"
+                        className="rounded-[9999px] bg-white/[0.06] px-1.5 py-0.5 font-nebula-mono text-[9px] font-medium uppercase tracking-[0.08em] text-zinc-500"
+                      >
+                        Demo
+                      </span>
+                    )}
+                  </p>
+                  <p className="font-nebula-ui text-[12px] text-zinc-500">
+                    {acct.connected ? `Connected as ${acct.accountLabel ?? email} — demo data, not live` : acct.description}
                   </p>
                 </div>
                 {acct.connected ? (
-                  <Button
-                    variant="secondary"
+                  <button
+                    type="button"
                     onClick={() => handleDisconnect(acct.key)}
                     disabled={disconnecting === acct.key}
-                    loading={disconnecting === acct.key}
-                    size="sm"
+                    className={`shrink-0 rounded-[9999px] border border-white/10 px-3.5 py-1.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
                   >
-                    Disconnect
-                  </Button>
+                    {disconnecting === acct.key ? 'Disconnecting…' : 'Disconnect'}
+                  </button>
                 ) : (
                   <span
                     title="Connecting a real account requires production Google OAuth credentials"
-                    className="text-[12px] font-medium px-4 py-2 rounded-full text-ash border border-fog opacity-60 cursor-not-allowed"
+                    className="shrink-0 cursor-not-allowed rounded-[9999px] border border-white/10 px-3.5 py-1.5 font-nebula-ui text-[12px] font-medium text-zinc-600"
                   >
                     Connect
                   </span>
@@ -245,65 +292,76 @@ export default function SettingsBoard({
               </div>
             ))}
           </div>
-        </Card>
+        </Panel>
 
         {/* Data export */}
-        <Card variant="subtle" padding="lg">
-          <h2 className="text-[14px] font-semibold text-carbon mb-1">Data export</h2>
-          <p className="text-[13px] text-graphite mb-4">
-            Download everything you&apos;ve put into CreatorFlow — deals, ideas, drafts, and settings — as files you can keep, any time.
-          </p>
-          <Button href="/api/export" download variant="secondary" size="md">
-            Export my data
-          </Button>
-        </Card>
+        <Panel title="Data export" titleId="settings-export-heading">
+          <div className="px-5 py-4">
+            <p className="mb-4 font-nebula-ui text-[12.5px] text-zinc-500">
+              Download everything you&apos;ve put into CreatorFlow — deals, ideas, drafts, and settings — as files you can keep, any time.
+            </p>
+            <a
+              href="/api/export"
+              download
+              className={`inline-flex h-9 items-center gap-1.5 rounded-[9999px] border border-white/10 px-4 font-nebula-ui text-[12.5px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
+            >
+              <Download size={13} strokeWidth={2} />
+              Export my data
+            </a>
+          </div>
+        </Panel>
 
         {/* Danger zone */}
-        <Card variant="subtle" padding="lg">
-          <h2 className="text-[14px] font-semibold text-carbon mb-1">Delete account</h2>
-          <p className="text-[13px] text-graphite mb-4">
-            This permanently deletes your account and data. You can export your data first above.
-          </p>
-          <Button variant="secondary" onClick={() => setDeleteOpen(true)} size="md">
-            Delete account
-          </Button>
-        </Card>
-      </div>
+        <Panel title="Delete account" titleId="settings-danger-heading">
+          <div className="px-5 py-4">
+            <p className="mb-4 font-nebula-ui text-[12.5px] text-zinc-500">
+              This permanently deletes your account and data. You can export your data first above.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(true)}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-[9999px] border border-orange-500/25 px-4 font-nebula-ui text-[12.5px] font-medium text-orange-300 hover:bg-orange-500/[0.08] ${HOVER} ${FOCUS}`}
+            >
+              <Trash2 size={13} strokeWidth={2} />
+              Delete account
+            </button>
+          </div>
+        </Panel>
       </div>
 
       {deleteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => !isDeleting && setDeleteOpen(false)}>
-          <div className="w-full max-w-[400px] bg-paper-white border border-fog rounded-xl p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-[15px] font-bold text-carbon mb-2">Delete your account?</h2>
-            <p className="text-[13px] text-graphite mb-4">
-              This permanently deletes your account and every deal, idea, draft, and automation in it. This can&apos;t be undone.
-            </p>
-            <Label htmlFor="delete-confirm">Type DELETE to confirm</Label>
-            <Input
-              id="delete-confirm"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="DELETE"
-              className="mb-4"
-            />
-            {deleteError && <p className="text-[12.5px] font-semibold text-carbon mb-4">{deleteError}</p>}
-            <div className="flex gap-2">
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={deleteConfirmText !== 'DELETE' || isDeleting}
-                loading={isDeleting}
-                size="md"
-                className="flex-1"
-              >
-                Permanently delete
-              </Button>
-              <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={isDeleting} size="md">
-                Cancel
-              </Button>
-            </div>
+        <GlassModal title="Delete your account?" onClose={() => !isDeleting && setDeleteOpen(false)}>
+          <p className="mb-4 font-nebula-ui text-[13px] text-zinc-400">
+            This permanently deletes your account and every deal, idea, draft, and automation in it. This can&apos;t be undone.
+          </p>
+          <FieldLabel htmlFor="delete-confirm">Type DELETE to confirm</FieldLabel>
+          <FieldInput
+            id="delete-confirm"
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder="DELETE"
+            className="mb-4"
+          />
+          {deleteError && <p className="mb-4 font-nebula-ui text-[12.5px] font-medium text-orange-400">{deleteError}</p>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+              className={`flex h-9 flex-1 items-center justify-center rounded-[9999px] bg-orange-500/[0.15] font-nebula-ui text-[12.5px] font-medium text-orange-300 hover:bg-orange-500/[0.22] disabled:pointer-events-none disabled:opacity-50 ${HOVER} ${FOCUS}`}
+            >
+              {isDeleting ? 'Deleting…' : 'Permanently delete'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(false)}
+              disabled={isDeleting}
+              className={`flex h-9 items-center rounded-[9999px] px-4 font-nebula-ui text-[12.5px] font-medium text-zinc-400 hover:bg-white/[0.05] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS}`}
+            >
+              Cancel
+            </button>
           </div>
-        </div>
+        </GlassModal>
       )}
     </main>
   )

@@ -1,145 +1,116 @@
 ---
-name: CreatorFlow
-description: Dark, technical, data-dense creator-ops product — Nexus Architecture's system, CreatorFlow's product truth
+version: alpha
+name: CreatorFlow — Nebula Dark Infrastructure
+description: A high-density, dark-mode landing surface featuring cinematic grid reveals, glassmorphism, grain, and interactive typography — the Nebula system applied to CreatorFlow's creator-ops product truth.
 colors:
-  primary: "#22C55E"
-  accent: "#22C55E"
+  primary: "#ea580c"
+  secondary: "#fb923c"
   background: "#000000"
-  surface: "#161616"
-  surface-raised: "#232323"
-  border: "#2A2A2A"
-  text-primary: "#FFFFFF"
-  text-secondary: "#A1A1AA"
-  text-tertiary: "#6B6B70"
-  positive: "#22C55E"
-  negative: "#F87171"
+  surface: "#1a1818"
+  text-primary: "#ffffff"
+  text-secondary: "#9ca3af"
+  border: "rgba(255, 255, 255, 0.1)"
 typography:
-  display-lg:
-    fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "clamp(44px, 5vw + 16px, 88px)"
-    fontWeight: 500
-    lineHeight: "1.04"
-    letterSpacing: "-0.02em"
-  display-md:
-    fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "clamp(36px, 4vw + 8px, 64px)"
-    fontWeight: 500
-    lineHeight: "1.08"
-  display-sm:
-    fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "clamp(28px, 3vw + 4px, 44px)"
-    fontWeight: 500
-    lineHeight: "1.15"
-  auth-heading:
-    fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "26px"
-    fontWeight: 600
-    lineHeight: "1.25"
-  app-heading:
-    fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "20px"
-    fontWeight: 700
-    lineHeight: "1.2"
-  body-md:
-    fontFamily: "JetBrains Mono, monospace"
-    fontSize: "16px"
-    fontWeight: 400
-    lineHeight: "1.6"
-  body-sm:
-    fontFamily: "JetBrains Mono, monospace"
-    fontSize: "13px"
-    fontWeight: 400
-    lineHeight: "1.5"
-  label-md:
-    fontFamily: "JetBrains Mono, monospace"
-    fontSize: "12px"
-    fontWeight: 600
-    lineHeight: "1.2"
-    letterSpacing: "0.06em"
-  control-label:
-    fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "14px"
-    fontWeight: 600
-    letterSpacing: "-0.01em"
-  label-sm:
-    fontFamily: "JetBrains Mono, monospace"
-    fontSize: "11px"
-    fontWeight: 500
-    textTransform: "uppercase"
-  body-lg:
-    fontFamily: "JetBrains Mono, monospace"
-    fontSize: "1.05rem"
-    fontWeight: 400
-    lineHeight: "1.6"
-rounded:
-  card: "8px"
-  control: "8px"
-  pill: "9999px"
+  fontFamily: "'Inter', sans-serif"
+  heading: "'Manrope', sans-serif"
+  button: "'Geist', sans-serif"
+  size-hero: "6rem"
+  size-body: "1.125rem"
+  weight-bold: "700"
 spacing:
-  base: "8px"
-  gap: "16px"
-  card-padding: "24px"
   section-padding: "80px"
+  container-max-width: "1280px"
+rounded:
+  button: "9999px"
+  card: "2.5rem"
 components:
-  card:
-    backgroundColor: "{colors.surface-raised}"
-    rounded: "{rounded.card}"
-  button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "#000000"
-    rounded: "{rounded.pill}"
-    padding: "12px 28px"
-  button-secondary:
-    backgroundColor: "transparent"
-    textColor: "{colors.text-primary}"
-    rounded: "{rounded.pill}"
-    padding: "12px 28px"
+  - NebulaNav
+  - ShinyCTA
+  - StackMarquee
+  - HeroGrid
+  - FeatureCard
 ---
 
 ## Overview
 
-CreatorFlow is redesigning from its earlier orange/black editorial system to a dark, technical, data-dense visual world, per explicit product direction on 2026-07-25. Primary visual authority: `nexus-architecture-DESIGN.md` (dark ground, single green accent, Inter + JetBrains Mono, 8px system, restrained pill controls, masked/staggered motion, ambient WebGL background layers). Secondary reference: Skymetrics dashboard screenshots, for in-app data-density patterns — stat tiles, sidebar structure, chart types, and a proven light/dark pairing.
+**Third visual reset, 2026-07-25 — supersedes the Swiss Modernism system entirely.** Authority is the user-supplied `Nebula Web3 Infrastructure` DESIGN.md plus its `generated-page.html` reference build. Deep-space aesthetic: black canvas, high-contrast orange accents, depth via progressive blur / glassmorphism / grain, and a grid-curtain reveal on load.
 
-This is a visual-world replacement, not a product-truth change: see `PRODUCT.md` for what stays fixed (name, users, positioning, voice, evidence constraints). Nexus's testimonial/tiers/enterprise-infra content and copy voice are explicitly **not** adopted — CreatorFlow has no real testimonials or pricing tiers, and its voice stays direct and plain per `docs/DESIGN_BRIEF.md`. Only the palette, type system, spacing/radius system, component shape language, and motion grammar carry over.
+**Scope note:** this system currently governs the **Home page only** (`app/page.tsx` + `components/home/*`). The in-app product surfaces (`app/(app)/*`) and auth pages still run on the prior token layer and are deliberately untouched until the Home page is approved. The Home page is therefore self-contained — it does not read the global light-mode tokens, so the two systems coexist without either corrupting the other.
+
+**Product truth changes with this reset** (from the user, recorded in `PRODUCT.md`): CreatorFlow is going **open source for the community**. There is no pricing, no paid tier, and no pricing-related content, link, or CTA anywhere on the Home page.
 
 ## Colors
 
-Single accent strategy: `#22C55E` (green) is both primary and accent, used sparingly against a near-black ground (`#000000` background, `#161616`/`#232323` surfaces). Positive/negative deltas reuse the same green plus `#F87171` red — do not introduce a third accent hue. Text is white/`#A1A1AA`/`#6B6B70` depending on hierarchy. Light mode is a secondary, explicit companion state for in-app Operate surfaces only (see Skymetrics's light pairing) — invert to a warm-white ground (`#FAFAF9`) with the same green accent and near-black text; marketing/Persuade surfaces stay dark-only.
+- **Primary Black** `#000000` — main background and deep canvas.
+- **Nebula Orange** `#ea580c` / `#fb923c` — primary actions, badges, hover states, the single accent family.
+- **Zinc Grays** `#18181b` / `#27272a` — secondary surfaces and borders.
+- **White/Transparent** — high-opacity white for headings; 10–20% white for glassmorphic cards and border glows.
 
 ## Typography
 
-Inter for display moments (hero headlines, section titles, in-app page/auth headings) at weight 500–700, tight line-height (1.04–1.25 depending on size). JetBrains Mono for everything else — body copy, labels, stat values, nav items, technical metadata — matching Nexus's register and echoing CreatorFlow's existing mono-label habit from its prior system. Do not introduce a third typeface (no Playfair Display in the new world).
-
-Display sizes (`display-lg` 64px, `display-md` 40px, `display-sm` 28px) scale fluidly via `clamp()` on marketing pages rather than jumping between fixed steps — the frontmatter values are the clamp's upper bound. `auth-heading` (26px) and `app-heading` (20px) are fixed, non-fluid utility steps distinct from the display scale: a centered auth moment ("Welcome back") and a dense in-app toolbar-adjacent page title serve different roles from a marketing hero and from each other, so they don't collapse to the display ramp.
-
-Dense in-app UI text (card titles, table cells, badges, meta text, form labels) ranges 10–16px in roughly 0.5–1px steps (10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 15, 16), and stat/metric numerals (Dashboard/Analytics card values) range 17–26px — this is pre-existing drift from the prior system, carried over as-is during the visual reset rather than consolidated; a genuine type-scale cleanup (collapsing to a smaller, named step count) is real follow-up work but out of scope for this reset, which only changes color/typeface/motion, not the underlying size ramp.
+- **Manrope** — high-impact headings, tight letter-spacing, varied weights.
+- **Inter** — navigation and UI, prioritizing readability.
+- **Geist / Geist Mono** — technical labels, buttons, monospace accents; reinforces the developer-first, open-source theme.
+- **Heading 1** — 96px desktop / 60px mobile, `tracking-tighter`, vertical gradient clipping.
 
 ## Layout
 
-8px base spacing unit throughout (`gap: 16px`, `card-padding: 24px`, `section-padding: 80px`). Marketing pages keep deliberate, stable section rhythm — same grid direction and max-width discipline as before, now rendered dark. In-app Operate surfaces (Dashboard, Analytics, Deals, etc.) adopt Skymetrics's density: a fixed-width collapsible sidebar (icon + label, collapsible to icon-only), a top bar with date-range/context selectors, and a card grid of stat tiles + charts below. No horizontal scroll below 768px — this redesign is also the point where the known multi-panel-doesn't-reflow issue (Deals kanban, Drafts split) gets fixed, not carried forward.
+- **Progressive Blur Header** — fixed top area using a multi-layered CSS blur stack for a glass transition on scroll.
+- **Central Hero** — content centered in a 7-column grid; collapses to single-column on mobile.
+- **Max-Width Containers** — `5xl` for hero content, `7xl` for feature grids.
 
 ## Elevation & Depth
 
-Flat/tonal by default (dark surfaces separated by subtle background-color steps: `#000000` → `#161616` → `#232323`), not drop-shadow-heavy — matches Nexus's flat dark aesthetic and avoids the shadow language the prior light system used. A card's elevation is communicated by surface color step and a 1px `#2A2A2A` border, not blur/shadow.
+- **Grid Curtains** — vertical grid where individual columns reveal via `clip-path` animation ("shutter" effect), staggered `delay-1` → `delay-7`.
+- **Grainy Overlay** — SVG noise texture at 20% opacity, `mix-blend-mode: overlay`, over all large background gradients. Generated inline via `feTurbulence` as a data URI rather than fetched from an external CDN, so the page stays self-contained and offline-safe.
+- **Border Beams** — conic-gradients with `mask-composite` for spinning-light border effects.
 
 ## Shapes
 
-8px radius on cards and controls (`rounded.card`, `rounded.control`); full pill radius (`9999px`) on buttons and badges — consistent with CreatorFlow's existing pill-CTA habit, so this is one of the few forms that survives the reset unchanged in shape, just in the new palette.
+- **Pill Buttons** — buttons and badges at `9999px`.
+- **Mega-Cards** — large feature blocks at `2.5rem`, softened by inner glass borders and backdrop blurs.
 
 ## Components
 
-- **Buttons**: primary = solid green fill, black text, pill shape. Secondary = transparent with white text/border, pill shape. No more orange sweep-fill hover trick — replace with a clean opacity/brightness shift matching Nexus's restrained register.
-- **Cards**: `surface-raised` background, 8px radius, 1px `#2A2A2A` border, `24px` padding. Used for stat tiles, deal cards, idea cards, draft list rows.
-- **Stat tile** (new, from Skymetrics): label (mono, uppercase, `text-secondary`) → big number (Inter, display-md) → delta chip (green/red, small pill) → optional sparkline.
-- **Sidebar nav**: icon + label rows, collapsible to icon-only, active state = green left accent + `surface-raised` background — replaces the prior top-nav-only mobile drawer pattern for desktop too, matching Skymetrics's persistent left rail.
-- **Badges/pills**: mono label, uppercase, small tracked letter-spacing, bordered — same recipe as the prior TrustBand badge, recolored.
+- **Shiny CTA** — CSS-animated spinning border beam, internal radial dot pattern, orange glow that breathes on hover.
+- **Interactive Header** — hero characters wrapped in `overflow-hidden` spans for a vertical roll-over effect on hover.
+- **Stack Marquee** — infinite horizontal scroll, pauses on hover, grayscale→color transition.
+- **Navigation Bar** — floating glassmorphic pill, `backdrop-blur-xl`, subtle white gradient border.
+
+## Page Sections (Home)
+
+### Navigation
+Fixed-top floating pill. Links: Product, How it works, Docs, GitHub. **No Pricing link** — the product is open source. Right side: "Sign in" text link + a 3D "Start free" button with spinning border on hover.
+
+### Hero
+High-contrast Manrope heading using CreatorFlow's locked copy from `docs/DESIGN_BRIEF.md` ("Fewer dropped ideas. More consistent you."), with interactive letter-hover on the emphasized phrase. Background mixes the column-reveal curtain with a radial top-glow gradient and grain.
+
+### Stack Marquee
+Full-width marquee below the hero. **Shows the real, verifiable open-source stack CreatorFlow is built on** (Next.js, React, TypeScript, Tailwind, Supabase, Postgres, Vercel) under a "Built with" label — deliberately *not* fabricated partner or customer logos, which CreatorFlow does not have (see `PRODUCT.md` → Evidence on Hand).
+
+### Feature Showcase + Bento Grid
+A `2.5rem` mega-card pairing text on the left with a live-looking product visual on the right, followed by a bento grid of the real P0 modules (Deals, Ideas, Drafts, Analytics, Team).
+
+## Motion & Interaction
+
+- **fadeSlideIn** — entrance keyframe: `translateY(30px)` + `blur(8px)` → `0`.
+- **columnReveal** — shutter entrance for the background grid, staggered delays.
+- **Scroll Triggers** — `IntersectionObserver` toggles `.animate` to fire entrance animations as sections enter the viewport.
+- **Easing** — `cubic-bezier(0.16, 1, 0.3, 1)` everywhere; never default easing.
 
 ## Do's and Don'ts
 
-- **Do** keep the CreatorFlow "F" logo mark as-is in form; render it in green/white on dark instead of orange.
-- **Do** apply staggered/masked entrance motion once per view, orchestrated — not scattered per-element hover effects.
-- **Do** honestly label any AI-feature preview (Repurpose, contract review, reply drafting) as a demo/preview — the visual reset does not change what's actually live.
-- **Don't** add a testimonial section, customer logo strip, or pricing-tier comparison — no real evidence exists for any of these; fabricating them violates `PRODUCT.md`'s Evidence on Hand constraint.
-- **Don't** introduce a third accent color beyond green (+ red for negative deltas) — Nexus's guardrail against diluting a committed single-accent strategy applies here too.
-- **Don't** carry forward the multi-panel-doesn't-reflow-under-768px issue — this rebuild is the fix, not a repeat.
-- **Don't** ship new motion without `prefers-reduced-motion` support or new interactive elements without a visible focus indicator — both were real, verified gaps in the prior system's audit; the reset must not repeat them.
+- **Do** use heavy backdrop blurs (`backdrop-blur-lg`/`xl`) for elevated surfaces.
+- **Do** apply grain over large background gradients.
+- **Don't** use solid borders — prefer the `linear-gradient` + `mask-composite` border technique.
+- **Don't** use standard transition easing.
+- **Don't** put pricing content, links, or CTAs anywhere on this page — the product is open source.
+- **Don't** invent customer logos, testimonials, or usage metrics; the marquee shows the real tech stack, not fake social proof.
+- **Don't** ship motion without a `prefers-reduced-motion` path — the reduced-motion rule from prior audits survives every visual reset.
+
+## Accessibility
+
+- Dark mode enforced on this surface by default.
+- Custom selection colors (`selection:bg-orange-500/30`) for contrast with the accent.
+- All interactive elements keep visible focus states; the letter-roll hero hover is decorative only and never gates content.
+- Grain, beams, marquee, and curtain animations all collapse under `prefers-reduced-motion: reduce`.

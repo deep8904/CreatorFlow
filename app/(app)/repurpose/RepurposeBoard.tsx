@@ -1,160 +1,307 @@
 'use client'
 
 import { useState } from 'react'
-import { Film, Sparkles } from 'lucide-react'
-import type { ChannelVideo, RepurposedContent } from '@/lib/supabase/types'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { Film, Lightbulb, FileText, Sparkles, Link as LinkIcon } from 'lucide-react'
+import type { ChannelVideo, RepurposedContent, Idea } from '@/lib/supabase/types'
+import type { DraftWithIdeaTitle } from '@/lib/supabase/queries'
+import { Panel } from '@/components/dash/Panel'
+import { Pill } from '@/components/dash/Pill'
+import { DashboardHeader } from '@/components/dash/DashboardHeader'
+import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
 import { useToast } from '@/lib/toast'
 
 type RepurposedWithVideo = RepurposedContent & { channel_videos: { title: string } | null }
+
+type SourceKind = 'video' | 'draft' | 'idea'
+type SourceItem = {
+  kind: SourceKind
+  id: string
+  title: string
+  meta: string
+}
 
 function formatCompact(n: number) {
   return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(n)
 }
 
+function firstSentence(text: string, max = 140) {
+  const clean = text.trim().replace(/\s+/g, ' ')
+  if (clean.length <= max) return clean
+  return clean.slice(0, max).replace(/\s+\S*$/, '') + '…'
+}
+
+/**
+ * Text-source template — the honest, client-side equivalent of the seeded
+ * `repurposed_content` rows, but for Drafts/Ideas rather than a channel
+ * video. Same "preview only" contract as Deals' `aiReplyFor` — it reads the
+ * actual content, not a fixed placeholder, so it stays specific per source.
+ */
+function repurposeTextSource(title: string, body: string | null): {
+  summary: string
+  angles: string[]
+  socialPosts: string[]
+} {
+  const lines = (body ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+  const beats = lines.slice(0, 3)
+
+  return {
+    summary: body ? firstSentence(body, 180) : `A quick take on "${title}" — no script yet, just the idea.`,
+    angles:
+      beats.length > 0
+        ? beats.map((b, i) => (i === 0 ? `Open on: "${firstSentence(b, 90)}"` : firstSentence(b, 90)))
+        : [`Cold open with the title as your hook: "${title}"`, 'Get to the point in the first 2 seconds — no intro.'],
+    socialPosts: [
+      `TikTok/Reels: 15–30s cut leading with your strongest line from "${title}".`,
+      `Shorts: same cut, vertical crop, on-screen captions burned in.`,
+      `Static post: one quote card pulling the sharpest sentence out of this piece.`,
+    ],
+  }
+}
+
+function SourceIcon({ kind }: { kind: SourceKind }) {
+  if (kind === 'video') return <Film size={14} strokeWidth={2} />
+  if (kind === 'draft') return <FileText size={14} strokeWidth={2} />
+  return <Lightbulb size={14} strokeWidth={2} />
+}
+
 export default function RepurposeBoard({
   videos,
   repurposed,
+  drafts,
+  ideas,
 }: {
   videos: ChannelVideo[]
   repurposed: RepurposedWithVideo[]
+  drafts: DraftWithIdeaTitle[]
+  ideas: Idea[]
 }) {
   const toast = useToast()
-  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(videos[0]?.id ?? null)
+
+  const sources: SourceItem[] = [
+    ...videos.map((v) => ({ kind: 'video' as const, id: v.id, title: v.title, meta: `${formatCompact(v.views)} views` })),
+    ...drafts.map((d) => ({ kind: 'draft' as const, id: d.id, title: d.title, meta: 'Draft' })),
+    ...ideas.map((i) => ({ kind: 'idea' as const, id: i.id, title: i.title, meta: 'Idea' })),
+  ]
+
+  const [selected, setSelected] = useState<SourceItem | null>(sources[0] ?? null)
   const [urlInput, setUrlInput] = useState('')
 
   const repurposedByVideoId = new Map(repurposed.map((r) => [r.video_id, r]))
-  const selectedVideo = videos.find((v) => v.id === selectedVideoId) ?? null
-  const selectedResult = selectedVideoId ? (repurposedByVideoId.get(selectedVideoId) ?? null) : null
 
   const handleUrlSubmit = () => {
     const trimmed = urlInput.trim()
     if (!trimmed) return
     const match = videos.find((v) => v.youtube_video_id && trimmed.includes(v.youtube_video_id))
     if (!match) {
-      toast.info('This demo only recognizes pre-seeded videos from your connected channel — try picking one from the list instead.')
+      toast.info(
+        'This demo only recognizes pre-seeded videos from your connected channel — try picking a video, draft, or idea from the list instead.'
+      )
       return
     }
-    setSelectedVideoId(match.id)
+    setSelected({ kind: 'video', id: match.id, title: match.title, meta: `${formatCompact(match.views)} views` })
     setUrlInput('')
   }
 
+  const selectedVideo = selected?.kind === 'video' ? videos.find((v) => v.id === selected.id) ?? null : null
+  const selectedVideoResult = selectedVideo ? repurposedByVideoId.get(selectedVideo.id) ?? null : null
+  const selectedDraft = selected?.kind === 'draft' ? drafts.find((d) => d.id === selected.id) ?? null : null
+  const selectedIdea = selected?.kind === 'idea' ? ideas.find((i) => i.id === selected.id) ?? null : null
+
+  const textResult = selectedDraft
+    ? repurposeTextSource(selectedDraft.title, selectedDraft.body)
+    : selectedIdea
+      ? repurposeTextSource(selectedIdea.title, selectedIdea.notes)
+      : null
+
   return (
-    <main className="flex-1 overflow-y-auto bg-linen">
-      <div className="app-container">
-        <div className="mb-6">
-          <h1 className="text-app-h1 text-carbon">Repurpose</h1>
-          <p className="text-[12.5px] text-ash mt-0.5">Turn a published video into more content</p>
-        </div>
+    <>
+      <DashboardHeader
+        eyebrow="Repurpose"
+        title="Repurpose"
+        description="Turn a video, draft, or idea into short-form clips and posts."
+      />
 
-        {/* URL input */}
-        <Card variant="subtle" className="mb-6">
-          <p className="text-[14px] font-medium text-carbon mb-3">Paste a YouTube link, or pick one of your connected channel&apos;s videos below.</p>
-          <div className="flex gap-2">
-            <Input
-              type="url"
-              placeholder="https://youtube.com/watch?v=..."
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleUrlSubmit() }}
-              className="flex-1"
-            />
-            <Button onClick={handleUrlSubmit} disabled={!urlInput.trim()} size="md">
-              Analyze
-            </Button>
-          </div>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
-          {/* Video picker */}
-          <Card variant="subtle" padding="none" className="overflow-hidden h-fit">
-            <div className="px-4 py-3 border-b border-fog">
-              <h2 className="text-[12.5px] font-semibold text-carbon">Your videos</h2>
+      <main id="dashboard-main" className="console-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto w-full max-w-[1240px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div className="mb-6 flex max-w-[560px] gap-2">
+            <div className="relative flex-1">
+              <LinkIcon size={13} strokeWidth={2} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                type="url"
+                placeholder="Paste a YouTube link, or pick something below"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleUrlSubmit()
+                }}
+                className={`h-9 w-full rounded-[9999px] border border-white/10 bg-white/[0.04] pl-8 pr-3.5 font-nebula-ui text-[12.5px] text-zinc-100 placeholder:text-zinc-600 ${FOCUS}`}
+              />
             </div>
-            <div className="max-h-[480px] overflow-y-auto">
-              {videos.map((v) => (
-                <button
-                  key={v.id}
-                  onClick={() => setSelectedVideoId(v.id)}
-                  className={`w-full text-left px-4 py-3 border-b border-fog last:border-b-0 transition-colors ${
-                    selectedVideoId === v.id ? 'bg-lavender/10' : 'hover:bg-linen'
-                  }`}
-                >
-                  <p className="text-[12.5px] font-medium text-carbon leading-snug line-clamp-2 mb-1">{v.title}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-ash">{formatCompact(v.views)} views</span>
-                    {repurposedByVideoId.has(v.id) && (
-                      <span className="font-label text-[9.5px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-lavender/10 text-lavender">Ready</span>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          {/* Result panel */}
-          <div>
-            {!selectedVideo ? (
-              <div className="flex flex-col items-center gap-3 py-20 text-center">
-                <Film size={20} className="text-ash" />
-                <p className="text-[13px] text-graphite">Pick a video to see repurposing suggestions.</p>
-              </div>
-            ) : selectedResult ? (
-              <div className="flex flex-col gap-4">
-                <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
-                  <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-2">Summary</p>
-                  <p className="text-[13.5px] text-carbon leading-relaxed">{selectedResult.summary}</p>
-                </div>
-
-                <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
-                  <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">Clip-worthy moments</p>
-                  <div className="flex flex-col gap-3">
-                    {selectedResult.clip_worthy_moments.map((m, i) => (
-                      <div key={i} className="flex items-start gap-3">
-                        <span className="font-label text-[11px] font-semibold text-lavender shrink-0 mt-0.5">{m.timestamp}</span>
-                        <p className="text-[13px] text-graphite leading-snug">{m.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
-                  <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">Social post ideas</p>
-                  <div className="flex flex-col gap-2.5">
-                    {selectedResult.social_post_ideas.map((idea, i) => (
-                      <div key={i} className="flex items-start gap-2.5">
-                        <Sparkles size={13} className="text-lavender shrink-0 mt-0.5" />
-                        <p className="text-[13px] text-carbon leading-snug">{idea}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {selectedResult.blog_outline && (
-                  <div className="bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
-                    <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-2">Blog post outline</p>
-                    <pre className="text-[13px] text-graphite leading-relaxed whitespace-pre-wrap font-sans">{selectedResult.blog_outline}</pre>
-                  </div>
-                )}
-
-                <p className="text-[11px] text-ash text-center">
-                  Preview only — seeded example suggestions, not a live AI call. In production, generating this calls Gemini against the video's real transcript.
-                </p>
-              </div>
-            ) : (
-              <div className="bg-paper-white border border-fog rounded-xl p-8 text-center" style={{ boxShadow: 'var(--shadow-subtle)' }}>
-                <p className="text-[14px] font-semibold text-carbon mb-1.5">No repurposing generated for this video yet.</p>
-                <p className="text-[13px] text-graphite max-w-[360px] mx-auto">
-                  This demo includes pre-generated suggestions for a few videos, marked &quot;Ready&quot; in the list.
-                  In production, generating new suggestions here calls Gemini against the video&apos;s real transcript.
-                </p>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={handleUrlSubmit}
+              disabled={!urlInput.trim()}
+              className={`nebula-cta-static inline-flex h-9 shrink-0 items-center rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium disabled:pointer-events-none disabled:opacity-50 ${FOCUS}`}
+            >
+              <span className="nebula-cta__label">Analyze</span>
+            </button>
           </div>
+
+          {sources.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-20 text-center">
+              <span aria-hidden className="grid h-11 w-11 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
+                <Film size={18} strokeWidth={2} />
+              </span>
+              <p className="font-nebula-ui text-[13px] text-zinc-500">
+                Capture an idea or start a draft, and it'll show up here to repurpose.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+              <Panel title="Pick something" titleId="source-h" className="h-fit">
+                <div className="console-scroll max-h-[560px] overflow-y-auto pb-2">
+                  {sources.map((s) => {
+                    const isSelected = selected?.kind === s.kind && selected.id === s.id
+                    const hasReady = s.kind === 'video' && repurposedByVideoId.has(s.id)
+                    return (
+                      <button
+                        key={`${s.kind}-${s.id}`}
+                        type="button"
+                        onClick={() => setSelected(s)}
+                        className={`flex w-full items-start gap-2.5 border-t border-white/[0.05] px-5 py-3 text-left first:border-t-0 ${HOVER} ${FOCUS_INSET} ${
+                          isSelected ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'
+                        }`}
+                      >
+                        <span aria-hidden className="mt-0.5 shrink-0 text-zinc-500">
+                          <SourceIcon kind={s.kind} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block line-clamp-2 font-nebula-ui text-[12.5px] font-medium leading-snug text-zinc-200">
+                            {s.title}
+                          </span>
+                          <span className="mt-1 flex items-center gap-2">
+                            <span className="font-nebula-mono text-[10.5px] text-zinc-600">{s.meta}</span>
+                            {hasReady && <Pill tone="positive">Ready</Pill>}
+                          </span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </Panel>
+
+              <div>
+                {!selected ? (
+                  <div className="flex flex-col items-center gap-3 py-20 text-center">
+                    <Film size={20} strokeWidth={2} className="text-zinc-600" />
+                    <p className="font-nebula-ui text-[13px] text-zinc-500">Pick something to see repurposing suggestions.</p>
+                  </div>
+                ) : selectedVideo ? (
+                  selectedVideoResult ? (
+                    <div className="flex flex-col gap-4">
+                      <Panel title="Summary" titleId="rp-summary-h">
+                        <div className="px-5 pb-5">
+                          <p className="font-nebula-ui text-[13.5px] leading-relaxed text-zinc-300">
+                            {selectedVideoResult.summary}
+                          </p>
+                        </div>
+                      </Panel>
+
+                      <Panel title="Clip-worthy moments" titleId="rp-clips-h">
+                        <div className="flex flex-col gap-3 px-5 pb-5">
+                          {selectedVideoResult.clip_worthy_moments.map((m, i) => (
+                            <div key={i} className="flex items-start gap-3">
+                              <span className="mt-0.5 shrink-0 font-nebula-mono text-[11px] font-medium text-orange-400">
+                                {m.timestamp}
+                              </span>
+                              <p className="font-nebula-ui text-[13px] leading-snug text-zinc-400">{m.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </Panel>
+
+                      <Panel title="Social post ideas" titleId="rp-social-h">
+                        <div className="flex flex-col gap-2.5 px-5 pb-5">
+                          {selectedVideoResult.social_post_ideas.map((idea, i) => (
+                            <div key={i} className="flex items-start gap-2.5">
+                              <Sparkles size={13} strokeWidth={2} className="mt-0.5 shrink-0 text-orange-400" />
+                              <p className="font-nebula-ui text-[13px] leading-snug text-zinc-300">{idea}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </Panel>
+
+                      {selectedVideoResult.blog_outline && (
+                        <Panel title="Blog post outline" titleId="rp-blog-h">
+                          <div className="px-5 pb-5">
+                            <pre className="whitespace-pre-wrap font-nebula-ui text-[13px] leading-relaxed text-zinc-400">
+                              {selectedVideoResult.blog_outline}
+                            </pre>
+                          </div>
+                        </Panel>
+                      )}
+
+                      <p className="text-center font-nebula-ui text-[11px] text-zinc-600">
+                        Preview only — seeded example suggestions, not a live AI call. In production, generating this
+                        calls Gemini against the video&apos;s real transcript.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="nebula-border rounded-[1.25rem] bg-white/[0.03] p-8 text-center backdrop-blur-xl">
+                      <p className="mb-1.5 font-nebula-heading text-[15px] font-semibold text-white">
+                        No repurposing generated for this video yet.
+                      </p>
+                      <p className="mx-auto max-w-[360px] font-nebula-ui text-[13px] text-zinc-500">
+                        This demo includes pre-generated suggestions for a few videos, marked &quot;Ready&quot; in the
+                        list. In production, generating new suggestions here calls Gemini against the video&apos;s real
+                        transcript.
+                      </p>
+                    </div>
+                  )
+                ) : textResult ? (
+                  <div className="flex flex-col gap-4">
+                    <Panel title="Summary" titleId="rp-text-summary-h">
+                      <div className="px-5 pb-5">
+                        <p className="font-nebula-ui text-[13.5px] leading-relaxed text-zinc-300">{textResult.summary}</p>
+                      </div>
+                    </Panel>
+
+                    <Panel title="Short-form angles" titleId="rp-angles-h">
+                      <div className="flex flex-col gap-3 px-5 pb-5">
+                        {textResult.angles.map((a, i) => (
+                          <div key={i} className="flex items-start gap-3">
+                            <Sparkles size={13} strokeWidth={2} className="mt-0.5 shrink-0 text-orange-400" />
+                            <p className="font-nebula-ui text-[13px] leading-snug text-zinc-400">{a}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </Panel>
+
+                    <Panel title="Social post ideas" titleId="rp-text-social-h">
+                      <div className="flex flex-col gap-2.5 px-5 pb-5">
+                        {textResult.socialPosts.map((idea, i) => (
+                          <div key={i} className="flex items-start gap-2.5">
+                            <Sparkles size={13} strokeWidth={2} className="mt-0.5 shrink-0 text-orange-400" />
+                            <p className="font-nebula-ui text-[13px] leading-snug text-zinc-300">{idea}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </Panel>
+
+                    <p className="text-center font-nebula-ui text-[11px] text-zinc-600">
+                      Preview only — built from what you&apos;ve written so far, not a live AI call. In production,
+                      this would call Gemini against your full draft.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   )
 }

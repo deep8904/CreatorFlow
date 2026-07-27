@@ -1,13 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import { Users, Crown, X, Check } from 'lucide-react'
 import { sendTeamInvite, revokeInvite, removeMember, updateMemberRole } from '@/lib/supabase/actions'
 import type { TeamData } from '@/lib/supabase/queries'
-import { Avatar } from '@/components/ui/avatar'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { InitialsChip } from '@/components/dash/InitialsChip'
+import { Panel } from '@/components/dash/Panel'
+import { DashboardHeader } from '@/components/dash/DashboardHeader'
+import { FieldLabel, FieldInput } from '@/components/dash/FormField'
+import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
 import { useToast } from '@/lib/toast'
+
+const ROLE_CAPS: { role: 'Owner' | 'Member'; icon: typeof Crown; items: string[] }[] = [
+  { role: 'Owner', icon: Crown, items: ['Deals, ideas, drafts & automations', 'Invite, remove & re-role teammates', 'Account & integration settings'] },
+  { role: 'Member', icon: Users, items: ['Deals, ideas, drafts & automations', 'Cannot manage teammates', 'Cannot change account settings'] },
+]
 
 export default function TeamBoard({ team }: { team: TeamData | null }) {
   const toast = useToast()
@@ -22,9 +29,13 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
 
   const sendInvite = async () => {
     if (!inviteEmail.trim()) return
-    if (inviteRole === 'Owner' && !window.confirm(
-      `Grant ${inviteEmail.trim()} full Owner access, including billing and team management? This can’t be undone by revoking the invite once they’ve accepted.`
-    )) return
+    if (
+      inviteRole === 'Owner' &&
+      !window.confirm(
+        `Grant ${inviteEmail.trim()} full Owner access, including team and account management? This can't be undone by revoking the invite once they've accepted.`,
+      )
+    )
+      return
     setIsBusy(true)
     setError(null)
     const result = await sendTeamInvite(inviteEmail, inviteRole === 'Owner' ? 'owner' : 'member')
@@ -48,9 +59,13 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
     // An account has exactly one owner — promoting someone else to Owner
     // transfers it away from you, the opposite of "without giving up
     // control." Confirm before doing something that surprising.
-    if (role === 'Owner' && !window.confirm(
-      `Make ${name} the account owner? You'll become a Member and lose access to billing and team management — they'll have full control instead.`
-    )) return
+    if (
+      role === 'Owner' &&
+      !window.confirm(
+        `Make ${name} the account owner? You'll become a Member and lose access to team and account management — they'll have full control instead.`,
+      )
+    )
+      return
     setIsBusy(true)
     const result = await updateMemberRole(memberId, role === 'Owner' ? 'owner' : 'member')
     setIsBusy(false)
@@ -66,130 +81,157 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
   }
 
   return (
-    <main className="flex-1 overflow-y-auto bg-linen">
-      <div className="app-container-narrow">
-      <div className="mb-8">
-        <h1 className="text-app-h1 text-carbon">Team</h1>
-        <p className="text-[12.5px] text-ash mt-0.5">Bring in a collaborator without giving up control.</p>
-      </div>
+    <main id="dashboard-main" className="console-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <DashboardHeader eyebrow="Team" title="Team" description="Bring in a collaborator without giving up control." />
 
-      {/* Members list */}
-      <Card variant="subtle" padding="none" className="overflow-hidden mb-6">
-        <div className="px-5 py-4 border-b border-fog">
-          <h2 className="text-[14px] font-semibold text-carbon">Members</h2>
-        </div>
-
-        <div className="divide-y divide-fog">
-          {members.map((m) => {
-            const name = m.profile?.full_name ?? 'You'
-            const manageable = team?.isOwner && m.role === 'member'
-            return (
-              <div key={m.id} className="flex items-center gap-4 px-5 py-4">
-                <Avatar name={name} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-medium text-carbon">{name}</p>
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <Panel title="Members" eyebrow={`${members.length} ${members.length === 1 ? 'person' : 'people'}`} titleId="team-members-heading">
+          <div className="divide-y divide-white/[0.06] border-t border-white/[0.06]">
+            {members.map((m) => {
+              const name = m.profile?.full_name ?? 'You'
+              const manageable = team?.isOwner && m.role === 'member'
+              return (
+                <div key={m.id} className="flex items-center gap-4 px-5 py-4">
+                  <InitialsChip name={name} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-nebula-ui text-[13.5px] font-medium text-zinc-100">{name}</p>
+                  </div>
+                  {manageable ? (
+                    <select
+                      value={m.role === 'owner' ? 'Owner' : 'Member'}
+                      onChange={(e) => changeRole(m.id, name, e.target.value as 'Member' | 'Owner')}
+                      disabled={isBusy}
+                      className={`rounded-[9999px] border border-white/10 bg-white/[0.05] px-2.5 py-1.5 font-nebula-mono text-[10px] font-medium uppercase tracking-[0.1em] text-zinc-300 outline-none disabled:opacity-50 ${FOCUS}`}
+                    >
+                      <option value="Member">Member</option>
+                      <option value="Owner">Owner</option>
+                    </select>
+                  ) : (
+                    <span className="rounded-[9999px] bg-white/[0.06] px-2.5 py-1 font-nebula-mono text-[10px] font-medium uppercase tracking-[0.1em] text-zinc-400">
+                      {m.role}
+                    </span>
+                  )}
+                  {manageable && (
+                    <button
+                      type="button"
+                      onClick={() => remove(m.id, name)}
+                      disabled={isBusy}
+                      aria-label={`Remove ${name}`}
+                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-[9999px] text-zinc-500 hover:bg-white/[0.08] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
+                    >
+                      <X size={14} strokeWidth={2} />
+                    </button>
+                  )}
                 </div>
-                {manageable ? (
-                  <select
-                    value={m.role === 'owner' ? 'Owner' : 'Member'}
-                    onChange={(e) => changeRole(m.id, name, e.target.value as 'Member' | 'Owner')}
+              )
+            })}
+
+            {pendingInvite && (
+              <div className="flex items-center gap-4 px-5 py-4">
+                <InitialsChip name={pendingInvite.invited_email} size={32} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-nebula-ui text-[13.5px] font-medium text-zinc-100">{pendingInvite.invited_email}</p>
+                  <p className="font-nebula-ui text-[11.5px] text-zinc-500">Invited — waiting for them to accept</p>
+                </div>
+                {team?.isOwner && (
+                  <button
+                    type="button"
+                    onClick={cancelInvite}
                     disabled={isBusy}
-                    className="font-label text-[11px] font-semibold text-graphite bg-linen px-2.5 py-1.5 rounded-full uppercase tracking-widest outline-none focus:border-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-lavender focus-visible:outline-offset-2 border border-transparent disabled:opacity-50"
+                    className={`shrink-0 font-nebula-ui text-[12px] font-medium text-zinc-500 hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET} rounded-[6px] px-1.5 py-1`}
+                  >
+                    Revoke
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!hasCollaborator && (
+              <div className="flex flex-col items-center gap-1.5 px-5 py-10 text-center">
+                <span aria-hidden className="mb-1 grid h-9 w-9 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
+                  <Users size={16} strokeWidth={2} />
+                </span>
+                <p className="font-nebula-heading text-[14.5px] font-semibold text-white">It&apos;s just you right now.</p>
+                <p className="font-nebula-ui text-[12.5px] text-zinc-500">Invite a collaborator to help manage deals and automations.</p>
+              </div>
+            )}
+          </div>
+        </Panel>
+
+        <Panel title="What each role can do" titleId="team-roles-heading">
+          <div className="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-2">
+            {ROLE_CAPS.map(({ role, icon: Icon, items }) => (
+              <div key={role} className="rounded-[12px] border border-white/[0.06] bg-white/[0.02] p-4">
+                <p className="mb-2.5 flex items-center gap-1.5 font-nebula-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-zinc-400">
+                  <Icon size={12} strokeWidth={2} className="text-orange-400" />
+                  {role}
+                </p>
+                <ul className="flex flex-col gap-1.5">
+                  {items.map((item, i) => (
+                    <li key={item} className="flex items-start gap-1.5 font-nebula-ui text-[12.5px] text-zinc-300">
+                      {i === items.length - 1 ? (
+                        <X size={12} strokeWidth={2.5} className="mt-[3px] shrink-0 text-zinc-600" />
+                      ) : (
+                        <Check size={12} strokeWidth={2.5} className="mt-[3px] shrink-0 text-emerald-400" />
+                      )}
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        {team?.isOwner && !hasCollaborator && (
+          <Panel title="Invite by email" titleId="team-invite-heading">
+            <div className="px-5 py-4">
+              <p className="mb-4 font-nebula-ui text-[12.5px] text-zinc-500">They&apos;ll get an invitation to create their own account.</p>
+
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1">
+                  <FieldLabel htmlFor="invite-email">Email</FieldLabel>
+                  <FieldInput
+                    id="invite-email"
+                    type="email"
+                    placeholder="colleague@gmail.com"
+                    value={inviteEmail}
+                    onChange={(e) => {
+                      setInviteEmail(e.target.value)
+                      setError(null)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendInvite()
+                    }}
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="invite-role">Role</FieldLabel>
+                  <select
+                    id="invite-role"
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as 'Member' | 'Owner')}
+                    className={`h-[38px] rounded-[10px] border border-white/10 bg-white/[0.04] px-3 font-nebula-ui text-[13.5px] text-zinc-100 outline-none ${FOCUS}`}
                   >
                     <option value="Member">Member</option>
                     <option value="Owner">Owner</option>
                   </select>
-                ) : (
-                  <span className="font-label text-[10px] font-semibold text-graphite bg-linen px-2.5 py-1 rounded-full uppercase tracking-widest">
-                    {m.role}
-                  </span>
-                )}
-                {manageable && (
-                  <button
-                    onClick={() => remove(m.id, name)}
-                    disabled={isBusy}
-                    className="text-[12px] font-medium text-ash hover:text-carbon transition-colors disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
-                )}
+                </div>
               </div>
-            )
-          })}
 
-          {pendingInvite && (
-            <div className="flex items-center gap-4 px-5 py-4">
-              <Avatar name={pendingInvite.invited_email} size="sm" tone="neutral" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-medium text-carbon">{pendingInvite.invited_email}</p>
-              </div>
-              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-linen text-graphite border border-fog">
-                Invited — waiting for them to accept
-              </span>
-              {team?.isOwner && (
-                <button
-                  onClick={cancelInvite}
-                  disabled={isBusy}
-                  className="text-[12px] font-medium text-ash hover:text-carbon transition-colors disabled:opacity-50"
-                >
-                  Revoke
-                </button>
-              )}
+              {error && <p className="mb-3 font-nebula-ui text-[12.5px] font-medium text-orange-400">{error}</p>}
+
+              <button
+                type="button"
+                onClick={sendInvite}
+                disabled={!inviteEmail.trim() || isBusy}
+                className={`nebula-cta-static inline-flex h-9 items-center rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium disabled:pointer-events-none disabled:opacity-50 ${FOCUS}`}
+              >
+                <span className="nebula-cta__label">{isBusy ? 'Sending…' : 'Send invite'}</span>
+              </button>
             </div>
-          )}
-        </div>
-
-        {!hasCollaborator && (
-          <div className="px-5 py-8 text-center flex flex-col items-center gap-2 border-t border-fog">
-            <p className="text-[14px] font-medium text-carbon">It&apos;s just you right now.</p>
-            <p className="text-[13px] text-graphite">Invite a collaborator to help manage deals and automations.</p>
-          </div>
+          </Panel>
         )}
-      </Card>
-
-      {/* Invite */}
-      {team?.isOwner && !hasCollaborator && (
-        <Card variant="subtle" padding="lg">
-          <h2 className="text-[14px] font-semibold text-carbon mb-1">Invite by email</h2>
-          <p className="text-[13px] text-graphite mb-5">They&apos;ll get an invitation to create their own account.</p>
-
-          <div className="flex flex-col sm:flex-row gap-3 mb-4">
-            <Input
-              type="email"
-              placeholder="colleague@gmail.com"
-              value={inviteEmail}
-              onChange={(e) => { setInviteEmail(e.target.value); setError(null) }}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendInvite() }}
-              className="flex-1"
-            />
-            <select
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as 'Member' | 'Owner')}
-              className="bg-linen border border-fog rounded-xl px-3 py-2.5 text-[13px] text-carbon outline-none focus:border-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-lavender focus-visible:outline-offset-2 transition-colors"
-            >
-              <option value="Member">Member</option>
-              <option value="Owner">Owner</option>
-            </select>
-            <Button onClick={sendInvite} disabled={!inviteEmail.trim() || isBusy} loading={isBusy} size="md">
-              Send invite
-            </Button>
-          </div>
-
-          {error && <p className="text-[12.5px] font-semibold text-carbon mb-4">{error}</p>}
-
-          {/* Role descriptions */}
-          <div className="flex flex-col gap-2 bg-linen rounded-xl p-4">
-            <div>
-              <p className="text-[13px] font-semibold text-carbon">Owner</p>
-              <p className="text-[12px] text-graphite">Full access, including billing and team management.</p>
-            </div>
-            <div className="border-t border-fog pt-2 mt-1">
-              <p className="text-[13px] font-semibold text-carbon">Member</p>
-              <p className="text-[12px] text-graphite">Can manage deals, ideas, and automations, but not settings or billing.</p>
-            </div>
-          </div>
-        </Card>
-      )}
       </div>
     </main>
   )

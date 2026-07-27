@@ -135,16 +135,50 @@ export async function createDraftFromIdea(ideaId: string, ideaTitle: string) {
   return result
 }
 
-export async function updateDealStage(id: string, stage: Deal['status']): Promise<ActionResult> {
+/**
+ * `fromStatus` comes from the caller rather than a fresh select — the client
+ * already has the deal in hand when it initiates a move, so this avoids an
+ * extra round trip just to look up what it already knows.
+ */
+export async function updateDealStage(
+  id: string,
+  fromStatus: Deal['status'],
+  toStatus: Deal['status']
+): Promise<ActionResult> {
   const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
   if (!user || !supabase) return { error: 'You must be signed in.' }
 
-  const { error } = await supabase.from('deals').update({ status: stage }).eq('id', id).eq('user_id', user.id)
+  const update: { status: Deal['status']; paid_at?: string } = { status: toStatus }
+  if (toStatus === 'paid') update.paid_at = new Date().toISOString().slice(0, 10)
+
+  const { error } = await supabase.from('deals').update(update).eq('id', id).eq('user_id', user.id)
   if (error) return { error: 'Could not move the deal. Please try again.' }
+
+  // Best-effort — a failed history insert shouldn't roll back or fail a
+  // stage move the user already saw succeed.
+  await supabase
+    .from('deal_stage_history')
+    .insert({ deal_id: id, user_id: user.id, from_status: fromStatus, to_status: toStatus })
 
   revalidatePath('/deals')
   revalidatePath('/dashboard')
+  return {}
+}
+
+export async function markInvoiceSent(id: string): Promise<ActionResult> {
+  const { user } = await getAuthenticatedUser()
+  const supabase = await createSupabaseServerClient()
+  if (!user || !supabase) return { error: 'You must be signed in.' }
+
+  const { error } = await supabase
+    .from('deals')
+    .update({ invoiced_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', user.id)
+  if (error) return { error: 'Could not mark the invoice as sent. Please try again.' }
+
+  revalidatePath('/deals')
   return {}
 }
 
@@ -234,6 +268,19 @@ export async function updateProfile(fullName: string): Promise<ActionResult> {
   if (error) return { error: 'Could not save your changes. Please try again.' }
 
   revalidatePath('/settings')
+  return {}
+}
+
+export async function updateNotifyDealReminders(enabled: boolean): Promise<ActionResult> {
+  const { user } = await getAuthenticatedUser()
+  const supabase = await createSupabaseServerClient()
+  if (!user || !supabase) return { error: 'You must be signed in.' }
+
+  const { error } = await supabase.from('profiles').update({ notify_deal_reminders: enabled }).eq('id', user.id)
+  if (error) return { error: 'Could not save your changes. Please try again.' }
+
+  revalidatePath('/settings')
+  revalidatePath('/', 'layout')
   return {}
 }
 

@@ -1,14 +1,16 @@
 import type { Metadata } from 'next'
-import { BarChart2, TrendingDown, TrendingUp } from 'lucide-react'
+import { BarChart2 } from 'lucide-react'
 import { getChannelStats, getChannelVideos, getIntegrations } from '@/lib/supabase/queries'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/ui/empty-state'
-import RevealUp from '@/components/editorial/RevealUp'
+import { DashboardHeader } from '@/components/dash/DashboardHeader'
+import { MetricGrid, type Metric } from '@/components/dash/MetricCard'
+import { Panel } from '@/components/dash/Panel'
+import { LineTrendChart, type TrendPoint } from '@/components/dash/LineTrendChart'
+import { FOCUS } from '@/components/dash/tokens'
 
 export const metadata: Metadata = { title: 'Analytics — CreatorFlow' }
 
 function monthKey(dateStr: string) {
-  return dateStr.slice(0, 7) // YYYY-MM
+  return dateStr.slice(0, 7)
 }
 
 function formatCompact(n: number) {
@@ -30,25 +32,29 @@ export default async function AnalyticsPage() {
 
   if (!youtubeConnected || stats.length === 0) {
     return (
-      <main className="flex-1 overflow-y-auto bg-linen">
-        <div className="app-container">
-          <div className="mb-8">
-            <h1 className="text-app-h1 text-carbon">Analytics</h1>
-            <p className="text-[12.5px] text-ash mt-0.5">Your YouTube channel performance</p>
+      <>
+        <DashboardHeader eyebrow="Analytics" title="Analytics" description="Your YouTube channel performance" />
+        <main id="dashboard-main" className="console-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="mx-auto w-full max-w-[1240px] px-4 py-10 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-center gap-4 rounded-[1.25rem] border border-white/[0.06] bg-white/[0.02] px-6 py-16 text-center">
+              <span aria-hidden className="grid h-11 w-11 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
+                <BarChart2 size={18} strokeWidth={2} />
+              </span>
+              <div>
+                <p className="font-nebula-heading text-[16px] font-semibold text-white">
+                  Connect YouTube to see your performance here.
+                </p>
+              </div>
+              <a
+                href="/settings"
+                className={`nebula-cta nebula-cta--wide inline-flex h-9 items-center rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium ${FOCUS}`}
+              >
+                <span className="nebula-cta__label">Connect YouTube</span>
+              </a>
+            </div>
           </div>
-          <div className="py-10">
-            <EmptyState
-              icon={<BarChart2 size={18} className="text-ash" strokeWidth={2} />}
-              title="Connect YouTube to see your performance here."
-              action={
-                <Button href="/settings" size="md">
-                  Connect YouTube
-                </Button>
-              }
-            />
-          </div>
-        </div>
-      </main>
+        </main>
+      </>
     )
   }
 
@@ -74,87 +80,89 @@ export default async function AnalyticsPage() {
   const lastSubsGained = sum(lastMonthRows, 'subscribers_gained')
   const subscribersTotal = stats[stats.length - 1].subscribers_total
 
-  const cards = [
-    { label: 'Views', value: formatCompact(thisViews), delta: pctDelta(thisViews, lastViews) },
-    { label: 'Watch time', value: `${formatCompact(thisWatchMinutes / 60)} hrs`, delta: pctDelta(thisWatchMinutes, lastWatchMinutes) },
-    { label: 'Subscribers', value: formatCompact(subscribersTotal), delta: pctDelta(thisSubsGained, lastSubsGained), sublabel: `+${formatCompact(thisSubsGained)} this month` },
+  const viewsDelta = pctDelta(thisViews, lastViews)
+  const watchDelta = pctDelta(thisWatchMinutes, lastWatchMinutes)
+  const subsDelta = pctDelta(thisSubsGained, lastSubsGained)
+
+  const metrics: Metric[] = [
+    {
+      label: 'Views',
+      value: formatCompact(thisViews),
+      delta: viewsDelta === null ? null : { pct: viewsDelta, positive: viewsDelta >= 0 },
+    },
+    {
+      label: 'Watch time',
+      value: `${formatCompact(thisWatchMinutes / 60)} hrs`,
+      delta: watchDelta === null ? null : { pct: watchDelta, positive: watchDelta >= 0 },
+    },
+    {
+      label: 'Subscribers',
+      value: formatCompact(subscribersTotal),
+      hint: `+${formatCompact(thisSubsGained)} this month`,
+      delta: subsDelta === null ? null : { pct: subsDelta, positive: subsDelta >= 0 },
+    },
   ]
 
   const last30 = stats.slice(-30)
-  const maxViews = Math.max(...last30.map((d) => d.views), 1)
+  const trendPoints: TrendPoint[] = last30.map((s) => ({
+    label: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(s.stat_date + 'T00:00:00Z')),
+    value: s.views,
+  }))
 
   const topVideos = [...videos].sort((a, b) => b.views - a.views).slice(0, 5)
 
   return (
-    <main className="flex-1 overflow-y-auto bg-linen">
-      <div className="app-container">
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <h1 className="text-app-h1 text-carbon">Analytics</h1>
-            <p className="text-[12.5px] text-ash mt-0.5">Your YouTube channel performance</p>
-          </div>
-          <span className="font-label text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full bg-lavender/10 text-lavender">This month</span>
-        </div>
+    <>
+      <DashboardHeader
+        eyebrow="Analytics"
+        title="Analytics"
+        description="Your YouTube channel performance"
+        right={
+          <span className="rounded-[9999px] border border-white/10 px-3 py-1.5 font-nebula-mono text-[10.5px] font-medium uppercase tracking-[0.1em] text-zinc-400">
+            This month
+          </span>
+        }
+      />
 
-        {/* Stat cards — same authored entrance grammar as Dashboard's stat
-            tiles: data arriving in a quick stagger, the one motion moment
-            this page earns. */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          {cards.map((c, i) => (
-            <RevealUp key={c.label} delay={i as 0 | 1 | 2}>
-              <div className="relative bg-paper-white border border-fog rounded-xl p-5" style={{ boxShadow: 'var(--shadow-subtle)' }}>
-                {c.delta !== null && (
-                  <div className={`absolute top-4 right-4 flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full ${c.delta >= 0 ? 'bg-lavender/10 text-lavender' : 'bg-fog text-graphite'}`}>
-                    {c.delta >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                    {Math.abs(c.delta).toFixed(1)}%
-                  </div>
-                )}
-                <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-3">{c.label}</p>
-                <p className="font-bold text-carbon mb-1" style={{ fontSize: '22px', lineHeight: 1, letterSpacing: '-0.04em' }}>{c.value}</p>
-                {c.sublabel && <p className="text-[11.5px] font-medium text-ash">{c.sublabel}</p>}
-              </div>
-            </RevealUp>
-          ))}
-        </div>
+      <main id="dashboard-main" className="console-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <MetricGrid metrics={metrics} />
 
-        {/* Trend */}
-        <div className="bg-paper-white border border-fog rounded-xl overflow-hidden mb-6" style={{ boxShadow: 'var(--shadow-subtle)' }}>
-          <div className="px-5 py-4 border-b border-fog">
-            <h2 className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>Views, last 30 days</h2>
-          </div>
-          <div className="p-5">
-            <div className="flex items-end gap-1 h-[110px]">
-              {last30.map((d) => (
-                <div
-                  key={d.stat_date}
-                  className="flex-1 rounded-t bg-lavender/25 hover:bg-lavender/50 transition-colors"
-                  style={{ height: `${Math.max(4, (d.views / maxViews) * 100)}%` }}
-                  title={`${d.stat_date}: ${d.views.toLocaleString()} views`}
-                />
-              ))}
+          <Panel title="Views, last 30 days" titleId="trend-h">
+            <div className="px-5 pb-5">
+              <LineTrendChart points={trendPoints} unit="views" />
             </div>
-          </div>
-        </div>
+          </Panel>
 
-        {/* Top videos */}
-        <div className="bg-paper-white border border-fog rounded-xl overflow-hidden" style={{ boxShadow: 'var(--shadow-subtle)' }}>
-          <div className="px-5 py-4 border-b border-fog">
-            <h2 className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>Top videos</h2>
-          </div>
-          <div>
-            {topVideos.map((v, i) => (
-              <div key={v.id} className={`flex items-center justify-between gap-4 px-5 py-3.5 ${i < topVideos.length - 1 ? 'border-b border-fog' : ''}`}>
-                <p className="text-[13px] font-medium text-carbon flex-1 leading-snug" style={{ letterSpacing: '-0.25px' }}>{v.title}</p>
-                <span className="text-[12px] text-ash shrink-0">{formatCompact(v.views)} views</span>
-              </div>
-            ))}
-          </div>
-        </div>
+          <Panel title="Top videos" titleId="videos-h">
+            {topVideos.length === 0 ? (
+              <p className="px-5 pb-5 font-nebula-ui text-[12.5px] text-zinc-500">No video data yet.</p>
+            ) : (
+              <ul className="pb-2">
+                {topVideos.map((v, i) => (
+                  <li
+                    key={v.id}
+                    className="flex items-center gap-4 border-t border-white/[0.05] px-5 py-3 first:border-t-0"
+                  >
+                    <span className="w-4 shrink-0 font-nebula-mono text-[11px] text-zinc-600">{i + 1}</span>
+                    <p className="min-w-0 flex-1 truncate font-nebula-ui text-[13px] font-medium text-zinc-200">
+                      {v.title}
+                    </p>
+                    <span className="shrink-0 font-nebula-mono text-[12px] text-zinc-500">
+                      {formatCompact(v.views)} views
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
 
-        <p className="text-[11px] text-ash mt-6 text-center">
-          Showing seeded demo performance data for this account. In production, this pulls live from the YouTube Analytics API for a connected channel.
-        </p>
-      </div>
-    </main>
+          <p className="text-center font-nebula-ui text-[11px] text-zinc-600">
+            Showing seeded demo performance data for this account. In production, this pulls live from the YouTube
+            Analytics API for a connected channel.
+          </p>
+        </div>
+      </main>
+    </>
   )
 }

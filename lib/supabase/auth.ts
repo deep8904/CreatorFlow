@@ -29,6 +29,15 @@ export async function signUpWithEmail(email: string, password: string, options?:
   })
 }
 
+export async function resendConfirmationEmail(email: string) {
+  const supabase = createSupabaseBrowserClient()
+  if (!supabase) {
+    throw new Error('Supabase environment variables are not configured.')
+  }
+
+  return supabase.auth.resend({ type: 'signup', email })
+}
+
 export async function signOut() {
   const supabase = createSupabaseBrowserClient()
   if (!supabase) {

@@ -1,11 +1,15 @@
 import type { Metadata } from 'next'
-import { getDeals, getIntegrations } from '@/lib/supabase/queries'
+import { getDeals, getIntegrations, getDealStageHistory } from '@/lib/supabase/queries'
 import DealsBoard from './DealsBoard'
 
 export const metadata: Metadata = { title: 'Deals — CreatorFlow' }
 
 export default async function DealsPage() {
-  const [deals, integrations] = await Promise.all([getDeals(), getIntegrations()])
+  const [deals, integrations, stageHistory] = await Promise.all([
+    getDeals(),
+    getIntegrations(),
+    getDealStageHistory(),
+  ])
   const gmailConnected = integrations.some((i) => i.provider === 'gmail')
-  return <DealsBoard initialDeals={deals} gmailConnected={gmailConnected} />
+  return <DealsBoard initialDeals={deals} gmailConnected={gmailConnected} stageHistory={stageHistory} />
 }

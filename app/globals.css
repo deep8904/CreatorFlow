@@ -5,21 +5,22 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  /* CreatorFlow — Nexus system: dark ground, single green accent, per
-     DESIGN.md (2026-07-25 full visual reset). Token names kept stable so
-     every existing bg-/text- utility re-skins automatically; the underlying
-     hex values below are the only thing that changed for the old
-     orange/light editorial pass. */
-  --color-carbon: #ffffff;         /* primary text: white on dark */
-  --color-paper-white: #232323;    /* card surface: raised dark surface */
-  --color-linen: #000000;          /* page background: near-black canvas */
-  --color-mist: #161616;           /* subtle elevated surface: input backgrounds, hover washes */
-  --color-fog: #2a2a2a;            /* border: dark neutral divider line */
-  --color-ash: #6b6b70;            /* tertiary/placeholder text */
-  --color-graphite: #a1a1aa;       /* secondary body text — lighter than ash for readability on dark */
-  --color-lavender: #22c55e;       /* primary green — the one accent hue in the system */
-  --color-iris: #16a34a;           /* accent/deep green — hover/active state of the accent */
-  --color-negative: #f87171;       /* negative delta / destructive — paired with the accent for charts */
+  /* CreatorFlow — Swiss Modernism system (second full reset, 2026-07-25):
+     white/black ground, one saturated red accent, sharp corners, border-
+     based elevation. Per DESIGN.md. Token names kept stable so every
+     existing bg-/text- utility re-skins automatically; underlying values
+     are the only thing that changed from the prior dark/green pass. */
+  --color-carbon: #000000;         /* primary text: pure black ink */
+  --color-paper-white: #ffffff;    /* card surface: white */
+  --color-linen: #ffffff;          /* page background: white canvas */
+  --color-mist: #f5f5f5;           /* subtle elevated surface: input backgrounds, hover washes */
+  --color-fog: #000000;            /* border: solid black — Swiss elevation is a border, not a shadow */
+  --color-ash: #8a8a8a;            /* tertiary/placeholder text */
+  --color-graphite: #5c5c5c;       /* secondary body text */
+  --color-lavender: #d7263d;       /* the one accent: saturated red */
+  --color-iris: #a81d30;           /* deep red — hover/active state of the accent */
+  --color-negative: #d7263d;       /* negative delta / destructive — same red, since it already reads as urgency */
+  --color-positive: #1b7a3d;       /* positive delta — a distinct green so a positive number isn't rendered in the "error" red */
 
   /* shadcn semantic tokens */
   --color-background: var(--background);
@@ -54,90 +55,68 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* DESIGN.md: Inter for display, JetBrains Mono for everything else.
-     --font-serif retired from the type system (no third typeface in the
-     new world) — repointed at the mono stack so any lingering
-     .font-body-editorial call site degrades to the documented voice
-     instead of pulling Playfair back in while surfaces are migrated. */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-serif: var(--font-jetbrains), ui-monospace, 'SF Mono', Menlo, monospace;
-  --font-mono: var(--font-jetbrains), ui-monospace, 'SF Mono', Menlo, monospace;
+  /* DESIGN.md: Archivo for every display moment, IBM Plex Sans for body/UI,
+     IBM Plex Mono for data/labels. --font-serif retired entirely (repointed
+     to Plex Sans so any lingering .font-body-editorial call site degrades
+     to plain UI text, not a stray serif from either prior world). */
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
-  --radius-3xl: 24px;
-  --radius-full: 9999px;
+  /* Sharp corners are the point, not an oversight — see DESIGN.md Shapes.
+     0 on cards/panels, 2px on interactive controls so click/tap targets
+     don't read as visually broken. radius-full retired: no more pills. */
+  --radius-sm: 0px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
+  --radius-3xl: 2px;
+  --radius-full: 2px;
 
-  --shadow-subtle: rgba(0, 0, 0, 0.24) 0px 1px 2px 0px, rgba(0, 0, 0, 0.32) 0px 0px 0px 1px;
-  --shadow-subtle-2: rgba(0, 0, 0, 0.3) 0px 1px 2px 0px, rgba(0, 0, 0, 0.4) 0px 0px 0px 1px;
-  --shadow-panel: rgba(0, 0, 0, 0.4) 0px 1px 3px 0px, rgba(0, 0, 0, 0.5) 0px 8px 24px 0px, rgba(0, 0, 0, 0.3) 0px 0px 0px 1px;
+  /* Elevation is a 1px solid black border, not a shadow — kept as empty/flat
+     values so any lingering shadow-* call site degrades to nothing rather
+     than a soft dark-mode shadow that wouldn't read on a white ground. */
+  --shadow-subtle: none;
+  --shadow-subtle-2: none;
+  --shadow-panel: none;
 }
 
 :root {
-  color-scheme: dark;
-  --background: #000000;
-  --foreground: #ffffff;
-  --card: #232323;
-  --card-foreground: #ffffff;
-  --popover: #232323;
-  --popover-foreground: #ffffff;
-  --primary: #22c55e;
-  --primary-foreground: #000000;
-  --secondary: #161616;
-  --secondary-foreground: #ffffff;
-  --muted: #161616;
-  --muted-foreground: #a1a1aa;
-  --accent: #161616;
-  --accent-foreground: #ffffff;
-  --destructive: #f87171;
-  --border: #2a2a2a;
-  --input: #2a2a2a;
-  --ring: #22c55e;
-  --chart-1: #22c55e;
-  --chart-2: #22c55e;
-  --chart-3: #22c55e;
-  --chart-4: #22c55e;
-  --chart-5: #22c55e;
-  --radius: 0.5rem;
-  --sidebar: #161616;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #22c55e;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #232323;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2a2a2a;
-  --sidebar-ring: #22c55e;
-}
-
-/* Explicit light-mode companion state for in-app Operate surfaces only
-   (DESIGN.md Colors: "Light mode is a secondary, explicit companion state
-   for in-app Operate surfaces only... Marketing/Persuade surfaces stay
-   dark-only."). Applied via a `.light` class on a scoping ancestor, not a
-   media query, so marketing pages are never accidentally inverted. */
-:root.light {
   color-scheme: light;
-  --background: #fafaf9;
-  --foreground: #18181b;
+  --background: #ffffff;
+  --foreground: #000000;
   --card: #ffffff;
-  --card-foreground: #18181b;
+  --card-foreground: #000000;
   --popover: #ffffff;
-  --popover-foreground: #18181b;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
-  --muted: #f4f4f5;
-  --muted-foreground: #52525b;
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
-  --border: #e4e4e7;
-  --input: #e4e4e7;
+  --popover-foreground: #000000;
+  --primary: #d7263d;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #000000;
+  --muted: #f5f5f5;
+  --muted-foreground: #5c5c5c;
+  --accent: #f5f5f5;
+  --accent-foreground: #000000;
+  --destructive: #d7263d;
+  --border: #000000;
+  --input: #000000;
+  --ring: #d7263d;
+  --chart-1: #d7263d;
+  --chart-2: #d7263d;
+  --chart-3: #d7263d;
+  --chart-4: #d7263d;
+  --chart-5: #d7263d;
+  --radius: 0.125rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: #18181b;
-  --sidebar-accent: #f4f4f5;
-  --sidebar-accent-foreground: #18181b;
-  --sidebar-border: #e4e4e7;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #d7263d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: #000000;
+  --sidebar-ring: #d7263d;
 }
 
 @layer base {
@@ -152,7 +131,7 @@
   }
   ::selection {
     background: var(--color-lavender);
-    color: #000000;
+    color: #ffffff;
   }
   /* Closes the audit's verified P1 finding: no visible focus indicator
      existed anywhere in the prior system (outline-none on 9 inputs, 3 with
@@ -190,7 +169,7 @@
 
 @layer utilities {
   .font-display {
-    font-family: var(--font-sans);
+    font-family: var(--font-display);
   }
   .font-body-editorial {
     font-family: var(--font-serif);
@@ -230,9 +209,10 @@
   /* Shared in-app page-title style, replacing nine separate inline
      font-size declarations that had already drifted (20px vs 22px). */
   .text-app-h1 {
+    font-family: var(--font-display);
     font-weight: 700;
-    font-size: 20px;
-    letter-spacing: -0.04em;
+    font-size: 22px;
+    letter-spacing: -0.02em;
   }
 
   /* Centered auth-moment heading (Login, Onboarding) — a deliberate third
@@ -242,28 +222,32 @@
      "Welcome back" moment and a dense toolbar-adjacent page title serve
      different roles and shouldn't collapse to the same size. */
   .text-auth-h1 {
-    font-weight: 600;
-    font-size: 26px;
-    line-height: 1.25;
-    letter-spacing: -0.02em;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
   }
 
   .text-display-lg {
-    font-size: clamp(2.75rem, 5vw + 1rem, 5.5rem);
-    font-weight: 500;
-    line-height: 1.04;
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 6vw + 0.75rem, 6.5rem);
+    font-weight: 800;
+    line-height: 0.98;
     letter-spacing: -0.02em;
   }
   .text-display-md {
-    font-size: clamp(2.25rem, 4vw + 0.5rem, 4rem);
-    font-weight: 500;
-    line-height: 1.08;
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 4vw + 0.625rem, 3.75rem);
+    font-weight: 800;
+    line-height: 1.02;
     letter-spacing: -0.02em;
   }
   .text-display-sm {
-    font-size: clamp(1.75rem, 3vw + 0.25rem, 2.75rem);
-    font-weight: 500;
-    line-height: 1.15;
+    font-family: var(--font-display);
+    font-size: clamp(1.625rem, 3vw + 0.375rem, 2.375rem);
+    font-weight: 700;
+    line-height: 1.08;
     letter-spacing: -0.01em;
   }
 
@@ -286,11 +270,14 @@
     background: var(--color-graphite);
   }
 
+  /* Swiss Modernism is flat by discipline (see DESIGN.md Elevation & Depth)
+     — blur-as-decoration is exactly the kind of soft-UI trope this world
+     refuses. Kept as a plain bordered white panel, not removed outright,
+     so existing call sites (Hero.tsx) degrade to on-brand flatness instead
+     of a a stray dark-glass fragment. */
   .glass-panel {
-    background: rgba(35, 35, 35, 0.75);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #ffffff;
+    border: 1px solid #000000;
   }
 
   .swiss-grid {
@@ -324,7 +311,7 @@
     gap: 0.5rem;
     padding: 0.9rem 1.75rem;
     background: var(--color-lavender);
-    color: #000000;
+    color: #ffffff;
     font-weight: 600;
     font-size: 14px;
     letter-spacing: -0.01em;
@@ -366,7 +353,7 @@
     gap: 0.4rem;
     padding: 0.5rem 1.1rem;
     background: var(--color-lavender);
-    color: #000000;
+    color: #ffffff;
     font-weight: 600;
     font-size: 13px;
     letter-spacing: -0.01em;
@@ -408,13 +395,12 @@
     gap: 0.4rem;
     padding: 0.625rem 1.25rem;
     background: var(--color-lavender);
-    color: #000000;
+    color: #ffffff;
     font-weight: 600;
     font-size: 13px;
     letter-spacing: -0.01em;
     border-radius: var(--radius-full);
     overflow: hidden;
-    box-shadow: rgba(34, 197, 94, 0.35) 0px 3px 10px 0px;
     transition: color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 1;
   }
@@ -494,3 +480,459 @@
     scrollbar-width: none;
   }
 }
+
+/* ============================================================================
+   NEBULA SYSTEM — Home page only (DESIGN.md, 2026-07-25 third reset).
+   Deliberately self-contained: none of this reads the global light-mode
+   tokens above, so the Home page's dark world and the in-app product's
+   current token layer coexist without either corrupting the other.
+   ========================================================================= */
+
+/* No `@theme` block here on purpose: these utilities read the CSS variables
+   next/font already sets on <html> (--font-manrope, --font-inter, …).
+   Re-declaring them in a second `@theme inline` shadowed those variables at
+   :root with undefined values and stopped Tailwind compiling everything
+   after it — the utilities silently produced no CSS at all. */
+@layer utilities {
+  .font-nebula-heading { font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif; }
+  .font-nebula-ui      { font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif; }
+  .font-nebula-tech    { font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif; }
+  .font-nebula-mono    { font-family: var(--font-geist-mono), ui-monospace, monospace; }
+}
+
+/* --- Motion keyframes ---------------------------------------------------- */
+
+@keyframes nebulaFadeSlideIn {
+  0%   { opacity: 0; transform: translateY(30px); filter: blur(8px); }
+  100% { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+
+@keyframes nebulaColumnReveal {
+  0%   { clip-path: inset(0 0 100% 0); opacity: 0; }
+  100% { clip-path: inset(0 0 0% 0);   opacity: 1; }
+}
+
+@keyframes nebulaBeamSpin   { to { transform: rotate(360deg); } }
+@keyframes nebulaShimmer    { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes nebulaBreathe    { 0%, 100% { transform: translate(-50%, -50%) scale(1); }
+                              50%      { transform: translate(-50%, -50%) scale(1.2); } }
+@keyframes nebulaDotsMove   { 0% { background-position: 0 0; } 100% { background-position: 24px 24px; } }
+@keyframes nebulaMarquee    { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+/* --- Grid curtain -------------------------------------------------------- */
+
+.nebula-col {
+  animation: nebulaColumnReveal 1.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  will-change: clip-path;
+}
+.nebula-delay-1 { animation-delay: 0.1s; }
+.nebula-delay-2 { animation-delay: 0.2s; }
+.nebula-delay-3 { animation-delay: 0.3s; }
+.nebula-delay-4 { animation-delay: 0.4s; }
+.nebula-delay-5 { animation-delay: 0.5s; }
+.nebula-delay-6 { animation-delay: 0.6s; }
+.nebula-delay-7 { animation-delay: 0.7s; }
+
+/* --- Scroll-triggered entrance ------------------------------------------- */
+/* Paused by default; the IntersectionObserver adds .is-inview to run it. */
+
+.nebula-reveal {
+  animation: nebulaFadeSlideIn 1s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-play-state: paused;
+}
+.nebula-reveal.is-inview { animation-play-state: running; }
+
+/* --- Grain --------------------------------------------------------------- */
+/* Inline feTurbulence data URI rather than an external CDN asset, so the
+   page renders identically offline and adds no third-party request. */
+
+.nebula-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.2;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* --- Gradient border (mask-composite technique, per DESIGN.md Don'ts) ---- */
+
+.nebula-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--nebula-border-gradient, linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0), rgba(255,255,255,0.15)));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* --- Progressive blur header stack --------------------------------------- */
+
+.nebula-progressive-blur { position: fixed; z-index: 40; inset: 0 0 auto 0; height: 12%; pointer-events: none; }
+.nebula-progressive-blur > div,
+.nebula-progressive-blur::before,
+.nebula-progressive-blur::after { position: absolute; inset: 0; }
+.nebula-progressive-blur::before { content: ''; z-index: 1; backdrop-filter: blur(0.5px); mask: linear-gradient(to top, transparent 0%, #000 12.5%, #000 25%, transparent 37.5%); }
+.nebula-progressive-blur > div:nth-of-type(1) { z-index: 2; backdrop-filter: blur(1px);  mask: linear-gradient(to top, transparent 12.5%, #000 25%, #000 37.5%, transparent 50%); }
+.nebula-progressive-blur > div:nth-of-type(2) { z-index: 3; backdrop-filter: blur(2px);  mask: linear-gradient(to top, transparent 25%, #000 37.5%, #000 50%, transparent 62.5%); }
+.nebula-progressive-blur > div:nth-of-type(3) { z-index: 4; backdrop-filter: blur(4px);  mask: linear-gradient(to top, transparent 37.5%, #000 50%, #000 62.5%, transparent 75%); }
+.nebula-progressive-blur > div:nth-of-type(4) { z-index: 5; backdrop-filter: blur(8px);  mask: linear-gradient(to top, transparent 50%, #000 62.5%, #000 75%, transparent 87.5%); }
+.nebula-progressive-blur > div:nth-of-type(5) { z-index: 6; backdrop-filter: blur(16px); mask: linear-gradient(to top, transparent 62.5%, #000 75%, #000 87.5%, transparent 100%); }
+.nebula-progressive-blur > div:nth-of-type(6) { z-index: 7; backdrop-filter: blur(32px); mask: linear-gradient(to top, transparent 75%, #000 87.5%, #000 100%); }
+.nebula-progressive-blur::after { content: ''; z-index: 8; backdrop-filter: blur(64px); mask: linear-gradient(to top, transparent 87.5%, #000 100%); }
+
+/* --- Marquee ------------------------------------------------------------- */
+
+.nebula-marquee-track { animation: nebulaMarquee 40s linear infinite; }
+.nebula-marquee:hover .nebula-marquee-track { animation-play-state: paused; }
+
+/* --- Reduced motion ------------------------------------------------------ */
+/* The global rule earlier in this file clamps durations, which would leave
+   these infinite decorative loops spinning at an absurd rate rather than
+   stopping. Kill them outright and land every entrance on its end state. */
+
+@media (prefers-reduced-motion: reduce) {
+  .nebula-col,
+  .nebula-reveal,
+  .nebula-marquee-track,
+  .nebula-beam,
+  .nebula-dots,
+  .nebula-glow-breathe,
+  .console-fade,
+  .console-skeleton,
+  .auth-enter,
+  .auth-pop {
+    animation: none !important;
+  }
+  .nebula-col    { clip-path: none; opacity: 1; }
+  .nebula-reveal { opacity: 1; transform: none; filter: none; }
+  .console-fade  { opacity: 1 !important; }
+  .console-skeleton { background: rgba(255, 255, 255, 0.06); }
+  .console-nudge,
+  .console-drawer { transition: none !important; }
+  .auth-enter, .auth-pop { opacity: 1; transform: none; filter: none; }
+}
+
+/* --- Registered custom properties -----------------------------------------
+   The conic border beam can only be *animated* if its angle is a registered
+   property; a plain --var can't be tweened. This is the mechanic behind the
+   reference's signature CTA. */
+
+@property --nebula-angle        { syntax: "<angle>";      initial-value: 0deg;    inherits: false; }
+@property --nebula-angle-offset { syntax: "<angle>";      initial-value: 0deg;    inherits: false; }
+@property --nebula-percent      { syntax: "<percentage>"; initial-value: 20%;     inherits: false; }
+@property --nebula-shine        { syntax: "<color>";      initial-value: #fb923c; inherits: false; }
+
+@keyframes nebulaBorderSpin { to { --nebula-angle: 360deg; } }
+@keyframes nebulaShimmer2   { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes nebulaBreathe2 {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50%      { transform: translate(-50%, -50%) scale(1.2); }
+}
+@keyframes nebulaTyping     { from { width: 0; } to { width: 100%; } }
+@keyframes nebulaCaret      { 50% { border-color: transparent; } }
+
+/* --- The Shiny CTA: six stacked layers, per the reference ----------------- */
+
+.nebula-cta {
+  --nebula-angle: 0deg;
+  --nebula-angle-offset: 0deg;
+  --nebula-percent: 20%;
+  --nebula-shine: #fb923c;
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  /* Dual background: solid fill clipped to padding-box, gradient clipped to
+     border-box — paints a gradient in the border region only. */
+  background:
+    linear-gradient(#000, #000) padding-box,
+    conic-gradient(
+      from calc(var(--nebula-angle) - var(--nebula-angle-offset)),
+      transparent 0%,
+      #ea580c 5%,
+      var(--nebula-shine) 15%,
+      #ea580c 30%,
+      transparent 40%,
+      transparent 100%
+    ) border-box;
+  box-shadow: inset 0 0 0 1px #1a1818;
+  animation: nebulaBorderSpin 2.5s linear infinite;
+  transition:
+    --nebula-angle-offset 800ms cubic-bezier(0.25, 1, 0.5, 1),
+    --nebula-percent 800ms cubic-bezier(0.25, 1, 0.5, 1),
+    --nebula-shine 800ms cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 300ms;
+}
+.nebula-cta:hover { --nebula-angle-offset: 180deg; --nebula-percent: 30%; --nebula-shine: #ffd6b0; }
+.nebula-cta:active { transform: translateY(1px); }
+
+/* Layer 3 — dot field, revealed only along a rotating conic arc. */
+.nebula-cta::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  background: radial-gradient(circle at 2px 2px, #fff 0.5px, transparent 0) padding-box;
+  background-size: 4px 4px;
+  background-repeat: space;
+  -webkit-mask-image: conic-gradient(from calc(var(--nebula-angle) + 45deg), #000, transparent 10% 90%, #000);
+  mask-image: conic-gradient(from calc(var(--nebula-angle) + 45deg), #000, transparent 10% 90%, #000);
+  border-radius: inherit;
+  opacity: 0.4;
+}
+
+/* Layer 4 — the shimmer sweep. */
+.nebula-cta::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  width: 100%;
+  aspect-ratio: 1;
+  background: linear-gradient(-50deg, transparent, #ea580c, transparent);
+  -webkit-mask-image: radial-gradient(circle at bottom, transparent 55%, #000);
+  mask-image: radial-gradient(circle at bottom, transparent 55%, #000);
+  /* Reference uses 0.6 / 40%. That was tuned for its taller 1.25rem-padded
+     button; on this wider, shorter pill the square sweep covers almost the
+     whole face and reads as a solid orange fill rather than a shine. Lower
+     opacity + a larger transparent core keeps it a highlight. */
+  opacity: 0.22;
+  animation: nebulaShimmer2 4s linear infinite;
+}
+
+/* Layer 5 — the inset glow layer, ported verbatim from the reference.
+   IMPORTANT: the reference keeps this at `opacity: 0` and defines NO hover
+   rule for it anywhere — the layer never becomes visible. An earlier pass
+   here added `:hover { opacity: 1 }` and oversized the box, which is what
+   flooded the pill with a solid orange fill. Keeping it at 0 restores the
+   intended look: a black pill whose colour comes from the spinning border
+   beam and the shimmer sweep, not from an inner fill.
+   Hover is carried by scale + the outer glow shadow on the element itself. */
+.nebula-cta__label { position: relative; z-index: 2; display: inline-flex; align-items: center; }
+.nebula-cta__label::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: -1;
+  width: calc(100% + 1rem);
+  height: calc(100% + 1rem);
+  box-shadow: inset 0 -1ex 2rem 4px #ea580c;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 800ms cubic-bezier(0.25, 1, 0.5, 1);
+  animation: nebulaBreathe2 4.5s linear infinite;
+}
+
+/* --- Static CTA: same gradient-border pill language, no infinite loop ----
+   `.nebula-cta`'s border-spin/shimmer read as "premium" on a one-time
+   marketing/auth/empty-state click, but the same constant motion on a
+   button someone clicks repeatedly to do real work (Add deal, Save, an
+   AI-preview toggle) is distracting rather than delightful. This variant
+   keeps the black pill + orange gradient border + hover glow, and drops
+   every `infinite` animation — the border angle is fixed, hover only
+   nudges it via the existing one-shot transition already defined on
+   `--nebula-angle-offset`/`--nebula-shine`. Shares `.nebula-cta__label`
+   with the spinning variant (its own ::before glow layer stays at
+   opacity: 0 either way, so nothing extra needs duplicating). */
+.nebula-cta-static {
+  --nebula-angle: 45deg;
+  --nebula-angle-offset: 0deg;
+  --nebula-percent: 20%;
+  --nebula-shine: #fb923c;
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(#000, #000) padding-box,
+    conic-gradient(
+      from calc(var(--nebula-angle) - var(--nebula-angle-offset)),
+      transparent 0%,
+      #ea580c 5%,
+      var(--nebula-shine) 15%,
+      #ea580c 30%,
+      transparent 40%,
+      transparent 100%
+    ) border-box;
+  box-shadow: inset 0 0 0 1px #1a1818;
+  transition:
+    --nebula-angle-offset 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    --nebula-shine 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.nebula-cta-static:hover {
+  --nebula-angle-offset: 20deg;
+  --nebula-shine: #ffd6b0;
+  filter: brightness(1.1);
+  box-shadow: inset 0 0 0 1px #1a1818, 0 0 20px -6px rgba(234, 88, 12, 0.55);
+}
+.nebula-cta-static:active { transform: translateY(1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nebula-cta-static { transition: none !important; }
+}
+
+/* Auth tier (Group 5): the shimmer sweep (::after, above) is tuned for a
+   content-sized pill — an 8:1 aspect-ratio full-width 48px submit button
+   under-serves it (most of the square sweep clips under overflow:hidden,
+   leaving a thin, off-center highlight). Paired with `.nebula-cta` on a
+   wide button, never used alone. See GROUP5_DECISION §3.1. */
+.nebula-cta--wide::after {
+  aspect-ratio: auto;
+  width: 140%;
+  height: 100%;
+  opacity: 0.28;
+  -webkit-mask-image: radial-gradient(ellipse at bottom, transparent 45%, #000);
+  mask-image: radial-gradient(ellipse at bottom, transparent 45%, #000);
+}
+
+/* --- Typewriter ----------------------------------------------------------- */
+
+.nebula-typewriter {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid #ea580c;
+  width: 0;
+  animation:
+    nebulaTyping 1.5s steps(30, end) 1.2s forwards,
+    nebulaCaret 0.75s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nebula-cta,
+  .nebula-cta::after,
+  .nebula-cta__label::before,
+  .nebula-typewriter {
+    animation: none !important;
+  }
+  /* Land the typewriter on its finished state rather than a 0-width sliver. */
+  .nebula-typewriter { width: 100%; border-right-color: transparent; }
+}
+
+/* ============================================================================
+   NEBULA CONSOLE — in-app tier (Group 1 decision). Same system, denser scale.
+   Depth here comes from a brightness ladder on a solid ground, not from blur:
+   there is deliberately NO backdrop-filter anywhere under app/(app)/ except
+   the mobile drawer scrim, whose child panel is opaque.
+   ========================================================================= */
+
+.nebula-console {
+  --console-bezel:       #000000;
+  --console-frame:       #0a0a0b;
+  --console-rail:        #060607;
+  --console-panel:       rgba(255,255,255,0.025);
+  --console-panel-hover: rgba(255,255,255,0.045);
+  --console-hair:        rgba(255,255,255,0.06);
+  --console-hair-2:      rgba(255,255,255,0.10);
+  --console-ink:         #f4f4f5;
+  --console-dim:         #a1a1aa;
+  --console-faint:       #71717a;
+  --console-accent:      #ea580c;
+  --console-accent-2:    #fb923c;
+  --console-pos:         #34d399;
+  --console-neg:         #fb7185;
+}
+
+/* The gradient frame engages at lg (§4.5), where the bezel exists for it to sit
+   in. `lg:nebula-border` is not expressible as a Tailwind variant on a custom
+   class, so the suppression below lg is done here instead. */
+@media (max-width: 1023.98px) {
+  .console-frame.nebula-border::before { content: none; }
+}
+
+/* Faded structural hairlines. Honours DESIGN.md's "no solid borders" for
+   internal rules without asking a 5-row list to wear mask-composite. */
+.console-rule-x {
+  height: 1px; width: 100%;
+  background: linear-gradient(to right, transparent, var(--console-hair-2) 12%,
+              var(--console-hair-2) 88%, transparent);
+}
+.console-rule-y {
+  width: 1px; align-self: stretch;
+  background: linear-gradient(to bottom, transparent, var(--console-hair-2) 18%,
+              var(--console-hair-2) 82%, transparent);
+}
+
+/* Scrollbars. The global token layer is light-mode; UA defaults look broken on #0a0a0b. */
+.console-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent; }
+.console-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.console-scroll::-webkit-scrollbar-track { background: transparent; }
+.console-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.12); border-radius: 9999px;
+  border: 3px solid transparent; background-clip: content-box;
+}
+.console-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.22); background-clip: content-box;
+}
+
+/* The single content-pane entrance. Opacity only — no transform, no blur, no stagger. */
+@keyframes consoleFade { from { opacity: 0; } to { opacity: 1; } }
+.console-fade { animation: consoleFade 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Skeleton sweep. */
+@keyframes consoleSkel { 0% { background-position: -160% 0; } 100% { background-position: 260% 0; } }
+.console-skeleton {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.04) 100%);
+  background-size: 220% 100%;
+  animation: consoleSkel 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console-fade,
+  .console-skeleton { animation: none !important; }
+  .console-fade     { opacity: 1 !important; }
+  .console-skeleton { background: rgba(255, 255, 255, 0.06); }
+  .console-nudge,
+  .console-drawer   { transition: none !important; }
+}
+
+/* ============================================================================
+   AUTH TIER (Group 5 decision). Additive only — no existing rule above this
+   point is modified. The reduced-motion kill for .auth-enter/.auth-pop is
+   added to the existing kill-switch block near the top of the NEBULA SYSTEM
+   section (`@media (prefers-reduced-motion: reduce)` covering `.nebula-col`,
+   `.nebula-reveal`, …) rather than duplicated here — see GROUP5_DECISION §6.
+   ========================================================================= */
+
+.nebula-auth input:-webkit-autofill,
+.nebula-auth input:-webkit-autofill:hover,
+.nebula-auth input:-webkit-autofill:focus,
+.nebula-auth input:-webkit-autofill:active {
+  -webkit-text-fill-color: #fafafa;
+  -webkit-box-shadow: 0 0 0 1000px #0e0e10 inset, inset 0 0 0 1px rgba(255,255,255,0.09);
+  caret-color: #fafafa;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+@keyframes authEnter {
+  0%   { opacity: 0; transform: translateY(10px); filter: blur(3px); }
+  100% { opacity: 1; transform: translateY(0);    filter: blur(0);   }
+}
+.auth-enter { animation: authEnter 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+
+@keyframes authPop { 0% { opacity: 0; transform: scale(0.88); } 100% { opacity: 1; transform: scale(1); } }
+.auth-pop { animation: authPop 460ms cubic-bezier(0.16, 1, 0.3, 1) 80ms backwards; }

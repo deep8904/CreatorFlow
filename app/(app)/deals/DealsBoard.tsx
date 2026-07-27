@@ -1,17 +1,40 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState, useTransition, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { X, ArrowRight, Sparkles, FileText, Pencil, Check, AlertTriangle, Info, Handshake, Trash2, Search } from 'lucide-react'
-import { updateDealStage, createDeal, updateDeal, deleteDeal, type DealFormInput } from '@/lib/supabase/actions'
-import type { Deal } from '@/lib/supabase/types'
-import { Avatar } from '@/components/ui/avatar'
-import { Input, Textarea } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/ui/empty-state'
+import {
+  ArrowRight,
+  Sparkles,
+  FileText,
+  Pencil,
+  Check,
+  AlertTriangle,
+  Info,
+  Handshake,
+  Trash2,
+  Copy,
+  Mail,
+  Receipt,
+  History,
+} from 'lucide-react'
+import {
+  updateDealStage,
+  createDeal,
+  updateDeal,
+  deleteDeal,
+  markInvoiceSent,
+  type DealFormInput,
+} from '@/lib/supabase/actions'
+import type { Deal, DealStageHistory } from '@/lib/supabase/types'
+import { InitialsChip } from '@/components/dash/InitialsChip'
+import { GlassModal } from '@/components/dash/GlassModal'
+import { FieldLabel, FieldInput, FieldTextarea } from '@/components/dash/FormField'
+import { SearchField } from '@/components/dash/SearchField'
+import { Pill, PillButton } from '@/components/dash/Pill'
+import { DashboardHeader } from '@/components/dash/DashboardHeader'
+import { MetricGrid, type Metric } from '@/components/dash/MetricCard'
+import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
 import { useToast } from '@/lib/toast'
-import { useEscapeKey } from '@/lib/useEscapeKey'
 
 const STAGE_LABEL: Record<Deal['status'], string> = {
   inbound: 'Inbound',
@@ -24,14 +47,21 @@ const STAGE_LABEL: Record<Deal['status'], string> = {
 
 const STAGES: Deal['status'][] = ['inbound', 'negotiating', 'contracted', 'delivered', 'paid', 'lost']
 
-const stageConfig: Record<Deal['status'], { color: string; bg: string; dot: string }> = {
-  inbound:     { color: 'text-graphite', bg: 'bg-fog', dot: 'bg-ash' },
-  negotiating: { color: 'text-graphite', bg: 'bg-fog', dot: 'bg-ash' },
-  contracted:  { color: 'text-graphite', bg: 'bg-fog', dot: 'bg-ash' },
-  delivered:   { color: 'text-graphite', bg: 'bg-fog', dot: 'bg-ash' },
-  paid:        { color: 'text-lavender',     bg: 'bg-lavender/10', dot: 'bg-lavender' },
-  lost:        { color: 'text-ash',      bg: 'bg-fog', dot: 'bg-ash' },
+const STAGE_DOT: Record<Deal['status'], string> = {
+  inbound: 'bg-zinc-500',
+  negotiating: 'bg-zinc-500',
+  contracted: 'bg-zinc-500',
+  delivered: 'bg-zinc-500',
+  paid: 'bg-emerald-400',
+  lost: 'bg-zinc-600',
 }
+
+/**
+ * Total deals, not just open ones — a brand-new account with one deal that
+ * happens to already be Paid still shouldn't be dropped into an empty
+ * six-column kanban to find it.
+ */
+const LOW_VOLUME_THRESHOLD = 3
 
 function formatRate(cents: number | null) {
   if (cents == null) return '—'
@@ -41,6 +71,11 @@ function formatRate(cents: number | null) {
 function formatDueDate(dueDate: string | null) {
   if (!dueDate) return null
   return new Date(dueDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function formatDateTime(iso: string | null) {
+  if (!iso) return null
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function aiReplyFor(deal: Deal) {
@@ -56,26 +91,25 @@ function contractReviewFor(deal: Deal) {
   ]
 }
 
-/* Severity communicated by weight, not hue — critical is a solid fill,
-   risk is a wash of the same accent, info is neutral. No new colors. */
 const reviewStyle = {
-  critical: { icon: AlertTriangle, color: 'text-carbon', bg: 'bg-lavender' },
-  risk: { icon: AlertTriangle, color: 'text-lavender', bg: 'bg-lavender/10' },
-  info: { icon: Info, color: 'text-graphite', bg: 'bg-fog' },
+  critical: { icon: AlertTriangle, color: 'text-orange-300', bg: 'bg-orange-500/[0.14]' },
+  risk: { icon: AlertTriangle, color: 'text-amber-300', bg: 'bg-amber-400/[0.1]' },
+  info: { icon: Info, color: 'text-zinc-400', bg: 'bg-white/[0.05]' },
 }
 
 function DealModal({
   initial,
+  typicalRateCents,
   onClose,
   onSubmit,
   isPending,
 }: {
   initial: Deal | null
+  typicalRateCents: number | null
   onClose: () => void
   onSubmit: (input: DealFormInput) => void
   isPending: boolean
 }) {
-  useEscapeKey(onClose)
   const [brandName, setBrandName] = useState(initial?.brand_name ?? '')
   const [contactName, setContactName] = useState(initial?.contact_name ?? '')
   const [rate, setRate] = useState(initial?.rate_amount_cents ? String(initial.rate_amount_cents / 100) : '')
@@ -96,69 +130,96 @@ function DealModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
-      <div
-        className="w-full max-w-[440px] bg-paper-white border border-fog rounded-xl p-6 max-h-[85vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-bold text-carbon">{initial ? 'Edit deal' : 'Add deal'}</h2>
-          <button onClick={onClose} aria-label="Close" className="w-7 h-7 flex items-center justify-center text-ash hover:text-carbon rounded-full hover:bg-linen transition-colors">
-            <X size={15} />
-          </button>
+    <GlassModal title={initial ? 'Edit deal' : 'Add deal'} onClose={onClose}>
+      <div className="flex flex-col gap-3.5">
+        <div>
+          <FieldLabel htmlFor="deal-brand">Brand name</FieldLabel>
+          <FieldInput id="deal-brand" autoFocus value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Aura Skincare" />
+        </div>
+        <div>
+          <FieldLabel htmlFor="deal-contact">Contact</FieldLabel>
+          <FieldInput id="deal-contact" value={contactName ?? ''} onChange={(e) => setContactName(e.target.value)} placeholder="Priya Nair" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FieldLabel htmlFor="deal-rate">Rate ($)</FieldLabel>
+            <FieldInput id="deal-rate" type="number" min="0" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="1500" />
+            {/* Creators consistently go into negotiation without a number
+                in mind — this is their own real history, not a market
+                estimate, so it's honest even though it's a small sample. */}
+            {!initial && typicalRateCents !== null && (
+              <p className="mt-1.5 font-nebula-ui text-[10.5px] text-zinc-600">
+                Your recent deals averaged ${(typicalRateCents / 100).toLocaleString()}.
+              </p>
+            )}
+          </div>
+          <div>
+            <FieldLabel htmlFor="deal-due">Due date</FieldLabel>
+            <FieldInput id="deal-due" type="date" value={dueDate ?? ''} onChange={(e) => setDueDate(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <FieldLabel htmlFor="deal-deliverables">Deliverables</FieldLabel>
+          <FieldInput id="deal-deliverables" value={deliverables ?? ''} onChange={(e) => setDeliverables(e.target.value)} placeholder="1 dedicated video" />
+        </div>
+        <div>
+          <FieldLabel htmlFor="deal-notes">Notes</FieldLabel>
+          <FieldTextarea id="deal-notes" value={notes ?? ''} onChange={(e) => setNotes(e.target.value)} rows={2} />
         </div>
 
-        <div className="flex flex-col gap-3.5">
-          <div>
-            <Label htmlFor="deal-brand">Brand name</Label>
-            <Input id="deal-brand" autoFocus value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Aura Skincare" />
-          </div>
-          <div>
-            <Label htmlFor="deal-contact">Contact</Label>
-            <Input id="deal-contact" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Priya Nair" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="deal-rate">Rate ($)</Label>
-              <Input id="deal-rate" type="number" min="0" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="1500" />
-            </div>
-            <div>
-              <Label htmlFor="deal-due">Due date</Label>
-              <Input id="deal-due" type="date" value={dueDate ?? ''} onChange={(e) => setDueDate(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="deal-deliverables">Deliverables</Label>
-            <Input id="deal-deliverables" value={deliverables} onChange={(e) => setDeliverables(e.target.value)} placeholder="1 dedicated video" />
-          </div>
-          <div>
-            <Label htmlFor="deal-notes">Notes</Label>
-            <Textarea id="deal-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-          </div>
-
-          <Button onClick={submit} disabled={!brandName.trim() || isPending} size="md" className="mt-1">
-            {initial ? 'Save changes' : 'Add deal'}
-          </Button>
-        </div>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!brandName.trim() || isPending}
+          className={`nebula-cta-static mt-1 inline-flex h-10 items-center justify-center rounded-[9999px] font-nebula-tech text-[13px] font-medium disabled:pointer-events-none disabled:opacity-50 ${FOCUS}`}
+        >
+          <span className="nebula-cta__label">{initial ? 'Save changes' : 'Add deal'}</span>
+        </button>
       </div>
-    </div>
+    </GlassModal>
   )
 }
 
-export default function DealsBoard({ initialDeals, gmailConnected }: { initialDeals: Deal[]; gmailConnected: boolean }) {
+function DealCardContent({ deal }: { deal: Deal }) {
+  return (
+    <>
+      <div className="mb-2.5 flex items-center gap-2.5">
+        <InitialsChip name={deal.brand_name ?? '?'} size={26} />
+        <p className="truncate font-nebula-ui text-[13px] font-semibold text-zinc-100">{deal.brand_name ?? 'Untitled deal'}</p>
+      </div>
+      {deal.deliverables && (
+        <p className="mb-3 line-clamp-2 font-nebula-ui text-[11.5px] leading-snug text-zinc-500">{deal.deliverables}</p>
+      )}
+      <div className="flex items-center justify-between">
+        <span className="font-nebula-mono text-[12.5px] font-medium text-zinc-100">{formatRate(deal.rate_amount_cents)}</span>
+        {formatDueDate(deal.due_date) && (
+          <span className="font-nebula-ui text-[10.5px] text-zinc-600">Due {formatDueDate(deal.due_date)}</span>
+        )}
+      </div>
+    </>
+  )
+}
+
+export default function DealsBoard({
+  initialDeals,
+  gmailConnected,
+  stageHistory,
+}: {
+  initialDeals: Deal[]
+  gmailConnected: boolean
+  stageHistory: DealStageHistory[]
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const toast = useToast()
-  // Deep link from the dashboard's "Needs your attention" list.
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get('deal'))
   const [isPending, startTransition] = useTransition()
-  // Deep link from the dashboard's "Log a deal" action — jump straight into
-  // the add-deal modal instead of landing on the board first.
   const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(() =>
     searchParams.get('new') === '1' ? 'add' : null
   )
   const [revealAiReply, setRevealAiReply] = useState(false)
   const [revealReview, setRevealReview] = useState(false)
+  const [revealHistory, setRevealHistory] = useState(false)
   const [query, setQuery] = useState('')
   const selected = initialDeals.find((d) => d.id === selectedId) ?? null
 
@@ -168,21 +229,29 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
     }
   }, [searchParams, router])
 
-  const activeDeals = initialDeals.filter((d) => d.status !== 'lost')
-  const totalRevenue = activeDeals.reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0) / 100
+  const openDeals = initialDeals.filter((d) => d.status !== 'paid' && d.status !== 'lost')
+  const pipelineValue = openDeals.reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0) / 100
+  const paidDeals = initialDeals.filter((d) => d.status === 'paid')
+  const collectedTotal = paidDeals.reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0) / 100
+  const needsNextStepCount = initialDeals.filter((d) => d.status !== 'paid' && d.status !== 'delivered' && d.status !== 'lost').length
   const visibleDeals = query.trim()
     ? initialDeals.filter((d) => (d.brand_name ?? '').toLowerCase().includes(query.trim().toLowerCase()))
     : initialDeals
+  const isLowVolume = initialDeals.length <= LOW_VOLUME_THRESHOLD
+
+  const ratedDeals = initialDeals.filter((d) => d.status !== 'lost' && d.rate_amount_cents !== null).slice(0, 5)
+  const typicalRateCents =
+    ratedDeals.length > 0
+      ? Math.round(ratedDeals.reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0) / ratedDeals.length)
+      : null
 
   const moveStage = (deal: Deal, stage: Deal['status']) => {
     const currentRank = STAGES.indexOf(deal.status)
     const nextRank = STAGES.indexOf(stage)
-    // Confirm on anything that isn't a plain forward move — going backward
-    // (or to Lost) silently changes the revenue totals shown elsewhere.
     const isBackwardOrLost = stage === 'lost' || (deal.status !== 'lost' && nextRank < currentRank)
     if (isBackwardOrLost && !window.confirm(`Move "${deal.brand_name ?? 'this deal'}" to ${STAGE_LABEL[stage]}?`)) return
     startTransition(async () => {
-      const result = await updateDealStage(deal.id, stage)
+      const result = await updateDealStage(deal.id, deal.status, stage)
       if (result.error) toast.error(result.error)
     })
   }
@@ -200,6 +269,7 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
     setSelectedId(selectedId === id ? null : id)
     setRevealAiReply(false)
     setRevealReview(false)
+    setRevealHistory(false)
   }
 
   const handleModalSubmit = (input: DealFormInput) => {
@@ -210,122 +280,189 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
     setModalMode(null)
   }
 
+  const handleMarkInvoiced = (deal: Deal) => {
+    startTransition(async () => {
+      const result = await markInvoiceSent(deal.id)
+      if (result.error) toast.error(result.error)
+    })
+  }
+
+  const copyReply = async (deal: Deal) => {
+    try {
+      await navigator.clipboard.writeText(aiReplyFor(deal))
+      toast.success('Copied to clipboard.')
+    } catch {
+      toast.error('Could not copy — your browser may be blocking clipboard access.')
+    }
+  }
+
+  const openInGmail = (deal: Deal) => {
+    const subject = encodeURIComponent(`Re: ${deal.brand_name ?? 'your note'}`)
+    const body = encodeURIComponent(aiReplyFor(deal))
+    const to = deal.contact_email ? encodeURIComponent(deal.contact_email) : ''
+    // gmail.com/mail's compose deep-link — opens the user's own inbox with
+    // the draft pre-filled. No API call, no OAuth, no send happens here or
+    // ever from this button; the user reviews and sends it themselves.
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${subject}&body=${body}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const selectedHistory = selected ? stageHistory.filter((h) => h.deal_id === selected.id) : []
+
+  const dealMetrics: Metric[] = [
+    { label: 'Open deals', value: String(openDeals.length), hint: `of ${initialDeals.length} total`, icon: <Handshake size={14} /> },
+    { label: 'Pipeline value', value: `$${pipelineValue.toLocaleString()}`, hint: `across ${openDeals.length} open` },
+    { label: 'Collected to date', value: `$${collectedTotal.toLocaleString()}`, hint: `across ${paidDeals.length} deals` },
+    { label: 'Needs a next step', value: String(needsNextStepCount) },
+  ]
+
   return (
-    <div className="flex h-screen overflow-hidden bg-linen">
-
-      {/* Main pipeline */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-
-        {/* Header */}
-        <div className="px-8 py-5 border-b border-fog bg-paper-white flex flex-wrap items-center justify-between gap-x-4 gap-y-3 shrink-0">
-          <div>
-            <h1 className="text-app-h1 text-carbon">Deals</h1>
-            <p className="text-[12.5px] text-ash mt-0.5">
-              {activeDeals.length} active · ${totalRevenue.toLocaleString()} pipeline value
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
+    <>
+      <DashboardHeader
+        eyebrow="Deals"
+        title="Deals"
+        description={`${openDeals.length} open · $${pipelineValue.toLocaleString()} pipeline value`}
+        right={
+          <>
             {gmailConnected && (
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-lavender">
-                <Check size={13} /> Gmail connected
+              <span
+                title="Seeded demo data, not a live Gmail connection — this build has no production Google credentials"
+                className="inline-flex items-center gap-1.5 font-nebula-ui text-[12px] font-medium text-emerald-300"
+              >
+                <Check size={13} strokeWidth={2.5} /> Gmail connected (demo)
               </span>
             )}
-            <div className="relative shrink-0">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ash pointer-events-none" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search deals"
-                className="text-[13px] bg-linen border border-fog rounded-full pl-8 pr-3 py-1.5 outline-none focus:border-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-lavender focus-visible:outline-offset-2 transition-colors w-[160px]"
-              />
-            </div>
-            <Button onClick={() => setModalMode('add')} size="md" iconRight={<ArrowRight size={13} />}>
-              Add deal
-            </Button>
+            <SearchField value={query} onChange={setQuery} placeholder="Search deals" className="w-[160px]" />
+            <button
+              type="button"
+              onClick={() => setModalMode('add')}
+              className={`nebula-cta-static inline-flex h-9 items-center gap-1.5 rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium ${FOCUS}`}
+            >
+              <span className="nebula-cta__label">
+                Add deal <ArrowRight size={13} className="ml-1 inline" />
+              </span>
+            </button>
+          </>
+        }
+      />
+
+      <div className="flex h-full min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {initialDeals.length > 0 && (
+          <div className="shrink-0 border-b border-white/[0.06] px-4 pb-5 pt-1 sm:px-6 lg:px-8">
+            <MetricGrid metrics={dealMetrics} />
           </div>
-        </div>
+        )}
 
         {initialDeals.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center px-6">
-            <EmptyState
-              icon={<Handshake size={18} className="text-ash" strokeWidth={2} />}
-              title="No deals yet."
-              description="Connect Gmail to auto-detect sponsorship emails, or add a deal manually."
-              action={
-                <Button onClick={() => setModalMode('add')} size="md">
-                  Add a deal
-                </Button>
-              }
-            />
+          <div className="flex flex-1 items-center justify-center px-6">
+            <div className="max-w-[26rem] text-center">
+              <span aria-hidden className="mx-auto grid h-11 w-11 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
+                <Handshake size={18} strokeWidth={2} />
+              </span>
+              <p className="mt-4 font-nebula-heading text-[16px] font-semibold text-white">No deals yet.</p>
+              <p className="mt-1 font-nebula-ui text-[13px] text-zinc-500">
+                Connect Gmail to auto-detect sponsorship emails, or add a deal manually.
+              </p>
+              <button
+                type="button"
+                onClick={() => setModalMode('add')}
+                className={`nebula-cta nebula-cta--wide mt-5 inline-flex h-9 items-center rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium ${FOCUS}`}
+              >
+                <span className="nebula-cta__label">Add a deal</span>
+              </button>
+            </div>
           </div>
         ) : visibleDeals.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center px-6">
-            <EmptyState
-              icon={<Search size={18} className="text-ash" strokeWidth={2} />}
-              title="No deals match your search."
-              description="Try a different search term."
-            />
+          <div className="flex flex-1 items-center justify-center px-6">
+            <div className="text-center">
+              <p className="font-nebula-heading text-[16px] font-semibold text-white">No deals match your search.</p>
+              <p className="mt-1 font-nebula-ui text-[13px] text-zinc-500">Try a different search term.</p>
+            </div>
           </div>
-        ) : (
-          /* Kanban */
-          <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 py-6 snap-x snap-mandatory md:snap-none">
-            <div className="flex gap-3 h-full" style={{ minWidth: 'max-content' }}>
-              {STAGES.map((stage) => {
-                const stageDeals = visibleDeals.filter((d) => d.status === stage)
-                const cfg = stageConfig[stage]
-                return (
-                  <div key={stage} className={`w-[85vw] sm:w-[320px] md:w-[228px] shrink-0 flex flex-col gap-2.5 snap-center md:snap-align-none ${stage === 'lost' ? 'opacity-60' : ''}`}>
-                    {/* Column header */}
-                    <div className="flex items-center justify-between px-1">
-                      <div className="flex items-center gap-1.5">
-                        <div className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                        <span className="text-[13px] font-semibold text-carbon" style={{ letterSpacing: '-0.25px' }}>
-                          {STAGE_LABEL[stage]}
+        ) : isLowVolume ? (
+          // A handful of deals doesn't earn a six-column pipeline — it's
+          // disorienting, not reassuring, for someone with one or two.
+          <div className="console-scroll flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+            <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3">
+              {visibleDeals.map((deal) => (
+                <button
+                  key={deal.id}
+                  type="button"
+                  onClick={() => selectDeal(deal.id)}
+                  className={`nebula-border w-full rounded-[1.25rem] bg-white/[0.03] p-5 text-left backdrop-blur-xl transition-all duration-150 hover:bg-white/[0.05] ${FOCUS_INSET} ${
+                    selectedId === deal.id ? 'ring-1 ring-orange-400/70' : ''
+                  }`}
+                >
+                  <div className="mb-2.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <InitialsChip name={deal.brand_name ?? '?'} size={34} />
+                      <div>
+                        <p className="font-nebula-ui text-[14px] font-semibold text-zinc-100">
+                          {deal.brand_name ?? 'Untitled deal'}
+                        </p>
+                        <span className="mt-0.5 flex items-center gap-1.5">
+                          <span aria-hidden className={`h-1.5 w-1.5 rounded-[9999px] ${STAGE_DOT[deal.status]}`} />
+                          <span className="font-nebula-ui text-[11.5px] text-zinc-500">{STAGE_LABEL[deal.status]}</span>
                         </span>
                       </div>
-                      <span className="text-[11px] font-medium text-ash bg-fog px-2 py-0.5 rounded-full">
+                    </div>
+                    <span className="font-nebula-mono text-[15px] font-medium text-zinc-100">
+                      {formatRate(deal.rate_amount_cents)}
+                    </span>
+                  </div>
+                  {deal.deliverables && (
+                    <p className="font-nebula-ui text-[12.5px] leading-snug text-zinc-500">{deal.deliverables}</p>
+                  )}
+                  {formatDueDate(deal.due_date) && (
+                    <p className="mt-2 font-nebula-ui text-[11px] text-zinc-600">Due {formatDueDate(deal.due_date)}</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="console-scroll flex-1 overflow-x-auto overflow-y-hidden px-4 py-5 sm:px-6 lg:px-8">
+            <div className="flex h-full gap-3" style={{ minWidth: 'max-content' }}>
+              {STAGES.map((stage) => {
+                const stageDeals = visibleDeals.filter((d) => d.status === stage)
+                return (
+                  <div
+                    key={stage}
+                    className={`flex w-[260px] shrink-0 flex-col gap-2.5 ${stage === 'lost' ? 'opacity-60' : ''}`}
+                  >
+                    <div className="flex items-center justify-between px-1">
+                      <div className="flex items-center gap-1.5">
+                        <span aria-hidden className={`h-1.5 w-1.5 rounded-[9999px] ${STAGE_DOT[stage]}`} />
+                        <span className="font-nebula-heading text-[12.5px] font-semibold text-zinc-200">{STAGE_LABEL[stage]}</span>
+                      </div>
+                      <span className="rounded-[9999px] bg-white/[0.06] px-2 py-0.5 font-nebula-mono text-[10.5px] font-medium text-zinc-500">
                         {stageDeals.length}
                       </span>
                     </div>
 
-                    {/* Cards */}
-                    <div className="flex flex-col gap-2 flex-1 overflow-y-auto pb-4 pr-0.5">
+                    <div className="console-scroll flex flex-1 flex-col gap-2 overflow-y-auto pb-4 pr-0.5">
                       {stageDeals.map((deal) => (
                         <button
                           key={deal.id}
+                          type="button"
                           onClick={() => selectDeal(deal.id)}
-                          className={`w-full text-left bg-paper-white border rounded-xl p-4 transition-all hover:shadow-sm ${
-                            selectedId === deal.id
-                              ? 'border-lavender/50 shadow-[0_0_0_2px_rgba(34,197,94,0.15)]'
-                              : 'border-fog hover:border-fog/80'
+                          className={`nebula-border w-full rounded-[14px] bg-white/[0.03] p-3.5 text-left backdrop-blur-xl transition-all duration-150 hover:bg-white/[0.05] ${FOCUS_INSET} ${
+                            selectedId === deal.id ? 'ring-1 ring-orange-400/70' : ''
                           }`}
-                          style={{ boxShadow: selectedId === deal.id ? undefined : 'var(--shadow-subtle)' }}
+                          style={
+                            {
+                              '--nebula-border-gradient':
+                                'linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02) 55%, rgba(234,88,12,0.06))',
+                            } as CSSProperties
+                          }
                         >
-                          <div className="flex items-center gap-2.5 mb-2.5">
-                            <Avatar name={deal.brand_name ?? '?'} size="sm" />
-                            <p className="text-[13.5px] font-semibold text-carbon" style={{ letterSpacing: '-0.3px' }}>
-                              {deal.brand_name ?? 'Untitled deal'}
-                            </p>
-                          </div>
-                          {deal.deliverables && (
-                            <p className="text-[12px] text-graphite leading-snug mb-3 line-clamp-2">
-                              {deal.deliverables}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13px] font-bold text-carbon" style={{ letterSpacing: '-0.3px' }}>
-                              {formatRate(deal.rate_amount_cents)}
-                            </span>
-                            {formatDueDate(deal.due_date) && (
-                              <span className="text-[11px] text-ash">Due {formatDueDate(deal.due_date)}</span>
-                            )}
-                          </div>
+                          <DealCardContent deal={deal} />
                         </button>
                       ))}
 
                       {stageDeals.length === 0 && (
-                        <div className="border border-dashed border-fog rounded-xl p-4 text-center">
-                          <p className="text-[12px] text-ash">No deals</p>
+                        <div className="rounded-[14px] border border-dashed border-white/10 p-3.5 text-center">
+                          <p className="font-nebula-ui text-[11.5px] text-zinc-600">No deals</p>
                         </div>
                       )}
                     </div>
@@ -337,33 +474,28 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
         )}
       </div>
 
-      {/* Detail panel */}
       {selected && (
-        <aside className="w-[340px] shrink-0 border-l border-fog bg-paper-white flex flex-col overflow-y-auto">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-fog shrink-0">
+        <aside className="console-scroll flex w-[340px] shrink-0 flex-col overflow-y-auto border-l border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
+          <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-5 py-4">
             <div className="flex items-center gap-2.5">
-              <Avatar name={selected.brand_name ?? '?'} size="md" />
-              <h2 className="text-[15px] font-bold text-carbon" style={{ letterSpacing: '-0.3px' }}>
+              <InitialsChip name={selected.brand_name ?? '?'} size={30} />
+              <h2 className="font-nebula-heading text-[15px] font-semibold text-white">
                 {selected.brand_name ?? 'Untitled deal'}
               </h2>
             </div>
             <button
+              type="button"
               onClick={() => setSelectedId(null)}
               aria-label="Close deal details"
-              className="w-7 h-7 flex items-center justify-center text-ash hover:text-carbon transition-colors rounded-full hover:bg-linen"
+              className={`grid h-8 w-8 shrink-0 place-items-center rounded-[9999px] text-zinc-500 hover:bg-white/[0.08] hover:text-white ${HOVER} ${FOCUS_INSET}`}
             >
-              <X size={15} />
+              <span className="text-[15px] leading-none">×</span>
             </button>
           </div>
 
           <div className="flex flex-col gap-5 p-5">
-            {/* Stage */}
-            <div className={`inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full font-label text-[10.5px] font-semibold uppercase tracking-widest ${stageConfig[selected.status].bg} ${stageConfig[selected.status].color}`}>
-              <div className={`w-1.5 h-1.5 rounded-full ${stageConfig[selected.status].dot}`} />
-              {STAGE_LABEL[selected.status]}
-            </div>
+            <Pill tone={selected.status === 'paid' ? 'positive' : 'default'}>{STAGE_LABEL[selected.status]}</Pill>
 
-            {/* Fields */}
             <div className="flex flex-col gap-4">
               {[
                 { label: 'Contact', value: selected.contact_name ?? '—' },
@@ -372,97 +504,155 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
                 { label: 'Deliverables', value: selected.deliverables ?? '—' },
               ].map((f) => (
                 <div key={f.label}>
-                  <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-1">
+                  <p className="mb-1 font-nebula-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
                     {f.label}
                   </p>
-                  <p className="text-[13.5px] text-carbon leading-snug" style={{ letterSpacing: '-0.25px' }}>
-                    {f.value}
-                  </p>
+                  <p className="font-nebula-ui text-[13px] leading-snug text-zinc-200">{f.value}</p>
                 </div>
               ))}
               {selected.notes && (
                 <div>
-                  <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-1">
+                  <p className="mb-1 font-nebula-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
                     Notes
                   </p>
-                  <p className="text-[13.5px] text-graphite leading-snug" style={{ letterSpacing: '-0.25px' }}>
-                    {selected.notes}
-                  </p>
+                  <p className="font-nebula-ui text-[13px] leading-snug text-zinc-400">{selected.notes}</p>
                 </div>
               )}
             </div>
 
-            {/* Move stage */}
-            <div>
-              <p className="font-label text-[10.5px] font-semibold text-ash uppercase tracking-widest mb-2">
-                Move to stage
+            {/* Invoice / payment tracking */}
+            <div className="flex flex-col gap-2.5 border-t border-white/[0.06] pt-4">
+              <p className="font-nebula-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
+                Invoice &amp; payment
               </p>
-              <div className="flex flex-wrap gap-1.5">
-                {STAGES.filter((s) => s !== selected.status).map((s) => {
-                  const cfg = stageConfig[s]
-                  return (
-                    <button
-                      key={s}
-                      disabled={isPending}
-                      onClick={() => moveStage(selected, s)}
-                      className={`font-label text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.color} hover:opacity-80 disabled:opacity-50 transition-opacity`}
-                    >
-                      {STAGE_LABEL[s]}
-                    </button>
-                  )
-                })}
+              <div className="flex items-center justify-between">
+                <span className="font-nebula-ui text-[12.5px] text-zinc-400">Invoice sent</span>
+                {selected.invoiced_at ? (
+                  <span className="font-nebula-mono text-[12px] text-zinc-200">{formatDateTime(selected.invoiced_at)}</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleMarkInvoiced(selected)}
+                    disabled={isPending}
+                    className={`inline-flex items-center gap-1 rounded-[9999px] border border-white/10 px-2.5 py-1 font-nebula-ui text-[11px] font-medium text-zinc-300 hover:bg-white/[0.06] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
+                  >
+                    <Receipt size={11} strokeWidth={2} /> Mark sent
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-nebula-ui text-[12.5px] text-zinc-400">Paid</span>
+                <span className="font-nebula-mono text-[12px] text-zinc-200">
+                  {selected.paid_at ? formatDateTime(selected.paid_at) : '—'}
+                </span>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-col gap-2 pt-1 border-t border-fog">
-              <Button onClick={() => setRevealAiReply((v) => !v)} size="md" className="w-full" iconLeft={<Sparkles size={13} />}>
-                {revealAiReply ? 'Hide reply preview' : 'Draft reply — preview'}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setRevealReview((v) => !v)}
-                size="md"
-                className="w-full"
-                iconLeft={<FileText size={13} className="text-graphite" />}
+            <div>
+              <p className="mb-2 font-nebula-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
+                Move to stage
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {STAGES.filter((s) => s !== selected.status).map((s) => (
+                  <PillButton key={s} disabled={isPending} onClick={() => moveStage(selected, s)}>
+                    {STAGE_LABEL[s]}
+                  </PillButton>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-4">
+              <button
+                type="button"
+                onClick={() => setRevealAiReply((v) => !v)}
+                className={`nebula-cta-static flex h-9 w-full items-center justify-center gap-1.5 rounded-[9999px] font-nebula-tech text-[12.5px] font-medium ${FOCUS}`}
               >
+                <span className="nebula-cta__label flex items-center gap-1.5">
+                  <Sparkles size={13} strokeWidth={2} />
+                  {revealAiReply ? 'Hide reply preview' : 'Draft reply — preview'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRevealReview((v) => !v)}
+                className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-[9999px] border border-white/10 font-nebula-ui text-[12.5px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
+              >
+                <FileText size={13} strokeWidth={2} />
                 {revealReview ? 'Hide contract review' : 'Review contract — preview'}
-              </Button>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRevealHistory((v) => !v)}
+                className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-[9999px] border border-white/10 font-nebula-ui text-[12.5px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
+              >
+                <History size={13} strokeWidth={2} />
+                {revealHistory ? 'Hide history' : `History (${selectedHistory.length})`}
+              </button>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" onClick={() => setModalMode('edit')} size="sm" className="flex-1" iconLeft={<Pencil size={12} />}>
-                  Edit deal
-                </Button>
                 <button
+                  type="button"
+                  onClick={() => setModalMode('edit')}
+                  className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[9999px] font-nebula-ui text-[12px] font-medium text-zinc-400 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
+                >
+                  <Pencil size={12} strokeWidth={2} /> Edit deal
+                </button>
+                <button
+                  type="button"
                   onClick={() => removeDeal(selected)}
                   disabled={isPending}
                   aria-label="Delete deal"
                   title="Delete deal"
-                  className="w-8 h-8 flex items-center justify-center rounded-xl text-ash hover:text-carbon hover:bg-linen transition-colors disabled:opacity-50 shrink-0"
+                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9999px] text-zinc-500 hover:bg-white/[0.08] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
                 >
-                  <Trash2 size={13} />
+                  <Trash2 size={13} strokeWidth={2} />
                 </button>
               </div>
             </div>
 
             {revealAiReply && (
-              <div className="bg-linen border border-fog rounded-xl p-4">
-                <p className="font-label text-[10px] font-semibold text-ash uppercase tracking-widest mb-2">Draft reply — preview</p>
-                <pre className="text-[12.5px] text-carbon leading-relaxed whitespace-pre-wrap font-sans">{aiReplyFor(selected)}</pre>
+              <div className="nebula-border rounded-[12px] bg-white/[0.03] p-4">
+                <p className="mb-2 font-nebula-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
+                  Draft reply — preview
+                </p>
+                <pre className="whitespace-pre-wrap font-nebula-ui text-[12.5px] leading-relaxed text-zinc-300">
+                  {aiReplyFor(selected)}
+                </pre>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyReply(selected)}
+                    className={`inline-flex h-8 items-center gap-1.5 rounded-[9999px] border border-white/10 px-3 font-nebula-ui text-[11.5px] font-medium text-zinc-300 hover:bg-white/[0.06] hover:text-white ${HOVER} ${FOCUS_INSET}`}
+                  >
+                    <Copy size={12} strokeWidth={2} /> Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openInGmail(selected)}
+                    className={`inline-flex h-8 items-center gap-1.5 rounded-[9999px] border border-white/10 px-3 font-nebula-ui text-[11.5px] font-medium text-zinc-300 hover:bg-white/[0.06] hover:text-white ${HOVER} ${FOCUS_INSET}`}
+                  >
+                    <Mail size={12} strokeWidth={2} /> Open in Gmail
+                  </button>
+                </div>
+                <p className="mt-2 font-nebula-ui text-[10.5px] text-zinc-600">
+                  Opens your own Gmail with this draft pre-filled — nothing is sent from here.
+                </p>
               </div>
             )}
 
             {revealReview && (
               <div className="flex flex-col gap-2.5">
-                <p className="font-label text-[10px] font-semibold text-ash uppercase tracking-widest">Contract review — preview</p>
+                <p className="font-nebula-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
+                  Contract review — preview
+                </p>
                 {contractReviewFor(selected).map((item, i) => {
                   const style = reviewStyle[item.level]
                   const Icon = style.icon
                   return (
-                    <div key={i} className={`flex items-start gap-2.5 rounded-xl p-3 ${style.bg}`}>
-                      <Icon size={14} className={`shrink-0 mt-0.5 ${style.color}`} />
+                    <div key={i} className={`flex items-start gap-2.5 rounded-[12px] p-3 ${style.bg}`}>
+                      <Icon size={14} strokeWidth={2} className={`mt-0.5 shrink-0 ${style.color}`} />
                       <div>
-                        <p className={`text-[12px] font-semibold ${style.color}`}>{item.label}</p>
-                        <p className="text-[12.5px] text-graphite leading-snug mt-0.5">{item.text}</p>
+                        <p className={`font-nebula-ui text-[12px] font-semibold ${style.color}`}>{item.label}</p>
+                        <p className="mt-0.5 font-nebula-ui text-[12px] leading-snug text-zinc-400">{item.text}</p>
                       </div>
                     </div>
                   )
@@ -470,21 +660,53 @@ export default function DealsBoard({ initialDeals, gmailConnected }: { initialDe
               </div>
             )}
 
-            <p className="text-[11px] text-ash text-center" style={{ letterSpacing: '-0.15px' }}>
-              Preview only — built from a template and your rate card, not a live AI call. Nothing sends until you approve.
-            </p>
+            {revealHistory && (
+              <div className="flex flex-col gap-2">
+                <p className="font-nebula-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
+                  Stage history
+                </p>
+                {selectedHistory.length === 0 ? (
+                  <p className="font-nebula-ui text-[12px] text-zinc-600">
+                    No transitions recorded yet — this starts tracking from here forward.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-2.5">
+                    {selectedHistory.map((h) => (
+                      <li key={h.id} className="flex items-start gap-2.5">
+                        <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-[9999px] bg-orange-400" />
+                        <div>
+                          <p className="font-nebula-ui text-[12px] text-zinc-300">
+                            {h.from_status ? STAGE_LABEL[h.from_status] : 'Created'} → {STAGE_LABEL[h.to_status]}
+                          </p>
+                          <p className="font-nebula-mono text-[10.5px] text-zinc-600">{formatDateTime(h.changed_at)}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {(revealAiReply || revealReview) && (
+              <p className="text-center font-nebula-ui text-[11px] text-zinc-600">
+                Preview only — built from a template and your rate card, not a live AI call. Nothing sends until you
+                approve.
+              </p>
+            )}
           </div>
         </aside>
       )}
+      </div>
 
       {modalMode && (
         <DealModal
           initial={modalMode === 'edit' ? selected : null}
+          typicalRateCents={typicalRateCents}
           onClose={() => setModalMode(null)}
           onSubmit={handleModalSubmit}
           isPending={isPending}
         />
       )}
-    </div>
+    </>
   )
 }
