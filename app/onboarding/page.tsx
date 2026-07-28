@@ -4,6 +4,8 @@ import { Suspense, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Check, Mail } from 'lucide-react'
 import { signUpWithEmail, resendConfirmationEmail } from '@/lib/supabase/auth'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { completeOnboarding } from '@/lib/supabase/actions'
 import { YouTubeGlyph, GmailGlyph } from '@/components/ui/oauth-glyphs'
 import {
   AuthShell,
@@ -38,6 +40,7 @@ function OnboardingFlow() {
   const searchParams = useSearchParams()
   const nextHref = searchParams.get('next') || '/dashboard'
   const [step, setStep] = useState<Step>('welcome')
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -47,6 +50,37 @@ function OnboardingFlow() {
 
   useEffect(() => {
     if (step === 'check-email' || step === 'done') noticeRef.current?.focus()
+  }, [step])
+
+  // Resuming an already-authenticated visit — this is exactly what happens
+  // after clicking an email confirmation link: the welcome step's in-memory
+  // "just signed up" state from the original tab is long gone, but there's
+  // a real session now, so skip straight to the connect steps instead of
+  // showing the signup form again. (app/(app)/layout.tsx is what actually
+  // sends a not-yet-onboarded user here in the first place.)
+  useEffect(() => {
+    let cancelled = false
+    const supabase = createSupabaseBrowserClient()
+    if (!supabase) {
+      queueMicrotask(() => setCheckingAuth(false))
+      return
+    }
+    supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return
+      if (data.user) setStep('youtube')
+      setCheckingAuth(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Reaching "done" is the wizard's actual finish line, however the user
+  // got here (same-tab signup, or a resumed confirmation-link visit) —
+  // this is what the app/(app) layout's onboarding gate checks to decide
+  // whether to let a signed-in user any further than /onboarding.
+  useEffect(() => {
+    if (step === 'done') void completeOnboarding()
   }, [step])
 
   const handleSignUp = async (e: FormEvent) => {
@@ -59,9 +93,15 @@ function OnboardingFlow() {
     setIsSubmitting(true)
     setError(null)
     try {
-      const { data, error: signUpError } = await signUpWithEmail(email.trim(), password, {
-        full_name: fullName.trim(),
-      })
+      const rawNext = searchParams.get('next')
+      const onboardingReturn = rawNext ? `/onboarding?next=${encodeURIComponent(rawNext)}` : '/onboarding'
+      const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(onboardingReturn)}`
+      const { data, error: signUpError } = await signUpWithEmail(
+        email.trim(),
+        password,
+        { full_name: fullName.trim() },
+        emailRedirectTo,
+      )
       if (signUpError) {
         setError(
           signUpError.message.toLowerCase().includes('already registered')
@@ -84,6 +124,8 @@ function OnboardingFlow() {
 
   const next = searchParams.get('next')
   const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : '/login'
+
+  if (checkingAuth) return null
 
   return (
     <AuthShell

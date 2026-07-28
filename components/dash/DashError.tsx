@@ -6,10 +6,10 @@ import { FOCUS, HOVER } from './tokens'
 /**
  * Group-level error boundary for every `(app)` screen.
  *
- * No red alarm slab — a failed load is recoverable, and queries already
- * swallow failures upstream (returning `[]`), so this only catches render
- * and auth faults, not data faults. `error.message` never renders in
- * production; a raw error string can leak query shape.
+ * No red alarm slab — a failed load is recoverable. lib/supabase/queries.ts
+ * throws on a genuine Supabase error (as opposed to a legitimate empty
+ * result), which is what actually lands here. `error.message` never renders
+ * in production; a raw error string can leak query shape.
  */
 export function DashError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (

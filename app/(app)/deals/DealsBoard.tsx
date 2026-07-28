@@ -16,6 +16,9 @@ import {
   Mail,
   Receipt,
   History,
+  Star,
+  ListChecks,
+  X,
 } from 'lucide-react'
 import {
   updateDealStage,
@@ -23,6 +26,9 @@ import {
   updateDeal,
   deleteDeal,
   markInvoiceSent,
+  toggleDealPriority,
+  bulkUpdateDealStage,
+  bulkDeleteDeals,
   type DealFormInput,
 } from '@/lib/supabase/actions'
 import type { Deal, DealStageHistory } from '@/lib/supabase/types'
@@ -180,12 +186,27 @@ function DealModal({
   )
 }
 
-function DealCardContent({ deal }: { deal: Deal }) {
+function DealCardContent({ deal, selectMode, selected }: { deal: Deal; selectMode?: boolean; selected?: boolean }) {
   return (
     <>
       <div className="mb-2.5 flex items-center gap-2.5">
+        {selectMode && (
+          <span
+            aria-hidden
+            className={`grid h-4 w-4 shrink-0 place-items-center rounded-[4px] border ${
+              selected ? 'border-orange-400 bg-orange-500/80' : 'border-white/20'
+            }`}
+          >
+            {selected && <Check size={11} strokeWidth={3} className="text-white" />}
+          </span>
+        )}
         <InitialsChip name={deal.brand_name ?? '?'} size={26} />
-        <p className="truncate font-nebula-ui text-[13px] font-semibold text-zinc-100">{deal.brand_name ?? 'Untitled deal'}</p>
+        <p className="min-w-0 flex-1 truncate font-nebula-ui text-[13px] font-semibold text-zinc-100">
+          {deal.brand_name ?? 'Untitled deal'}
+        </p>
+        {deal.is_priority && (
+          <Star aria-hidden size={12} strokeWidth={2} className="shrink-0 fill-amber-400 text-amber-400" />
+        )}
       </div>
       {deal.deliverables && (
         <p className="mb-3 line-clamp-2 font-nebula-ui text-[11.5px] leading-snug text-zinc-500">{deal.deliverables}</p>
@@ -221,6 +242,8 @@ export default function DealsBoard({
   const [revealReview, setRevealReview] = useState(false)
   const [revealHistory, setRevealHistory] = useState(false)
   const [query, setQuery] = useState('')
+  const [selectMode, setSelectMode] = useState(false)
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set())
   const selected = initialDeals.find((d) => d.id === selectedId) ?? null
 
   useEffect(() => {
@@ -234,10 +257,63 @@ export default function DealsBoard({
   const paidDeals = initialDeals.filter((d) => d.status === 'paid')
   const collectedTotal = paidDeals.reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0) / 100
   const needsNextStepCount = initialDeals.filter((d) => d.status !== 'paid' && d.status !== 'delivered' && d.status !== 'lost').length
-  const visibleDeals = query.trim()
+  const searchedDeals = query.trim()
     ? initialDeals.filter((d) => (d.brand_name ?? '').toLowerCase().includes(query.trim().toLowerCase()))
     : initialDeals
+  // Priority deals float to the top within whatever grouping they land in
+  // (stage column, or the low-volume flat list) — a plain, predictable sort
+  // rather than a computed urgency score.
+  const visibleDeals = [...searchedDeals].sort((a, b) => Number(b.is_priority) - Number(a.is_priority))
   const isLowVolume = initialDeals.length <= LOW_VOLUME_THRESHOLD
+
+  const toggleSelectMode = () => {
+    setSelectMode((v) => !v)
+    setBulkSelectedIds(new Set())
+    setSelectedId(null)
+  }
+
+  const toggleBulkSelected = (id: string) => {
+    setBulkSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const cardClick = (deal: Deal) => {
+    if (selectMode) toggleBulkSelected(deal.id)
+    else selectDeal(deal.id)
+  }
+
+  const bulkMove = (stage: Deal['status']) => {
+    const ids = [...bulkSelectedIds]
+    if (ids.length === 0) return
+    if (!window.confirm(`Move ${ids.length} ${ids.length === 1 ? 'deal' : 'deals'} to ${STAGE_LABEL[stage]}?`)) return
+    startTransition(async () => {
+      const result = await bulkUpdateDealStage(ids, stage)
+      if (result.error) toast.error(result.error)
+    })
+    setBulkSelectedIds(new Set())
+  }
+
+  const bulkDelete = () => {
+    const ids = [...bulkSelectedIds]
+    if (ids.length === 0) return
+    if (!window.confirm(`Delete ${ids.length} ${ids.length === 1 ? 'deal' : 'deals'}? This can't be undone.`)) return
+    startTransition(async () => {
+      const result = await bulkDeleteDeals(ids)
+      if (result.error) toast.error(result.error)
+    })
+    setBulkSelectedIds(new Set())
+  }
+
+  const togglePriority = (deal: Deal) => {
+    startTransition(async () => {
+      const result = await toggleDealPriority(deal.id, !deal.is_priority)
+      if (result.error) toast.error(result.error)
+    })
+  }
 
   const ratedDeals = initialDeals.filter((d) => d.status !== 'lost' && d.rate_amount_cents !== null).slice(0, 5)
   const typicalRateCents =
@@ -332,6 +408,21 @@ export default function DealsBoard({
               </span>
             )}
             <SearchField value={query} onChange={setQuery} placeholder="Search deals" className="w-[160px]" />
+            {initialDeals.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleSelectMode}
+                aria-pressed={selectMode}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-[9999px] border px-3.5 font-nebula-ui text-[12.5px] font-medium ${HOVER} ${FOCUS} ${
+                  selectMode
+                    ? 'border-orange-400/60 bg-orange-500/[0.12] text-orange-300'
+                    : 'border-white/10 text-zinc-300 hover:bg-white/[0.05] hover:text-white'
+                }`}
+              >
+                <ListChecks size={14} strokeWidth={2} />
+                {selectMode ? 'Done' : 'Select'}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setModalMode('add')}
@@ -388,17 +479,30 @@ export default function DealsBoard({
                 <button
                   key={deal.id}
                   type="button"
-                  onClick={() => selectDeal(deal.id)}
+                  onClick={() => cardClick(deal)}
                   className={`nebula-border w-full rounded-[1.25rem] bg-white/[0.03] p-5 text-left backdrop-blur-xl transition-all duration-150 hover:bg-white/[0.05] ${FOCUS_INSET} ${
-                    selectedId === deal.id ? 'ring-1 ring-orange-400/70' : ''
+                    selectedId === deal.id || bulkSelectedIds.has(deal.id) ? 'ring-1 ring-orange-400/70' : ''
                   }`}
                 >
                   <div className="mb-2.5 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      {selectMode && (
+                        <span
+                          aria-hidden
+                          className={`grid h-4 w-4 shrink-0 place-items-center rounded-[4px] border ${
+                            bulkSelectedIds.has(deal.id) ? 'border-orange-400 bg-orange-500/80' : 'border-white/20'
+                          }`}
+                        >
+                          {bulkSelectedIds.has(deal.id) && <Check size={11} strokeWidth={3} className="text-white" />}
+                        </span>
+                      )}
                       <InitialsChip name={deal.brand_name ?? '?'} size={34} />
-                      <div>
-                        <p className="font-nebula-ui text-[14px] font-semibold text-zinc-100">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-1.5 truncate font-nebula-ui text-[14px] font-semibold text-zinc-100">
                           {deal.brand_name ?? 'Untitled deal'}
+                          {deal.is_priority && (
+                            <Star aria-hidden size={12} strokeWidth={2} className="shrink-0 fill-amber-400 text-amber-400" />
+                          )}
                         </p>
                         <span className="mt-0.5 flex items-center gap-1.5">
                           <span aria-hidden className={`h-1.5 w-1.5 rounded-[9999px] ${STAGE_DOT[deal.status]}`} />
@@ -406,7 +510,7 @@ export default function DealsBoard({
                         </span>
                       </div>
                     </div>
-                    <span className="font-nebula-mono text-[15px] font-medium text-zinc-100">
+                    <span className="shrink-0 font-nebula-mono text-[15px] font-medium text-zinc-100">
                       {formatRate(deal.rate_amount_cents)}
                     </span>
                   </div>
@@ -445,9 +549,9 @@ export default function DealsBoard({
                         <button
                           key={deal.id}
                           type="button"
-                          onClick={() => selectDeal(deal.id)}
+                          onClick={() => cardClick(deal)}
                           className={`nebula-border w-full rounded-[14px] bg-white/[0.03] p-3.5 text-left backdrop-blur-xl transition-all duration-150 hover:bg-white/[0.05] ${FOCUS_INSET} ${
-                            selectedId === deal.id ? 'ring-1 ring-orange-400/70' : ''
+                            selectedId === deal.id || bulkSelectedIds.has(deal.id) ? 'ring-1 ring-orange-400/70' : ''
                           }`}
                           style={
                             {
@@ -456,7 +560,7 @@ export default function DealsBoard({
                             } as CSSProperties
                           }
                         >
-                          <DealCardContent deal={deal} />
+                          <DealCardContent deal={deal} selectMode={selectMode} selected={bulkSelectedIds.has(deal.id)} />
                         </button>
                       ))}
 
@@ -470,6 +574,38 @@ export default function DealsBoard({
                 )
               })}
             </div>
+          </div>
+        )}
+
+        {selectMode && bulkSelectedIds.size > 0 && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 border-t border-white/[0.06] bg-white/[0.03] px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
+            <span className="font-nebula-ui text-[12.5px] font-medium text-zinc-300">
+              {bulkSelectedIds.size} selected
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {STAGES.map((stage) => (
+                <PillButton key={stage} disabled={isPending} onClick={() => bulkMove(stage)}>
+                  Move to {STAGE_LABEL[stage]}
+                </PillButton>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={bulkDelete}
+              disabled={isPending}
+              className={`ml-auto inline-flex h-8 items-center gap-1.5 rounded-[9999px] border border-white/10 px-3 font-nebula-ui text-[11.5px] font-medium text-zinc-300 hover:bg-white/[0.08] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
+            >
+              <Trash2 size={12} strokeWidth={2} /> Delete
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkSelectedIds(new Set())}
+              disabled={isPending}
+              aria-label="Clear selection"
+              className={`grid h-8 w-8 shrink-0 place-items-center rounded-[9999px] text-zinc-500 hover:bg-white/[0.08] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
+            >
+              <X size={14} strokeWidth={2} />
+            </button>
           </div>
         )}
       </div>
@@ -494,7 +630,23 @@ export default function DealsBoard({
           </div>
 
           <div className="flex flex-col gap-5 p-5">
-            <Pill tone={selected.status === 'paid' ? 'positive' : 'default'}>{STAGE_LABEL[selected.status]}</Pill>
+            <div className="flex items-center justify-between gap-3">
+              <Pill tone={selected.status === 'paid' ? 'positive' : 'default'}>{STAGE_LABEL[selected.status]}</Pill>
+              <button
+                type="button"
+                onClick={() => togglePriority(selected)}
+                disabled={isPending}
+                aria-pressed={selected.is_priority}
+                className={`inline-flex items-center gap-1.5 rounded-[9999px] border px-2.5 py-1 font-nebula-ui text-[11.5px] font-medium disabled:opacity-50 ${HOVER} ${FOCUS_INSET} ${
+                  selected.is_priority
+                    ? 'border-amber-400/40 bg-amber-400/[0.1] text-amber-300'
+                    : 'border-white/10 text-zinc-400 hover:bg-white/[0.06] hover:text-white'
+                }`}
+              >
+                <Star size={12} strokeWidth={2} className={selected.is_priority ? 'fill-amber-400' : ''} />
+                {selected.is_priority ? 'Priority' : 'Mark priority'}
+              </button>
+            </div>
 
             <div className="flex flex-col gap-4">
               {[

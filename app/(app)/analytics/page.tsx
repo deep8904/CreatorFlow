@@ -1,11 +1,18 @@
 import type { Metadata } from 'next'
 import { BarChart2 } from 'lucide-react'
-import { getChannelStats, getChannelVideos, getIntegrations } from '@/lib/supabase/queries'
+import { getChannelStats, getChannelVideos, getIntegrations, getDeals } from '@/lib/supabase/queries'
+import { requireModuleAccess } from '@/lib/supabase/access'
 import { DashboardHeader } from '@/components/dash/DashboardHeader'
 import { MetricGrid, type Metric } from '@/components/dash/MetricCard'
 import { Panel } from '@/components/dash/Panel'
 import { LineTrendChart, type TrendPoint } from '@/components/dash/LineTrendChart'
 import { FOCUS } from '@/components/dash/tokens'
+
+function formatMoney(cents: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
+    cents / 100,
+  )
+}
 
 export const metadata: Metadata = { title: 'Analytics — CreatorFlow' }
 
@@ -23,10 +30,12 @@ function pctDelta(current: number, previous: number): number | null {
 }
 
 export default async function AnalyticsPage() {
-  const [integrations, stats, videos] = await Promise.all([
+  await requireModuleAccess('analytics')
+  const [integrations, stats, videos, deals] = await Promise.all([
     getIntegrations(),
     getChannelStats(120),
     getChannelVideos(),
+    getDeals(),
   ])
   const youtubeConnected = integrations.some((i) => i.provider === 'youtube')
 
@@ -111,6 +120,15 @@ export default async function AnalyticsPage() {
 
   const topVideos = [...videos].sort((a, b) => b.views - a.views).slice(0, 5)
 
+  // Real linkage between Analytics and Deals — the same account's pipeline,
+  // for the same month this page is already showing performance for. Only
+  // rendered when there's at least one deal the caller's role can see (RLS
+  // already returns an empty list for a role without Deals access, so this
+  // naturally disappears for Editor/Designer rather than showing an
+  // access-denied panel).
+  const dealsThisMonth = deals.filter((d) => d.created_at.slice(0, 7) === currentMonth)
+  const dealsThisMonthValue = dealsThisMonth.reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0)
+
   return (
     <>
       <DashboardHeader
@@ -156,6 +174,23 @@ export default async function AnalyticsPage() {
               </ul>
             )}
           </Panel>
+
+          {deals.length > 0 && (
+            <Panel
+              title="Deal pipeline this month"
+              titleId="deals-link-h"
+              action={{ label: 'Open Deals', href: '/deals' }}
+            >
+              <div className="px-5 py-4">
+                <p className="font-nebula-heading text-[20px] font-semibold text-white">{formatMoney(dealsThisMonthValue)}</p>
+                <p className="font-nebula-ui text-[12.5px] text-zinc-500">
+                  {dealsThisMonth.length === 0
+                    ? 'No new deals this month yet.'
+                    : `${dealsThisMonth.length} new ${dealsThisMonth.length === 1 ? 'deal' : 'deals'} started this month`}
+                </p>
+              </div>
+            </Panel>
+          )}
 
           <p className="text-center font-nebula-ui text-[11px] text-zinc-600">
             Showing seeded demo performance data for this account. In production, this pulls live from the YouTube

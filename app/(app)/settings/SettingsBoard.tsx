@@ -22,6 +22,7 @@ interface Props {
   youtubeConnected: boolean
   youtubeAccountLabel: string | null
   notifyDealReminders: boolean
+  isOwner: boolean
 }
 
 export default function SettingsBoard({
@@ -32,6 +33,7 @@ export default function SettingsBoard({
   youtubeConnected,
   youtubeAccountLabel,
   notifyDealReminders,
+  isOwner,
 }: Props) {
   const router = useRouter()
   const toast = useToast()
@@ -273,14 +275,23 @@ export default function SettingsBoard({
                   </p>
                 </div>
                 {acct.connected ? (
-                  <button
-                    type="button"
-                    onClick={() => handleDisconnect(acct.key)}
-                    disabled={disconnecting === acct.key}
-                    className={`shrink-0 rounded-[9999px] border border-white/10 px-3.5 py-1.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
-                  >
-                    {disconnecting === acct.key ? 'Disconnecting…' : 'Disconnect'}
-                  </button>
+                  isOwner ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDisconnect(acct.key)}
+                      disabled={disconnecting === acct.key}
+                      className={`shrink-0 rounded-[9999px] border border-white/10 px-3.5 py-1.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
+                    >
+                      {disconnecting === acct.key ? 'Disconnecting…' : 'Disconnect'}
+                    </button>
+                  ) : (
+                    <span
+                      title="Only the workspace owner can disconnect a connection"
+                      className="shrink-0 rounded-[9999px] bg-white/[0.06] px-3.5 py-1.5 font-nebula-ui text-[12px] font-medium text-zinc-500"
+                    >
+                      Connected
+                    </span>
+                  )
                 ) : (
                   <span
                     title="Connecting a real account requires production Google OAuth credentials"

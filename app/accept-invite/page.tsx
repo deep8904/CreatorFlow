@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Ban, UserPlus, Unlink, ShieldAlert } from 'lucide-react'
 import { getAuthenticatedUser } from '@/lib/supabase/server'
 import { getInviteById } from '@/lib/supabase/queries'
+import { ROLE_LABELS, ROLE_DESCRIPTIONS } from '@/lib/roles'
 import { AuthShell, AuthNotice, AuthButton, AuthLink } from '@/components/auth'
 import { AcceptInviteButton } from './AcceptInviteButton'
 
@@ -97,11 +98,12 @@ export default async function AcceptInvitePage({
       <AuthNotice
         icon={UserPlus}
         tone="accent"
-        title={`Join as ${invite.role === 'owner' ? 'an owner' : 'a collaborator'}?`}
+        title={`Join as ${invite.role === 'owner' ? 'an' : 'a'} ${ROLE_LABELS[invite.role]}?`}
         body={
           <>
-            You&apos;re signed in as <span className="text-zinc-100">{invite.invited_email}</span>. You&apos;ll get{' '}
-            {invite.role === 'owner' ? 'full access, including team management and account settings' : 'access to deals, ideas, and automations'}.
+            You&apos;re signed in as <span className="text-zinc-100">{invite.invited_email}</span>. As{' '}
+            {invite.role === 'owner' ? 'an' : 'a'} {ROLE_LABELS[invite.role]}, you&apos;ll get{' '}
+            {ROLE_DESCRIPTIONS[invite.role].charAt(0).toLowerCase() + ROLE_DESCRIPTIONS[invite.role].slice(1)}
           </>
         }
       >

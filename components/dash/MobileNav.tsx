@@ -9,6 +9,8 @@ import { NotificationBell } from './NotificationBell'
 import { primaryNav, secondaryNav, isActiveHref } from './nav'
 import { FOCUS_INSET, HOVER, EASE } from './tokens'
 import { signOut } from '@/lib/supabase/auth'
+import { canAccessModule } from '@/lib/roles'
+import type { Role } from '@/lib/supabase/types'
 
 type Ctx = { open: boolean; setOpen: (v: boolean) => void }
 const MobileNavCtx = createContext<Ctx | null>(null)
@@ -38,7 +40,7 @@ function useMobileNav() {
   return ctx
 }
 
-export function MobileTopBar({ urgentCount }: { urgentCount: number }) {
+export function MobileTopBar({ urgentCount, role }: { urgentCount: number; role: Role }) {
   const { setOpen } = useMobileNav()
   return (
     <div className="flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.06] px-4 md:hidden">
@@ -54,12 +56,12 @@ export function MobileTopBar({ urgentCount }: { urgentCount: number }) {
       <span className="min-w-0 flex-1 truncate font-nebula-heading text-[14px] font-semibold text-white">
         CreatorFlow
       </span>
-      <NotificationBell count={urgentCount} size="compact" />
+      {canAccessModule(role, 'deals') && <NotificationBell count={urgentCount} size="compact" />}
     </div>
   )
 }
 
-export function MobileNavDrawer({ name, email }: { name: string; email: string }) {
+export function MobileNavDrawer({ name, email, role }: { name: string; email: string; role: Role }) {
   const { open, setOpen } = useMobileNav()
   const pathname = usePathname()
   const router = useRouter()
@@ -67,6 +69,8 @@ export function MobileNavDrawer({ name, email }: { name: string; email: string }
   const closeRef = useRef<HTMLButtonElement>(null)
   const triggerFocusRef = useRef<HTMLElement | null>(null)
   const initial = (name || email || '?').trim().charAt(0).toUpperCase()
+  const visiblePrimaryNav = primaryNav.filter((item) => canAccessModule(role, item.module))
+  const visibleSecondaryNav = secondaryNav.filter((item) => canAccessModule(role, item.module))
 
   useEffect(() => {
     if (open) {
@@ -141,7 +145,7 @@ export function MobileNavDrawer({ name, email }: { name: string; email: string }
 
         <nav aria-label="Primary" className="console-scroll flex-1 overflow-y-auto px-3 py-2">
           <ul className="flex flex-col gap-0.5">
-            {primaryNav.map((item) => {
+            {visiblePrimaryNav.map((item) => {
               const active = isActiveHref(pathname, item.href)
               const Icon = item.icon
               return (
@@ -164,7 +168,7 @@ export function MobileNavDrawer({ name, email }: { name: string; email: string }
           <div aria-hidden className="console-rule-x my-3" />
 
           <ul className="flex flex-col gap-0.5">
-            {secondaryNav.map((item) => {
+            {visibleSecondaryNav.map((item) => {
               const active = isActiveHref(pathname, item.href)
               const Icon = item.icon
               return (

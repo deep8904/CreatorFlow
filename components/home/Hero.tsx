@@ -96,14 +96,16 @@ export function Hero() {
             <p className="font-nebula-ui text-xs font-medium uppercase tracking-widest text-gray-500">
               Built in the open, for creators who run their own business
             </p>
-            {/* Not a Link: no public repository exists yet — an inert,
-                honestly-disabled item beats a link to nowhere. */}
-            <span
-              title="Repository isn't public yet"
-              className="inline-flex cursor-not-allowed items-center gap-1 border-b border-transparent pb-0.5 font-nebula-ui text-sm text-gray-600"
+            {/* Plain external <a>, not a next/link Link — this leaves the
+                app entirely. */}
+            <a
+              href="https://github.com/deep8904/CreatorFlow"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 border-b border-transparent pb-0.5 font-nebula-ui text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
             >
               Read the source
-            </span>
+            </a>
           </div>
         </NebulaReveal>
       </div>

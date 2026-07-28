@@ -3,17 +3,21 @@ import type { ReactNode } from 'react'
 import { Handshake, Lightbulb, FileText } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { FOCUS_INSET, HOVER } from './tokens'
+import { canAccessModule, type ModuleKey } from '@/lib/roles'
+import type { Role } from '@/lib/supabase/types'
 
-const CAPTURE_ITEMS: { label: string; href: string; icon: LucideIcon; srLabel: string }[] = [
-  { label: 'Deal', href: '/deals?new=1', icon: Handshake, srLabel: 'Log a deal' },
-  { label: 'Idea', href: '/ideas?new=1', icon: Lightbulb, srLabel: 'Capture an idea' },
-  { label: 'Draft', href: '/drafts?new=1', icon: FileText, srLabel: 'Start a draft' },
+const CAPTURE_ITEMS: { label: string; href: string; icon: LucideIcon; srLabel: string; module: ModuleKey }[] = [
+  { label: 'Deal', href: '/deals?new=1', icon: Handshake, srLabel: 'Log a deal', module: 'deals' },
+  { label: 'Idea', href: '/ideas?new=1', icon: Lightbulb, srLabel: 'Capture an idea', module: 'ideas' },
+  { label: 'Draft', href: '/drafts?new=1', icon: FileText, srLabel: 'Start a draft', module: 'drafts' },
 ]
 
-export function CapturePills() {
+export function CapturePills({ role }: { role: Role }) {
+  const items = CAPTURE_ITEMS.filter((item) => canAccessModule(role, item.module))
+  if (items.length === 0) return null
   return (
     <div className="flex items-center gap-1.5 rounded-[9999px] border border-white/10 bg-white/[0.03] p-1">
-      {CAPTURE_ITEMS.map((item) => {
+      {items.map((item) => {
         const Icon = item.icon
         return (
           <Link

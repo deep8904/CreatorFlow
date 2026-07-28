@@ -43,10 +43,37 @@ Deno.serve(async (req) => {
   }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey)
+
+  // integrations.user_id is the account id, not necessarily the caller's id.
+  // Resolve which account the caller belongs to, and only let the account
+  // owner disconnect it — connections aren't assigned to any other role in
+  // the workspace's permission matrix.
+  const { data: memberships, error: membershipError } = await adminClient
+    .from('team_members')
+    .select('account_id, role')
+    .eq('user_id', userData.user.id)
+
+  if (membershipError) {
+    return new Response(JSON.stringify({ error: membershipError.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const joinedMembership = memberships?.find((m) => m.account_id !== userData.user.id)
+  const membership = joinedMembership ?? memberships?.find((m) => m.account_id === userData.user.id)
+
+  if (!membership || membership.role !== 'owner') {
+    return new Response(JSON.stringify({ error: 'Only the workspace owner can disconnect a connection.' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   const { error } = await adminClient
     .from('integrations')
     .delete()
-    .eq('user_id', userData.user.id)
+    .eq('user_id', membership.account_id)
     .eq('provider', provider)
 
   if (error) {

@@ -8,6 +8,9 @@ import Link from 'next/link'
  *
  * There is deliberately no Pricing link: CreatorFlow is open source, and
  * PRODUCT.md forbids pricing content, links, or CTAs on marketing surfaces.
+ * The GitHub link is a plain external <a>, not a next/link Link — it leaves
+ * the app entirely, so it gets target="_blank" rel="noopener noreferrer"
+ * rather than client-side route prefetching.
  */
 
 const LINKS = [
@@ -45,14 +48,14 @@ export function NebulaNav() {
               {link.label}
             </Link>
           ))}
-          {/* Not a Link: no public repository exists yet to point to — an
-              inert, honestly-disabled item beats a link to nowhere. */}
-          <span
-            title="Repository isn't public yet"
-            className="cursor-not-allowed font-nebula-ui text-xs font-medium text-gray-600"
+          <a
+            href="https://github.com/deep8904/CreatorFlow"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative after:absolute after:inset-x-0 after:-inset-y-3 after:content-[''] rounded font-nebula-ui text-xs font-medium text-gray-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-500"
           >
             GitHub
-          </span>
+          </a>
         </div>
 
         <div className="flex shrink-0 items-center gap-4">

@@ -3,19 +3,39 @@ import { redirect } from 'next/navigation'
 import Sidebar from '@/components/dash/Sidebar'
 import SkipLink from '@/components/dash/SkipLink'
 import { MobileNavDrawer, MobileNavProvider, MobileTopBar } from '@/components/dash/MobileNav'
-import { getCurrentProfile, getDeals } from '@/lib/supabase/queries'
+import { getCurrentProfile, getDeals, getCurrentAccount } from '@/lib/supabase/queries'
 import { getAuthenticatedUser } from '@/lib/supabase/server'
 import { countUrgentDeals } from '@/lib/dealUrgency'
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const [profile, { user }, deals] = await Promise.all([getCurrentProfile(), getAuthenticatedUser(), getDeals()])
+  const [profile, { user }, deals, account] = await Promise.all([
+    getCurrentProfile(),
+    getAuthenticatedUser(),
+    getDeals(),
+    getCurrentAccount(),
+  ])
 
   if (!user) {
     redirect('/login')
   }
 
+  // The single enforcement point for "must finish onboarding before using
+  // the app" — regardless of how the user got here (fresh confirmation-link
+  // return, a direct login, a magic link). OnboardingFlow itself only walks
+  // through its steps in the same page load as signup, which never happens
+  // when email confirmation is required (the default): the user leaves the
+  // page, and returns later with nothing but a session and no memory of
+  // being mid-wizard. This is what actually makes the wizard unskippable.
+  if (profile && !profile.onboarding_completed) {
+    redirect('/onboarding')
+  }
+
   const name = profile?.full_name ?? 'Your account'
   const email = user?.email ?? ''
+  const role = account?.role ?? 'owner'
+  // getDeals() already returns [] for a role with no deals access (Manager/
+  // Owner only) via has_role_access RLS, so this naturally reports zero
+  // urgent deals for everyone else — no extra role check needed here.
   const urgentCount = profile?.notify_deal_reminders === false ? 0 : countUrgentDeals(deals)
 
   return (
@@ -38,13 +58,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             } as CSSProperties
           }
         >
-          <Sidebar name={name} email={email} urgentCount={urgentCount} />
-          <MobileNavDrawer name={name} email={email} />
+          <Sidebar name={name} email={email} urgentCount={urgentCount} role={role} />
+          <MobileNavDrawer name={name} email={email} role={role} />
 
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             {/* In normal flow, so nothing needs padding around it — the old
                 `pt-14 md:pt-0` class of layout bug is gone with no capability lost. */}
-            <MobileTopBar urgentCount={urgentCount} />
+            <MobileTopBar urgentCount={urgentCount} role={role} />
             {children}
           </div>
         </div>

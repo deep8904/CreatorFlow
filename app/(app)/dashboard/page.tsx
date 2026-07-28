@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
 import { Handshake, DollarSign, TrendingUp, Lightbulb } from 'lucide-react'
 import {
   getDeals,
@@ -7,8 +8,10 @@ import {
   getCurrentProfile,
   getChannelStats,
   getIntegrations,
+  getCurrentAccount,
 } from '@/lib/supabase/queries'
 import type { Deal } from '@/lib/supabase/types'
+import { canAccessModule } from '@/lib/roles'
 import { DashboardHeader, CapturePills } from '@/components/dash/DashboardHeader'
 import { DateRangeMenu } from '@/components/dash/DateRangeMenu'
 import { MetricGrid, type Metric } from '@/components/dash/MetricCard'
@@ -77,14 +80,26 @@ export default async function DashboardPage({
   const { range } = await searchParams
   const days = range === '30' || range === '90' ? Number(range) : 7
 
-  const [deals, ideas, drafts, profile, channelStats, integrations] = await Promise.all([
+  const [deals, ideas, drafts, profile, channelStats, integrations, account] = await Promise.all([
     getDeals(),
     getIdeas(),
     getDrafts(),
     getCurrentProfile(),
     getChannelStats(days),
     getIntegrations(),
+    getCurrentAccount(),
   ])
+  const role = account?.role ?? 'owner'
+  // A role without a module's access always gets an RLS-empty array for it,
+  // which is indistinguishable from "genuinely zero" — a Manager with no
+  // ideas access would otherwise see "Ideas captured: 0" and reasonably
+  // read that as "no ideas exist," not "you can't see them." Every tile and
+  // panel below is gated on the module it actually represents, hidden
+  // rather than shown-as-zero, matching the pattern already used for nav/
+  // CapturePills/EmptyDashboard elsewhere in the app.
+  const canDeals = canAccessModule(role, 'deals')
+  const canIdeas = canAccessModule(role, 'ideas')
+  const canAnalyticsModule = canAccessModule(role, 'analytics')
 
   const youtubeConnected = integrations.some((i) => i.provider === 'youtube')
   // Whether to show the chart region at all is about connection status, not
@@ -114,27 +129,35 @@ export default async function DashboardPage({
         : `${needsNextStep.length} deals need a next step.`
 
   const metrics: Metric[] = [
-    { label: 'Open deals', value: String(openDeals.length), hint: `of ${deals.length} total`, icon: <Handshake size={14} /> },
-    {
-      label: 'Collected to date',
-      value: formatMoney(revenueCollected),
-      title: formatMoneyFull(revenueCollected),
-      hint: paidDeals.length === 0 ? 'no deals marked paid yet' : `across ${paidDeals.length} deals`,
-      icon: <DollarSign size={14} />,
-    },
-    {
-      label: 'Pipeline value',
-      value: formatMoney(pipelineValue),
-      title: formatMoneyFull(pipelineValue),
-      hint: `across ${openDeals.length} open deals`,
-      icon: <TrendingUp size={14} />,
-    },
-    {
-      label: 'Ideas captured',
-      value: String(ideas.length),
-      hint: `${ideasInProgress} in progress`,
-      icon: <Lightbulb size={14} />,
-    },
+    ...(canDeals
+      ? [
+          { label: 'Open deals', value: String(openDeals.length), hint: `of ${deals.length} total`, icon: <Handshake size={14} /> },
+          {
+            label: 'Collected to date',
+            value: formatMoney(revenueCollected),
+            title: formatMoneyFull(revenueCollected),
+            hint: paidDeals.length === 0 ? 'no deals marked paid yet' : `across ${paidDeals.length} deals`,
+            icon: <DollarSign size={14} />,
+          },
+          {
+            label: 'Pipeline value',
+            value: formatMoney(pipelineValue),
+            title: formatMoneyFull(pipelineValue),
+            hint: `across ${openDeals.length} open deals`,
+            icon: <TrendingUp size={14} />,
+          },
+        ]
+      : []),
+    ...(canIdeas
+      ? [
+          {
+            label: 'Ideas captured',
+            value: String(ideas.length),
+            hint: `${ideasInProgress} in progress`,
+            icon: <Lightbulb size={14} />,
+          },
+        ]
+      : []),
   ]
 
   const stageBars: StageBar[] = FUNNEL_STAGES.map((status) => {
@@ -150,8 +173,12 @@ export default async function DashboardPage({
   const ideasWithDraftCount = ideas.filter((i) => ideaIdsWithDraft.has(i.id)).length
   const draftConversionPct = ideas.length === 0 ? 0 : Math.round((ideasWithDraftCount / ideas.length) * 100)
 
+  // "By pipeline value" — matches openDeals/pipelineValue above. A closed
+  // deal ('paid' or 'lost') isn't pipeline anymore, so it's excluded here
+  // too; counting it in would rank a brand's now-finished deal alongside
+  // brands who still have live pipeline with the creator.
   const brandTotals = new Map<string, number>()
-  for (const d of deals) {
+  for (const d of openDeals) {
     const brand = d.brand_name?.trim() || 'Unnamed brand'
     brandTotals.set(brand, (brandTotals.get(brand) ?? 0) + (d.rate_amount_cents ?? 0) / 100)
   }
@@ -217,7 +244,7 @@ export default async function DashboardPage({
         right={
           <>
             <DateRangeMenu current={String(days)} />
-            <CapturePills />
+            <CapturePills role={role} />
           </>
         }
       />
@@ -225,99 +252,170 @@ export default async function DashboardPage({
       <main id="dashboard-main" className="console-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto w-full max-w-[1320px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {!hasAnyData ? (
-            <EmptyDashboard />
+            <EmptyDashboard role={role} />
           ) : (
             <div className="flex flex-col gap-6">
               <MetricGrid metrics={metrics} />
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-                <Panel title="Channel views" titleId="trend-h" eyebrow={`Last ${days} days`}>
-                  <div className="px-5 pb-5">
-                    {!showTrend ? (
-                      <div className="flex h-[180px] flex-col items-center justify-center gap-3 text-center">
-                        <p className="font-nebula-ui text-[12.5px] text-zinc-500">
-                          Connect YouTube to see your performance here.
-                        </p>
-                        <a
-                          href="/settings"
-                          className="inline-flex h-8 items-center rounded-[9999px] border border-white/10 px-3.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+              {(() => {
+                const row1: { key: string; node: ReactNode }[] = []
+                if (canAnalyticsModule) {
+                  row1.push({
+                    key: 'trend',
+                    node: (
+                      <Panel title="Channel views" titleId="trend-h" eyebrow={`Last ${days} days`}>
+                        <div className="px-5 pb-5">
+                          {!showTrend ? (
+                            <div className="flex h-[180px] flex-col items-center justify-center gap-3 text-center">
+                              <p className="font-nebula-ui text-[12.5px] text-zinc-500">
+                                Connect YouTube to see your performance here.
+                              </p>
+                              <a
+                                href="/settings"
+                                className="inline-flex h-8 items-center rounded-[9999px] border border-white/10 px-3.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+                              >
+                                Connect YouTube
+                              </a>
+                            </div>
+                          ) : hasTrendData ? (
+                            <>
+                              <LineTrendChart points={trendPoints} unit="views" />
+                              <p className="mt-3 font-nebula-ui text-[10.5px] text-zinc-600">
+                                Seeded demo data — in production this pulls live from the YouTube Analytics API.
+                              </p>
+                            </>
+                          ) : (
+                            <div className="flex h-[180px] flex-col items-center justify-center gap-2 text-center">
+                              <p className="font-nebula-ui text-[12.5px] text-zinc-500">
+                                No views in the last {days} days.
+                              </p>
+                              <p className="font-nebula-ui text-[12px] text-zinc-600">
+                                Try a wider range, or check back once your next video is live.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </Panel>
+                    ),
+                  })
+                }
+                if (canDeals) {
+                  row1.push({
+                    key: 'stage',
+                    node: (
+                      <Panel title="Deals by stage" titleId="stage-h">
+                        <div className="px-5 pb-5">
+                          <StageFunnelChart stages={stageBars} />
+                        </div>
+                      </Panel>
+                    ),
+                  })
+                }
+
+                const row2: { key: string; node: ReactNode }[] = []
+                if (canIdeas) {
+                  row2.push({
+                    key: 'gauge',
+                    node: (
+                      <Panel title="Ideas shipped" titleId="gauge-h">
+                        <div className="flex flex-col items-center px-5 pb-6">
+                          <GaugeChart pct={draftConversionPct} value={`${draftConversionPct}%`} label="Ideas turned into drafts" />
+                        </div>
+                      </Panel>
+                    ),
+                  })
+                }
+                if (canDeals) {
+                  row2.push(
+                    {
+                      key: 'brands',
+                      node: (
+                        <Panel title="Top brands" titleId="brands-h">
+                          <BreakdownList title="By pipeline value" rows={breakdownRows} />
+                        </Panel>
+                      ),
+                    },
+                    {
+                      key: 'next-step',
+                      node: (
+                        <Panel title="Needs a next step" titleId="table-h" action={{ label: 'View all', href: '/deals' }}>
+                          <div className="pb-2">
+                            <DealsTable rows={tableRows} />
+                          </div>
+                        </Panel>
+                      ),
+                    },
+                  )
+                }
+
+                const row3: { key: string; node: ReactNode }[] = []
+                if (canDeals) {
+                  row3.push(
+                    {
+                      key: 'upcoming',
+                      node: (
+                        <Panel
+                          title="Upcoming income"
+                          titleId="upcoming-h"
+                          eyebrow={upcomingIncomeDeals.length > 0 ? `${formatMoney(upcomingIncomeTotal)} committed` : undefined}
                         >
-                          Connect YouTube
-                        </a>
-                      </div>
-                    ) : hasTrendData ? (
-                      <>
-                        <LineTrendChart points={trendPoints} unit="views" />
-                        <p className="mt-3 font-nebula-ui text-[10.5px] text-zinc-600">
-                          Seeded demo data — in production this pulls live from the YouTube Analytics API.
-                        </p>
-                      </>
-                    ) : (
-                      <div className="flex h-[180px] flex-col items-center justify-center gap-2 text-center">
-                        <p className="font-nebula-ui text-[12.5px] text-zinc-500">
-                          No views in the last {days} days.
-                        </p>
-                        <p className="font-nebula-ui text-[12px] text-zinc-600">
-                          Try a wider range, or check back once your next video is live.
-                        </p>
+                          {upcomingIncomeRows.length === 0 ? (
+                            <p className="px-5 pb-5 font-nebula-ui text-[12.5px] text-zinc-500">
+                              Nothing contracted or delivered yet — this fills in once a deal is locked in.
+                            </p>
+                          ) : (
+                            <div className="pb-2">
+                              <DealsTable rows={upcomingIncomeRows} />
+                            </div>
+                          )}
+                        </Panel>
+                      ),
+                    },
+                    {
+                      key: 'ai',
+                      node: (
+                        <Panel title="AI Assistant" titleId="ai-h">
+                          <div className="h-[320px]">
+                            <AIAssistantPanel />
+                          </div>
+                        </Panel>
+                      ),
+                    },
+                  )
+                }
+
+                // row1/row3 only ever have up to 2 possible panels — a single
+                // remaining panel just uses the base grid-cols-1, no override needed.
+                const gridColsClass = (count: number, twoColTemplate: string) => (count === 2 ? twoColTemplate : '')
+
+                return (
+                  <>
+                    {row1.length > 0 && (
+                      <div className={`grid grid-cols-1 gap-6 ${gridColsClass(row1.length, 'lg:grid-cols-[minmax(0,1fr)_320px]')}`}>
+                        {row1.map((item) => (
+                          <div key={item.key}>{item.node}</div>
+                        ))}
                       </div>
                     )}
-                  </div>
-                </Panel>
 
-                <Panel title="Deals by stage" titleId="stage-h">
-                  <div className="px-5 pb-5">
-                    <StageFunnelChart stages={stageBars} />
-                  </div>
-                </Panel>
-              </div>
+                    {row2.length > 0 && (
+                      <div className={`grid grid-cols-1 gap-6 ${row2.length >= 3 ? 'lg:grid-cols-3' : row2.length === 2 ? 'lg:grid-cols-2' : ''}`}>
+                        {row2.map((item) => (
+                          <div key={item.key}>{item.node}</div>
+                        ))}
+                      </div>
+                    )}
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <Panel title="Ideas shipped" titleId="gauge-h" className="lg:col-span-1">
-                  <div className="flex flex-col items-center px-5 pb-6">
-                    <GaugeChart pct={draftConversionPct} value={`${draftConversionPct}%`} label="Ideas turned into drafts" />
-                  </div>
-                </Panel>
-
-                <Panel title="Top brands" titleId="brands-h" className="lg:col-span-1">
-                  <BreakdownList title="By pipeline value" rows={breakdownRows} />
-                </Panel>
-
-                <Panel
-                  title="Needs a next step"
-                  titleId="table-h"
-                  action={{ label: 'View all', href: '/deals' }}
-                  className="lg:col-span-1"
-                >
-                  <div className="pb-2">
-                    <DealsTable rows={tableRows} />
-                  </div>
-                </Panel>
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-                <Panel
-                  title="Upcoming income"
-                  titleId="upcoming-h"
-                  eyebrow={upcomingIncomeDeals.length > 0 ? `${formatMoney(upcomingIncomeTotal)} committed` : undefined}
-                >
-                  {upcomingIncomeRows.length === 0 ? (
-                    <p className="px-5 pb-5 font-nebula-ui text-[12.5px] text-zinc-500">
-                      Nothing contracted or delivered yet — this fills in once a deal is locked in.
-                    </p>
-                  ) : (
-                    <div className="pb-2">
-                      <DealsTable rows={upcomingIncomeRows} />
-                    </div>
-                  )}
-                </Panel>
-
-                <Panel title="AI Assistant" titleId="ai-h">
-                  <div className="h-[320px]">
-                    <AIAssistantPanel />
-                  </div>
-                </Panel>
-              </div>
+                    {row3.length > 0 && (
+                      <div className={`grid grid-cols-1 gap-6 ${gridColsClass(row3.length, 'lg:grid-cols-[minmax(0,1fr)_360px]')}`}>
+                        {row3.map((item) => (
+                          <div key={item.key}>{item.node}</div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           )}
         </div>

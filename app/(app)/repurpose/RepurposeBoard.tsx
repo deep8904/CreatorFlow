@@ -31,6 +31,22 @@ function firstSentence(text: string, max = 140) {
 }
 
 /**
+ * Drafts' "AI Assist" button appends a bracketed structure-template marker
+ * line (e.g. "[Structure template — preview only, ...]") straight into the
+ * editable draft body — it's UI scaffolding, not authored content, and was
+ * leaking verbatim into this panel's summary/beats when a draft's body
+ * consisted mostly of that marker. Bracketed whole-line annotations aren't
+ * real prose in any draft, so they're stripped before this text is used.
+ */
+function stripTemplateMarkers(text: string): string {
+  return text
+    .split('\n')
+    .filter((line) => !/^\[.*\]$/.test(line.trim()))
+    .join('\n')
+    .trim()
+}
+
+/**
  * Text-source template — the honest, client-side equivalent of the seeded
  * `repurposed_content` rows, but for Drafts/Ideas rather than a channel
  * video. Same "preview only" contract as Deals' `aiReplyFor` — it reads the
@@ -41,14 +57,15 @@ function repurposeTextSource(title: string, body: string | null): {
   angles: string[]
   socialPosts: string[]
 } {
-  const lines = (body ?? '')
+  const cleanBody = body ? stripTemplateMarkers(body) : body
+  const lines = (cleanBody ?? '')
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
   const beats = lines.slice(0, 3)
 
   return {
-    summary: body ? firstSentence(body, 180) : `A quick take on "${title}" — no script yet, just the idea.`,
+    summary: cleanBody ? firstSentence(cleanBody, 180) : `A quick take on "${title}" — no script yet, just the idea.`,
     angles:
       beats.length > 0
         ? beats.map((b, i) => (i === 0 ? `Open on: "${firstSentence(b, 90)}"` : firstSentence(b, 90)))

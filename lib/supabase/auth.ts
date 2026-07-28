@@ -12,7 +12,12 @@ export async function signInWithEmail(email: string, password: string) {
   return supabase.auth.signInWithPassword({ email, password })
 }
 
-export async function signUpWithEmail(email: string, password: string, options?: { full_name?: string }) {
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+  options?: { full_name?: string },
+  emailRedirectTo?: string,
+) {
   const supabase = createSupabaseBrowserClient()
   if (!supabase) {
     throw new Error('Supabase environment variables are not configured.')
@@ -25,6 +30,14 @@ export async function signUpWithEmail(email: string, password: string, options?:
       data: {
         full_name: options?.full_name ?? null,
       },
+      // Without this, Supabase falls back to the project's default Site
+      // URL/redirect setting, which sends a confirmed signup straight to
+      // whatever that's configured to (often just "/") — skipping the
+      // onboarding wizard's YouTube/Gmail steps entirely for anyone whose
+      // project requires email confirmation (the default). Explicitly
+      // routing back through /onboarding is what lets OnboardingFlow resume
+      // the wizard once the user returns with a real session.
+      emailRedirectTo,
     },
   })
 }

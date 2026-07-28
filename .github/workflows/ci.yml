@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    env:
+      # Placeholder values so build-time code paths that read these (but
+      # never actually call out to Supabase during a build) don't crash on
+      # undefined — no real project is needed to lint, typecheck, unit test,
+      # or build this app. See lib/supabase/server.ts / client.ts, which
+      # already handle a missing/invalid project gracefully at runtime.
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: E2E tests (Playwright)
+    runs-on: ubuntu-latest
+    # Skipped entirely until SUPABASE_TEST_URL / SUPABASE_TEST_ANON_KEY exist
+    # as repo secrets (Settings -> Secrets and variables -> Actions) — see
+    # README.md's "End-to-end tests in CI" section for what to provision.
+    # Nothing else needs to change here once those secrets are added; this
+    # job picks them up and starts running on the next push/PR.
+    if: ${{ secrets.SUPABASE_TEST_URL != '' && secrets.SUPABASE_TEST_ANON_KEY != '' }}
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+      # Only needed once an authenticated-flow e2e test is added (see
+      # docs/qa/KNOWN_ISSUES.md) — harmless to pass through unconditionally
+      # now so nothing here needs editing again when that test lands.
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE_KEY }}
+      DEMO_ACCOUNT_EMAIL: ${{ secrets.DEMO_ACCOUNT_EMAIL }}
+      DEMO_ACCOUNT_PASSWORD: ${{ secrets.DEMO_ACCOUNT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright e2e tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

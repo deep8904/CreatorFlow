@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Sparkles, Save, Plus, FileText, Trash2, ArrowLeft } from 'lucide-react'
+import { Sparkles, Save, Plus, FileText, Trash2, ArrowLeft, Mic } from 'lucide-react'
 import { updateDraftContent, createDraft, deleteDraft } from '@/lib/supabase/actions'
 import type { DraftWithIdeaTitle } from '@/lib/supabase/queries'
 import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
 import { useToast } from '@/lib/toast'
+import { useSpeechCapture } from '@/lib/useSpeechCapture'
 
 function firstNonEmptyLine(text: string) {
   return text.split('\n').map((l) => l.trim()).find(Boolean) ?? null
@@ -54,6 +55,9 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
   const [mobileShowEditor, setMobileShowEditor] = useState(false)
   const pendingSelectId = useRef<string | null>(null)
   const isDirty = activeDraft !== null && (content !== activeDraft.body || title !== activeDraft.title)
+  const { supported: speechSupported, listening, start: startListening, stop: stopListening } = useSpeechCapture(
+    (transcript) => setContent((c) => (c ? `${c}\n${transcript}` : transcript))
+  )
 
   useEffect(() => {
     if (!pendingSelectId.current) return
@@ -86,9 +90,22 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
 
   const handleSave = () => {
     if (!activeDraft || !title.trim()) return
+    const savedId = activeDraft.id
+    const savedBody = content
+    const savedTitle = title.trim()
     startTransition(async () => {
-      const result = await updateDraftContent(activeDraft.id, content, title)
-      if (result.error) toast.error(result.error)
+      const result = await updateDraftContent(savedId, savedBody, savedTitle)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      // `activeDraft` only ever gets its initial value from the `initialDrafts`
+      // prop (server data as of the last full render) — a successful save
+      // doesn't itself cause that prop to refresh in this component, so
+      // without this, `isDirty` keeps comparing against the pre-save
+      // body/title forever and "Unsaved changes" never clears until the
+      // next full page load, even though the save genuinely succeeded.
+      setActiveDraft((prev) => (prev && prev.id === savedId ? { ...prev, body: savedBody, title: savedTitle } : prev))
     })
   }
 
@@ -179,6 +196,9 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
                 <p className="mb-1 line-clamp-2 font-nebula-ui text-[13px] font-semibold leading-snug text-zinc-100">
                   {draft.title}
                 </p>
+                {draft.ideas?.title && (
+                  <p className="mb-1 truncate font-nebula-ui text-[11px] text-zinc-500">From: {draft.ideas.title}</p>
+                )}
                 <p className="font-nebula-ui text-[11px] text-zinc-600">{new Date(draft.updated_at).toLocaleDateString()}</p>
               </button>
             ))
@@ -215,6 +235,21 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
             <div className="flex shrink-0 items-center gap-2 overflow-x-auto">
               {isDirty && !isPending && (
                 <span className="whitespace-nowrap font-nebula-ui text-[11px] text-zinc-600">Unsaved changes</span>
+              )}
+              {speechSupported && (
+                <button
+                  type="button"
+                  onClick={() => (listening ? stopListening() : startListening())}
+                  aria-label={listening ? 'Stop voice capture' : 'Capture draft text by voice'}
+                  aria-pressed={listening}
+                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9999px] ${HOVER} ${FOCUS} ${
+                    listening
+                      ? 'animate-pulse bg-orange-500/20 text-orange-300'
+                      : 'text-zinc-500 hover:bg-white/[0.06] hover:text-white'
+                  }`}
+                >
+                  <Mic size={15} strokeWidth={2} />
+                </button>
               )}
               <button
                 type="button"

@@ -78,7 +78,7 @@ async function seed(userId: string) {
   await supabase.from('team_invites').insert({
     account_id: userId,
     invited_email: 'editor@creatorflow.demo',
-    role: 'member',
+    role: 'editor',
     status: 'pending',
   })
 

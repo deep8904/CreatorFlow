@@ -113,6 +113,8 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
   const [query, setQuery] = useState('')
   const [newOpen, setNewOpen] = useState(() => searchParams.get('new') === '1')
   const [newTitle, setNewTitle] = useState('')
+  const [newNotes, setNewNotes] = useState('')
+  const [newTagsText, setNewTagsText] = useState('')
   const { supported: speechSupported, listening, start: startListening, stop: stopListening } = useSpeechCapture(
     (transcript) => setNewTitle((t) => (t ? `${t} ${transcript}` : transcript))
   )
@@ -135,10 +137,14 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
   const addIdea = () => {
     if (!newTitle.trim()) return
     const title = newTitle.trim()
+    const notes = newNotes.trim()
+    const tags = newTagsText.split(',').map((t) => t.trim()).filter(Boolean)
     setNewTitle('')
+    setNewNotes('')
+    setNewTagsText('')
     setNewOpen(false)
     startTransition(async () => {
-      const result = await createIdea(title)
+      const result = await createIdea(title, notes, tags)
       if (result.error) toast.error(result.error)
     })
   }
@@ -234,6 +240,20 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
                 </button>
               )}
             </div>
+            <div className="mb-4 flex flex-col gap-2.5 sm:flex-row">
+              <input
+                placeholder="Notes (optional)"
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                className={`min-w-0 flex-1 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-2 font-nebula-ui text-[13px] text-zinc-200 outline-none placeholder:text-zinc-600 ${FOCUS}`}
+              />
+              <input
+                placeholder="Tags — comma separated"
+                value={newTagsText}
+                onChange={(e) => setNewTagsText(e.target.value)}
+                className={`min-w-0 flex-1 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-2 font-nebula-ui text-[13px] text-zinc-200 outline-none placeholder:text-zinc-600 ${FOCUS}`}
+              />
+            </div>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -248,6 +268,8 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
                 onClick={() => {
                   setNewOpen(false)
                   setNewTitle('')
+                  setNewNotes('')
+                  setNewTagsText('')
                 }}
                 className={`inline-flex h-9 items-center rounded-[9999px] px-4 font-nebula-ui text-[12.5px] font-medium text-zinc-400 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
               >

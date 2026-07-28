@@ -46,6 +46,7 @@ export type Deal = {
   due_date: string | null
   invoiced_at: string | null
   paid_at: string | null
+  is_priority: boolean
   created_at: string
   updated_at: string
 }
@@ -84,11 +85,13 @@ export type Automation = {
   updated_at: string
 }
 
+export type Role = 'owner' | 'manager' | 'editor' | 'designer' | 'moderator'
+
 export type TeamMember = {
   id: string
   account_id: string
   user_id: string
-  role: 'owner' | 'member'
+  role: Role
   joined_at: string
 }
 
@@ -96,11 +99,18 @@ export type TeamInvite = {
   id: string
   account_id: string
   invited_email: string
-  role: 'owner' | 'member'
+  role: Role
   status: 'pending' | 'accepted' | 'revoked'
   created_at: string
   accepted_at: string | null
   accepted_by: string | null
+}
+
+export type Account = {
+  id: string
+  workspace_name: string
+  created_at: string
+  updated_at: string
 }
 
 // Cached/seeded YouTube channel performance — stands in for a live API pull

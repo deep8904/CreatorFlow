@@ -7,10 +7,17 @@ import { ShinyCTA } from './ShinyCTA'
  * is open source (PRODUCT.md → Positioning).
  */
 
+const REPO_URL = 'https://github.com/deep8904/CreatorFlow'
+
+type FooterLink = { label: string; href: string | null; note?: string; external?: boolean }
+type FooterColumn = { heading: string; links: FooterLink[] }
+
 // `href: null` items render as inert, honestly-disabled text rather than a
-// link to nowhere — there's no public repository or legal pages to point to
-// yet, and a real-looking link that goes nowhere is worse than none.
-const COLUMNS = [
+// link to nowhere — Privacy/Terms have no pages to point to yet, and a
+// real-looking link that goes nowhere is worse than none. The Open source
+// column links out to the now-public repo (`external: true` renders a plain
+// <a target="_blank">, not a next/link Link, since these leave the app).
+const COLUMNS: FooterColumn[] = [
   {
     heading: 'Product',
     links: [
@@ -23,10 +30,10 @@ const COLUMNS = [
   {
     heading: 'Open source',
     links: [
-      { label: 'Source code', href: null, note: "Repository isn't public yet" },
-      { label: 'Contributing', href: null, note: "Repository isn't public yet" },
-      { label: 'Issues', href: null, note: "Repository isn't public yet" },
-      { label: 'License', href: null, note: "Repository isn't public yet" },
+      { label: 'Source code', href: REPO_URL, external: true },
+      { label: 'Contributing', href: `${REPO_URL}/blob/main/CONTRIBUTING.md`, external: true },
+      { label: 'Issues', href: `${REPO_URL}/issues`, external: true },
+      { label: 'License', href: `${REPO_URL}/blob/main/LICENSE`, external: true },
     ],
   },
   {
@@ -98,24 +105,35 @@ export function HomeFooter() {
                   {column.heading}
                 </p>
                 <ul className="space-y-3">
-                  {column.links.map((link) =>
-                    link.href ? (
+                  {column.links.map((link) => {
+                    const linkClassName =
+                      "relative after:absolute after:inset-x-0 after:-inset-y-3 after:content-[''] inline-block rounded font-nebula-ui text-sm text-gray-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-500"
+                    if (!link.href) {
+                      return (
+                        <li key={link.label}>
+                          <span title={link.note} className="inline-block cursor-not-allowed font-nebula-ui text-sm text-gray-600">
+                            {link.label}
+                          </span>
+                        </li>
+                      )
+                    }
+                    if (link.external) {
+                      return (
+                        <li key={link.label}>
+                          <a href={link.href} target="_blank" rel="noopener noreferrer" className={linkClassName}>
+                            {link.label}
+                          </a>
+                        </li>
+                      )
+                    }
+                    return (
                       <li key={link.label}>
-                        <Link
-                          href={link.href}
-                          className="relative after:absolute after:inset-x-0 after:-inset-y-3 after:content-[''] inline-block rounded font-nebula-ui text-sm text-gray-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-500"
-                        >
+                        <Link href={link.href} className={linkClassName}>
                           {link.label}
                         </Link>
                       </li>
-                    ) : (
-                      <li key={link.label}>
-                        <span title={link.note} className="inline-block cursor-not-allowed font-nebula-ui text-sm text-gray-600">
-                          {link.label}
-                        </span>
-                      </li>
-                    ),
-                  )}
+                    )
+                  })}
                 </ul>
               </div>
             ))}

@@ -2,19 +2,27 @@
 
 import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient, getAuthenticatedUser } from './server'
-import type { Deal, Idea } from './types'
+import { getCurrentAccount } from './queries'
+import type { Deal, Idea, Role } from './types'
+import { ASSIGNABLE_ROLES } from '@/lib/roles'
 
 export type ActionResult = { error?: string }
 
-export async function createIdea(title: string): Promise<ActionResult> {
+export async function createIdea(title: string, notes?: string, tags?: string[]): Promise<ActionResult> {
   const trimmed = title.trim()
   if (!trimmed) return { error: 'Give the idea a title.' }
 
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
-  const { error } = await supabase.from('ideas').insert({ user_id: user.id, title: trimmed, status: 'new' })
+  const { error } = await supabase.from('ideas').insert({
+    user_id: account.accountId,
+    title: trimmed,
+    notes: notes?.trim() || null,
+    tags: tags ?? [],
+    status: 'new',
+  })
   if (error) return { error: 'Could not save the idea. Please try again.' }
 
   revalidatePath('/ideas')
@@ -33,9 +41,9 @@ export async function updateIdea(id: string, input: IdeaFormInput): Promise<Acti
   const title = input.title.trim()
   if (!title) return { error: 'Give the idea a title.' }
 
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
   const { error } = await supabase
     .from('ideas')
@@ -46,7 +54,7 @@ export async function updateIdea(id: string, input: IdeaFormInput): Promise<Acti
       status: input.status,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', account.accountId)
   if (error) return { error: 'Could not save the idea. Please try again.' }
 
   revalidatePath('/ideas')
@@ -55,11 +63,11 @@ export async function updateIdea(id: string, input: IdeaFormInput): Promise<Acti
 }
 
 export async function deleteIdea(id: string): Promise<ActionResult> {
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
-  const { error } = await supabase.from('ideas').delete().eq('id', id).eq('user_id', user.id)
+  const { error } = await supabase.from('ideas').delete().eq('id', id).eq('user_id', account.accountId)
   if (error) return { error: 'Could not delete the idea. Please try again.' }
 
   revalidatePath('/ideas')
@@ -68,11 +76,11 @@ export async function deleteIdea(id: string): Promise<ActionResult> {
 }
 
 export async function toggleAutomation(id: string, enabled: boolean): Promise<ActionResult> {
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
-  const { error } = await supabase.from('automations').update({ enabled }).eq('id', id).eq('user_id', user.id)
+  const { error } = await supabase.from('automations').update({ enabled }).eq('id', id).eq('user_id', account.accountId)
   if (error) return { error: 'Could not update the automation.' }
 
   revalidatePath('/automations')
@@ -80,9 +88,9 @@ export async function toggleAutomation(id: string, enabled: boolean): Promise<Ac
 }
 
 export async function updateDraftContent(id: string, body: string, title?: string): Promise<ActionResult> {
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
   const trimmedTitle = title?.trim()
   if (title !== undefined && !trimmedTitle) return { error: 'Give the draft a title.' }
@@ -91,7 +99,7 @@ export async function updateDraftContent(id: string, body: string, title?: strin
     .from('drafts')
     .update(trimmedTitle ? { body, title: trimmedTitle } : { body })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', account.accountId)
   if (error) return { error: 'Could not save the draft. Please try again.' }
 
   revalidatePath('/drafts')
@@ -99,11 +107,11 @@ export async function updateDraftContent(id: string, body: string, title?: strin
 }
 
 export async function deleteDraft(id: string): Promise<ActionResult> {
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
-  const { error } = await supabase.from('drafts').delete().eq('id', id).eq('user_id', user.id)
+  const { error } = await supabase.from('drafts').delete().eq('id', id).eq('user_id', account.accountId)
   if (error) return { error: 'Could not delete the draft. Please try again.' }
 
   revalidatePath('/drafts')
@@ -114,13 +122,13 @@ export async function createDraft(
   title = 'Untitled draft',
   ideaId: string | null = null,
 ): Promise<{ id: string | null; error?: string }> {
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { id: null, error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { id: null, error: 'You must be signed in.' }
 
   const { data, error } = await supabase
     .from('drafts')
-    .insert({ user_id: user.id, idea_id: ideaId, title, body: '' })
+    .insert({ user_id: account.accountId, idea_id: ideaId, title, body: '' })
     .select('id')
     .single()
   if (error || !data) return { id: null, error: 'Could not create the draft. Please try again.' }
@@ -145,21 +153,21 @@ export async function updateDealStage(
   fromStatus: Deal['status'],
   toStatus: Deal['status']
 ): Promise<ActionResult> {
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
   const update: { status: Deal['status']; paid_at?: string } = { status: toStatus }
   if (toStatus === 'paid') update.paid_at = new Date().toISOString().slice(0, 10)
 
-  const { error } = await supabase.from('deals').update(update).eq('id', id).eq('user_id', user.id)
+  const { error } = await supabase.from('deals').update(update).eq('id', id).eq('user_id', account.accountId)
   if (error) return { error: 'Could not move the deal. Please try again.' }
 
   // Best-effort — a failed history insert shouldn't roll back or fail a
   // stage move the user already saw succeed.
   await supabase
     .from('deal_stage_history')
-    .insert({ deal_id: id, user_id: user.id, from_status: fromStatus, to_status: toStatus })
+    .insert({ deal_id: id, user_id: account.accountId, from_status: fromStatus, to_status: toStatus })
 
   revalidatePath('/deals')
   revalidatePath('/dashboard')
@@ -167,15 +175,15 @@ export async function updateDealStage(
 }
 
 export async function markInvoiceSent(id: string): Promise<ActionResult> {
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
   const { error } = await supabase
     .from('deals')
     .update({ invoiced_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', account.accountId)
   if (error) return { error: 'Could not mark the invoice as sent. Please try again.' }
 
   revalidatePath('/deals')
@@ -195,12 +203,12 @@ export async function createDeal(input: DealFormInput): Promise<ActionResult> {
   const brandName = input.brand_name.trim()
   if (!brandName) return { error: 'Give the deal a brand name.' }
 
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
   const { error } = await supabase.from('deals').insert({
-    user_id: user.id,
+    user_id: account.accountId,
     brand_name: brandName,
     contact_name: input.contact_name?.trim() || null,
     rate_amount_cents: input.rate_amount_cents ?? null,
@@ -220,9 +228,9 @@ export async function updateDeal(id: string, input: DealFormInput): Promise<Acti
   const brandName = input.brand_name.trim()
   if (!brandName) return { error: 'Give the deal a brand name.' }
 
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
   const { error } = await supabase
     .from('deals')
@@ -235,7 +243,7 @@ export async function updateDeal(id: string, input: DealFormInput): Promise<Acti
       due_date: input.due_date || null,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', account.accountId)
   if (error) return { error: 'Could not save the deal. Please try again.' }
 
   revalidatePath('/deals')
@@ -244,15 +252,73 @@ export async function updateDeal(id: string, input: DealFormInput): Promise<Acti
 }
 
 export async function deleteDeal(id: string): Promise<ActionResult> {
-  const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
-  if (!user || !supabase) return { error: 'You must be signed in.' }
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
 
-  const { error } = await supabase.from('deals').delete().eq('id', id).eq('user_id', user.id)
+  const { error } = await supabase.from('deals').delete().eq('id', id).eq('user_id', account.accountId)
   if (error) return { error: 'Could not delete the deal. Please try again.' }
 
   revalidatePath('/deals')
   revalidatePath('/dashboard')
+  return {}
+}
+
+export async function toggleDealPriority(id: string, isPriority: boolean): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient()
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
+
+  const { error } = await supabase
+    .from('deals')
+    .update({ is_priority: isPriority })
+    .eq('id', id)
+    .eq('user_id', account.accountId)
+  if (error) return { error: 'Could not update the deal. Please try again.' }
+
+  revalidatePath('/deals')
+  return {}
+}
+
+export async function bulkUpdateDealStage(ids: string[], toStatus: Deal['status']): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient()
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
+  if (ids.length === 0) return {}
+
+  const update: { status: Deal['status']; paid_at?: string } = { status: toStatus }
+  if (toStatus === 'paid') update.paid_at = new Date().toISOString().slice(0, 10)
+
+  const { error } = await supabase.from('deals').update(update).in('id', ids).eq('user_id', account.accountId)
+  if (error) return { error: 'Could not move those deals. Please try again.' }
+
+  revalidatePath('/deals')
+  revalidatePath('/dashboard')
+  return {}
+}
+
+export async function bulkDeleteDeals(ids: string[]): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient()
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
+  if (ids.length === 0) return {}
+
+  const { error } = await supabase.from('deals').delete().in('id', ids).eq('user_id', account.accountId)
+  if (error) return { error: 'Could not delete those deals. Please try again.' }
+
+  revalidatePath('/deals')
+  revalidatePath('/dashboard')
+  return {}
+}
+
+export async function completeOnboarding(): Promise<ActionResult> {
+  const { user } = await getAuthenticatedUser()
+  const supabase = await createSupabaseServerClient()
+  if (!user || !supabase) return { error: 'You must be signed in.' }
+
+  const { error } = await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id)
+  if (error) return { error: 'Could not save. Please try again.' }
+
   return {}
 }
 
@@ -268,6 +334,28 @@ export async function updateProfile(fullName: string): Promise<ActionResult> {
   if (error) return { error: 'Could not save your changes. Please try again.' }
 
   revalidatePath('/settings')
+  return {}
+}
+
+export async function updateWorkspaceName(name: string): Promise<ActionResult> {
+  const trimmed = name.trim()
+  if (!trimmed) return { error: "Your workspace needs a name." }
+
+  const supabase = await createSupabaseServerClient()
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
+  if (account.role !== 'owner') return { error: 'Only the workspace owner can rename it.' }
+
+  // RLS ("Owner updates workspace") backstops the role check above.
+  const { error } = await supabase
+    .from('accounts')
+    .update({ workspace_name: trimmed })
+    .eq('id', account.accountId)
+  if (error) return { error: 'Could not save your changes. Please try again.' }
+
+  revalidatePath('/settings')
+  revalidatePath('/team')
+  revalidatePath('/', 'layout')
   return {}
 }
 
@@ -311,50 +399,41 @@ export async function deleteAccount(): Promise<ActionResult> {
   return {}
 }
 
-export async function sendTeamInvite(email: string, role: 'owner' | 'member'): Promise<ActionResult> {
+export async function sendTeamInvite(email: string, role: Role): Promise<ActionResult> {
   const trimmedEmail = email.trim().toLowerCase()
   if (!trimmedEmail) return { error: 'Enter an email address.' }
+  if (!ASSIGNABLE_ROLES.includes(role)) {
+    return { error: 'Ownership can only change hands by transferring an existing member — invite them as a role first.' }
+  }
 
   const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
   if (!user || !supabase) return { error: 'You must be signed in to invite a collaborator.' }
 
-  const { data: ownerRow } = await supabase
+  const { data: ownerRow, error: ownerLookupError } = await supabase
     .from('team_members')
     .select('account_id')
     .eq('user_id', user.id)
     .eq('role', 'owner')
     .maybeSingle()
 
+  if (ownerLookupError) return { error: 'Could not send the invite. Please try again.' }
   if (!ownerRow) return { error: 'Only the account owner can invite a collaborator.' }
   const accountId = ownerRow.account_id as string
 
-  // Free plan: owner + at most one collaborator. Check both an existing member and an
-  // existing pending invite before attempting the insert, so the error is clear rather
-  // than a raw unique-constraint violation.
-  const [{ count: memberCount }, { data: existingInvites }] = await Promise.all([
-    supabase
-      .from('team_members')
-      .select('id', { count: 'exact', head: true })
-      .eq('account_id', accountId)
-      .eq('role', 'member'),
-    // .limit(1) instead of .maybeSingle() — see the matching comment in
-    // queries.ts getTeam(); .maybeSingle() errors out silently on more than
-    // one matching row, which let this check pass straight through into a
-    // raw unique-constraint violation instead of the friendly message below.
-    supabase
-      .from('team_invites')
-      .select('id')
-      .eq('account_id', accountId)
-      .eq('status', 'pending')
-      .limit(1),
-  ])
+  // No seat cap and no cap on concurrent pending invites — just guard against
+  // sending a second invite to an email that already has one pending.
+  const { data: existingInvites, error: existingInvitesError } = await supabase
+    .from('team_invites')
+    .select('id')
+    .eq('account_id', accountId)
+    .eq('status', 'pending')
+    .eq('invited_email', trimmedEmail)
+    .limit(1)
 
-  if ((memberCount ?? 0) > 0) {
-    return { error: 'You already have a collaborator. Remove them before inviting someone new.' }
-  }
+  if (existingInvitesError) return { error: 'Could not send the invite. Please try again.' }
   if (existingInvites && existingInvites.length > 0) {
-    return { error: 'There is already a pending invite. Revoke it before sending another.' }
+    return { error: 'There is already a pending invite for that email.' }
   }
 
   const { error } = await supabase.from('team_invites').insert({
@@ -364,11 +443,7 @@ export async function sendTeamInvite(email: string, role: 'owner' | 'member'): P
     status: 'pending',
   })
 
-  if (error) {
-    // Backstop for a race against the partial unique index — the checks above should
-    // normally catch this first.
-    return { error: 'Could not send the invite. Please try again.' }
-  }
+  if (error) return { error: 'Could not send the invite. Please try again.' }
 
   revalidatePath('/team')
   return {}
@@ -393,19 +468,24 @@ export async function removeMember(memberId: string): Promise<ActionResult> {
 
   // RLS backstops this too ("Owner removes non-owner team members", role <> 'owner'),
   // but the friendlier message only shows up if we check it here first.
-  const { error } = await supabase.from('team_members').delete().eq('id', memberId).eq('role', 'member')
+  const { error } = await supabase.from('team_members').delete().eq('id', memberId).neq('role', 'owner')
   if (error) return { error: 'Could not remove the collaborator. Please try again.' }
 
   revalidatePath('/team')
   return {}
 }
 
-export async function updateMemberRole(memberId: string, role: 'owner' | 'member'): Promise<ActionResult> {
+export async function updateMemberRole(memberId: string, role: Role): Promise<ActionResult> {
   const { user } = await getAuthenticatedUser()
   const supabase = await createSupabaseServerClient()
   if (!user || !supabase) return { error: 'You must be signed in.' }
 
-  const { data: target } = await supabase.from('team_members').select('user_id').eq('id', memberId).maybeSingle()
+  const { data: target, error: targetError } = await supabase
+    .from('team_members')
+    .select('user_id')
+    .eq('id', memberId)
+    .maybeSingle()
+  if (targetError) return { error: 'Could not update their role. Please try again.' }
   if (target?.user_id === user.id) return { error: 'You can’t change your own role.' }
 
   // Promoting to owner is really a transfer — the account can only have one
