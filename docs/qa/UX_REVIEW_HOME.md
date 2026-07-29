@@ -111,7 +111,7 @@ and the marquee cannot be paused without a pointer.
 
 | Priority | Item | Note |
 |---|---|---|
-| **P1** | `#docs` / `#github` / `#privacy` / `#terms` are dead links | Needs real URLs before launch — a visitor clicking "Docs" currently gets nothing |
+| ~~P1~~ | ~~`#docs` / `#github` / `#privacy` / `#terms` are dead links~~ | ✅ Resolved: GitHub links to the real repo (nav + footer), `#docs` anchors to a real on-page section (`DetailCards.tsx`), Privacy/Terms render as honest-disabled text with a "Not published yet" tooltip rather than a link to nowhere. |
 | P2 | No skip-to-content link | Keyboard users tab the whole hero on every visit |
 | P2 | Marquee has no keyboard/reduced-motion pause control | Pauses on hover only |
 | P2 | `/pricing` route still exists | Nothing links to it, but "no pricing anywhere" is now a product rule (`PRODUCT.md`) |

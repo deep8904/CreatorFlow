@@ -1,5 +1,10 @@
 create extension if not exists pgcrypto;
 
+-- Supabase Vault (pgsodium-backed) ships enabled on every Supabase project by
+-- default and isn't user-creatable via `create extension` on hosted
+-- Supabase — the `vault.create_secret`/`vault.decrypted_secrets` used below
+-- for OAuth token storage need no setup here.
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
@@ -53,6 +58,12 @@ create table if not exists public.deals (
   updated_at timestamptz not null default now()
 );
 
+-- fetch-gmail-deals is idempotent over a given email thread — this is what
+-- lets it re-run without creating duplicate deals for the same thread.
+create unique index if not exists deals_user_id_email_thread_id_key
+  on public.deals (user_id, email_thread_id)
+  where email_thread_id is not null;
+
 -- Stage-transition history for a deal, so the Deals page can show when a
 -- deal moved through its pipeline (not just its current status).
 create table if not exists public.deal_stage_history (
@@ -70,13 +81,18 @@ create table if not exists public.integrations (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   provider text not null,
-  access_token_encrypted text,
-  refresh_token_encrypted text,
+  -- Tokens live in Supabase Vault (pgsodium-backed); these are references,
+  -- never the token value itself. is_demo marks the seeded demo-account
+  -- connection so the UI can tell it apart from a real OAuth grant.
+  access_token_secret_id uuid,
+  refresh_token_secret_id uuid,
+  is_demo boolean not null default false,
   expires_at timestamptz,
   scope text[],
   metadata jsonb,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  unique (user_id, provider)
 );
 
 create table if not exists public.automations (
@@ -342,6 +358,20 @@ begin
   )
   on conflict (id) do nothing;
 
+  -- Every account gets the same 3 baseline automations disabled by default —
+  -- gmail.sponsorship_email_detected has a real effect once Gmail is
+  -- connected (fetch-gmail-deals creates real deals from it), so this is
+  -- opt-in via the Automations page, not on by default.
+  insert into public.automations (user_id, name, trigger_type, action_type, config, enabled)
+  values
+    (new.id, 'New sponsorship email → Create a deal', 'gmail.sponsorship_email_detected', 'deals.create',
+      jsonb_build_object('description', 'When Gmail detects a new brand deal email, automatically create a deal card for it.'), false),
+    (new.id, 'Deal marked Paid → Archive contract', 'deals.status_changed_to_paid', 'deals.archive_contract',
+      jsonb_build_object('description', 'Keep your Deals view focused on what''s active.'), false),
+    (new.id, 'New video published → Suggest a repurpose', 'youtube.video_published', 'repurpose.suggest',
+      jsonb_build_object('description', 'As soon as a new video goes live, queue it up in Repurpose so clips and posts are ready same-day.'), false)
+  on conflict do nothing;
+
   insert into public.team_members (account_id, user_id, role)
   select ti.account_id, new.id, ti.role
   from public.team_invites ti
@@ -537,3 +567,65 @@ create policy "Role-scoped channel stats access" on public.channel_stats_daily
 create policy "Role-scoped channel videos access" on public.channel_videos
   for all using (public.has_role_access(user_id, array['owner','manager','editor','designer']))
   with check (public.has_role_access(user_id, array['owner','manager','editor','designer']));
+
+-- PostgREST only exposes the `public` schema by default, so the edge
+-- functions that own OAuth token lifecycle (connect-integration,
+-- fetch-youtube-data, fetch-gmail-deals, disconnect-integration) reach
+-- Supabase Vault through these thin, service-role-only wrappers rather than
+-- calling `vault.*` directly.
+create or replace function public.vault_create_secret_for_integration(p_secret text, p_name text default null)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return vault.create_secret(p_secret, p_name);
+end;
+$$;
+
+create or replace function public.vault_read_secret_for_integration(p_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_secret text;
+begin
+  select decrypted_secret into v_secret from vault.decrypted_secrets where id = p_id;
+  return v_secret;
+end;
+$$;
+
+create or replace function public.vault_update_secret_for_integration(p_id uuid, p_secret text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform vault.update_secret(p_id, p_secret);
+end;
+$$;
+
+create or replace function public.vault_delete_secret_for_integration(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from vault.secrets where id = p_id;
+end;
+$$;
+
+revoke execute on function public.vault_create_secret_for_integration(text, text) from public, anon, authenticated;
+revoke execute on function public.vault_read_secret_for_integration(uuid) from public, anon, authenticated;
+revoke execute on function public.vault_update_secret_for_integration(uuid, text) from public, anon, authenticated;
+revoke execute on function public.vault_delete_secret_for_integration(uuid) from public, anon, authenticated;
+
+grant execute on function public.vault_create_secret_for_integration(text, text) to service_role;
+grant execute on function public.vault_read_secret_for_integration(uuid) to service_role;
+grant execute on function public.vault_update_secret_for_integration(uuid, text) to service_role;
+grant execute on function public.vault_delete_secret_for_integration(uuid) to service_role;

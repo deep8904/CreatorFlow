@@ -8,6 +8,26 @@ import { ASSIGNABLE_ROLES } from '@/lib/roles'
 
 export type ActionResult = { error?: string }
 
+// supabase.functions.invoke() puts a generic "non-2xx status code" string on
+// error.message and leaves the edge function's actual JSON error body sitting
+// unread on error.context (a raw Response) — this pulls the real message back
+// out so token-refresh/scope errors from fetch-youtube-data and
+// fetch-gmail-deals reach the user instead of a meaningless fallback.
+async function edgeFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
+  if (error && typeof error === 'object' && 'context' in error) {
+    const context = (error as { context?: unknown }).context
+    if (context instanceof Response) {
+      try {
+        const body = await context.clone().json()
+        if (typeof body?.error === 'string') return body.error
+      } catch {
+        // fall through to fallback
+      }
+    }
+  }
+  return fallback
+}
+
 export async function createIdea(title: string, notes?: string, tags?: string[]): Promise<ActionResult> {
   const trimmed = title.trim()
   if (!trimmed) return { error: 'Give the idea a title.' }
@@ -378,12 +398,45 @@ export async function disconnectIntegration(provider: 'gmail' | 'youtube'): Prom
   if (!user || !supabase) return { error: 'You must be signed in.' }
 
   const { data, error } = await supabase.functions.invoke('disconnect-integration', { body: { provider } })
-  if (error || !data?.success) return { error: 'Could not disconnect. Please try again.' }
+  if (error) return { error: await edgeFunctionErrorMessage(error, 'Could not disconnect. Please try again.') }
+  if (!data?.success) return { error: 'Could not disconnect. Please try again.' }
 
   revalidatePath('/settings')
   revalidatePath('/analytics')
   revalidatePath('/deals')
   revalidatePath('/dashboard')
+  return {}
+}
+
+export type CheckGmailResult = ActionResult & { dealsCreated?: number; skipped?: boolean }
+
+export async function checkGmailForDeals(): Promise<CheckGmailResult> {
+  const { user } = await getAuthenticatedUser()
+  const supabase = await createSupabaseServerClient()
+  if (!user || !supabase) return { error: 'You must be signed in.' }
+
+  const { data, error } = await supabase.functions.invoke('fetch-gmail-deals')
+  if (error) return { error: await edgeFunctionErrorMessage(error, 'Could not check Gmail.') }
+  if (!data?.success) return { error: 'Could not check Gmail.' }
+  if (data.skipped) return { skipped: true, error: data.reason }
+
+  revalidatePath('/deals')
+  revalidatePath('/dashboard')
+  return { dealsCreated: data.dealsCreated ?? 0 }
+}
+
+export async function refreshYoutubeData(): Promise<ActionResult> {
+  const { user } = await getAuthenticatedUser()
+  const supabase = await createSupabaseServerClient()
+  if (!user || !supabase) return { error: 'You must be signed in.' }
+
+  const { data, error } = await supabase.functions.invoke('fetch-youtube-data')
+  if (error) return { error: await edgeFunctionErrorMessage(error, 'Could not refresh YouTube data.') }
+  if (!data?.success) return { error: 'Could not refresh YouTube data.' }
+
+  revalidatePath('/analytics')
+  revalidatePath('/dashboard')
+  revalidatePath('/repurpose')
   return {}
 }
 

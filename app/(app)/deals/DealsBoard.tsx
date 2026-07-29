@@ -19,6 +19,7 @@ import {
   Star,
   ListChecks,
   X,
+  RefreshCw,
 } from 'lucide-react'
 import {
   updateDealStage,
@@ -29,6 +30,7 @@ import {
   toggleDealPriority,
   bulkUpdateDealStage,
   bulkDeleteDeals,
+  checkGmailForDeals,
   type DealFormInput,
 } from '@/lib/supabase/actions'
 import type { Deal, DealStageHistory } from '@/lib/supabase/types'
@@ -68,6 +70,16 @@ const STAGE_DOT: Record<Deal['status'], string> = {
  * six-column kanban to find it.
  */
 const LOW_VOLUME_THRESHOLD = 3
+
+// Every card's resting state already carries a subtle nebula-border gradient
+// (diagonal white → transparent → faint orange) via this same CSS custom
+// property. Selected state used to layer a separate `ring-1 ring-orange-400`
+// box-shadow on top of that instead of replacing it — two different border
+// techniques (a masked diagonal gradient + a uniform-color ring) occupying
+// the same 1px edge read as an uneven, blotchy highlight rather than one
+// clean color. Swapping the gradient itself to a solid orange keeps exactly
+// one border technique active at a time, selected or not.
+const SELECTED_BORDER_GRADIENT = 'linear-gradient(160deg, rgba(251,146,60,0.95), rgba(234,88,12,0.95))'
 
 function formatRate(cents: number | null) {
   if (cents == null) return '—'
@@ -224,10 +236,12 @@ function DealCardContent({ deal, selectMode, selected }: { deal: Deal; selectMod
 export default function DealsBoard({
   initialDeals,
   gmailConnected,
+  gmailIsDemo,
   stageHistory,
 }: {
   initialDeals: Deal[]
   gmailConnected: boolean
+  gmailIsDemo: boolean
   stageHistory: DealStageHistory[]
 }) {
   const router = useRouter()
@@ -244,6 +258,7 @@ export default function DealsBoard({
   const [query, setQuery] = useState('')
   const [selectMode, setSelectMode] = useState(false)
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set())
+  const [isCheckingGmail, setIsCheckingGmail] = useState(false)
   const selected = initialDeals.find((d) => d.id === selectedId) ?? null
 
   useEffect(() => {
@@ -251,6 +266,21 @@ export default function DealsBoard({
       router.replace('/deals')
     }
   }, [searchParams, router])
+
+  const handleCheckGmail = async () => {
+    setIsCheckingGmail(true)
+    const result = await checkGmailForDeals()
+    setIsCheckingGmail(false)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+    toast.success(
+      result.dealsCreated && result.dealsCreated > 0
+        ? `Found ${result.dealsCreated} new ${result.dealsCreated === 1 ? 'deal' : 'deals'}.`
+        : 'No new sponsorship emails found.',
+    )
+  }
 
   const openDeals = initialDeals.filter((d) => d.status !== 'paid' && d.status !== 'lost')
   const pipelineValue = openDeals.reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0) / 100
@@ -401,11 +431,22 @@ export default function DealsBoard({
           <>
             {gmailConnected && (
               <span
-                title="Seeded demo data, not a live Gmail connection — this build has no production Google credentials"
+                title={gmailIsDemo ? 'Seeded demo data, not a live Gmail connection' : undefined}
                 className="inline-flex items-center gap-1.5 font-nebula-ui text-[12px] font-medium text-emerald-300"
               >
-                <Check size={13} strokeWidth={2.5} /> Gmail connected (demo)
+                <Check size={13} strokeWidth={2.5} /> Gmail connected{gmailIsDemo ? ' (demo)' : ''}
               </span>
+            )}
+            {gmailConnected && !gmailIsDemo && (
+              <button
+                type="button"
+                onClick={handleCheckGmail}
+                disabled={isCheckingGmail}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-[9999px] border border-white/10 px-3 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.06] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS}`}
+              >
+                <RefreshCw size={12} strokeWidth={2} className={isCheckingGmail ? 'animate-spin' : ''} />
+                {isCheckingGmail ? 'Checking…' : 'Check for new deals'}
+              </button>
             )}
             <SearchField value={query} onChange={setQuery} placeholder="Search deals" className="w-[160px]" />
             {initialDeals.length > 0 && (
@@ -481,8 +522,16 @@ export default function DealsBoard({
                   type="button"
                   onClick={() => cardClick(deal)}
                   className={`nebula-border w-full rounded-[1.25rem] bg-white/[0.03] p-5 text-left backdrop-blur-xl transition-all duration-150 hover:bg-white/[0.05] ${FOCUS_INSET} ${
-                    selectedId === deal.id || bulkSelectedIds.has(deal.id) ? 'ring-1 ring-orange-400/70' : ''
+                    selectedId === deal.id || bulkSelectedIds.has(deal.id) ? 'bg-white/[0.05]' : ''
                   }`}
+                  style={
+                    {
+                      '--nebula-border-gradient':
+                        selectedId === deal.id || bulkSelectedIds.has(deal.id)
+                          ? SELECTED_BORDER_GRADIENT
+                          : 'linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02) 55%, rgba(234,88,12,0.06))',
+                    } as CSSProperties
+                  }
                 >
                   <div className="mb-2.5 flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -551,12 +600,14 @@ export default function DealsBoard({
                           type="button"
                           onClick={() => cardClick(deal)}
                           className={`nebula-border w-full rounded-[14px] bg-white/[0.03] p-3.5 text-left backdrop-blur-xl transition-all duration-150 hover:bg-white/[0.05] ${FOCUS_INSET} ${
-                            selectedId === deal.id || bulkSelectedIds.has(deal.id) ? 'ring-1 ring-orange-400/70' : ''
+                            selectedId === deal.id || bulkSelectedIds.has(deal.id) ? 'bg-white/[0.05]' : ''
                           }`}
                           style={
                             {
                               '--nebula-border-gradient':
-                                'linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02) 55%, rgba(234,88,12,0.06))',
+                                selectedId === deal.id || bulkSelectedIds.has(deal.id)
+                                  ? SELECTED_BORDER_GRADIENT
+                                  : 'linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02) 55%, rgba(234,88,12,0.06))',
                             } as CSSProperties
                           }
                         >

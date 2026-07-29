@@ -149,6 +149,7 @@ export type IntegrationStatus = {
   connected: boolean
   connectedAt: string
   accountLabel: string | null
+  isDemo: boolean
 }
 
 export async function getIntegrations(): Promise<IntegrationStatus[]> {

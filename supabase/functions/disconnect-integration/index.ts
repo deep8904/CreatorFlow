@@ -1,8 +1,11 @@
-// Deletes a row from public.integrations on the caller's behalf using the service
-// role, since the table has zero permissive RLS policies for authenticated clients
-// by design (see the integrations RLS fix migration). This is the only sanctioned
-// write path for that table until a real OAuth callback route exists.
+// Deletes public.integrations rows on the caller's behalf using the service
+// role, since the table has zero permissive RLS policies for authenticated
+// clients by design. For a real (non-demo) connection this also revokes the
+// grant at Google and unlinks the Google identity — Gmail and YouTube share
+// a single Google OAuth grant (see connect-integration), so disconnecting
+// either one tears down both rather than leaving one half-alive.
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { revokeGoogleToken } from '../_shared/google.ts'
 
 Deno.serve(async (req) => {
   const authHeader = req.headers.get('Authorization')
@@ -70,11 +73,59 @@ Deno.serve(async (req) => {
     })
   }
 
+  const { data: rows, error: fetchError } = await adminClient
+    .from('integrations')
+    .select('id, provider, is_demo, access_token_secret_id, refresh_token_secret_id')
+    .eq('user_id', membership.account_id)
+    .in('provider', ['gmail', 'youtube'])
+
+  if (fetchError) {
+    return new Response(JSON.stringify({ error: fetchError.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const realRow = rows?.find((r) => !r.is_demo && (r.access_token_secret_id || r.refresh_token_secret_id))
+  if (realRow) {
+    const revokeTarget = realRow.refresh_token_secret_id ?? realRow.access_token_secret_id
+    if (revokeTarget) {
+      const { data: token } = await adminClient.rpc('vault_read_secret_for_integration', { p_id: revokeTarget })
+      if (token) await revokeGoogleToken(token as string)
+    }
+    if (realRow.access_token_secret_id) {
+      await adminClient.rpc('vault_delete_secret_for_integration', { p_id: realRow.access_token_secret_id })
+    }
+    if (realRow.refresh_token_secret_id && realRow.refresh_token_secret_id !== realRow.access_token_secret_id) {
+      await adminClient.rpc('vault_delete_secret_for_integration', { p_id: realRow.refresh_token_secret_id })
+    }
+  }
+
+  // Always check for a lingering Google identity, independent of whether a
+  // real integrations row exists — connect-integration can fail after
+  // linkIdentity has already succeeded at the Auth level (e.g. Google/
+  // Supabase completing the link without a provider_token coming back), and
+  // that leaves an identity linked with no integrations row at all.
+  // linkIdentity permanently refuses to re-link an already-linked identity,
+  // so if this cleanup only ran when realRow existed, that orphaned case
+  // could never be un-stuck — there'd be no integrations row for a
+  // "Disconnect" click to key off of, and Connect would fail forever with
+  // "Identity is already linked". Best-effort: unlinking isn't exposed via
+  // the admin SDK, only the GoTrue REST API directly.
+  const { data: adminUser } = await adminClient.auth.admin.getUserById(membership.account_id)
+  const googleIdentity = adminUser?.user?.identities?.find((i) => i.provider === 'google')
+  if (googleIdentity) {
+    await fetch(`${supabaseUrl}/auth/v1/admin/users/${membership.account_id}/identities/${googleIdentity.identity_id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey },
+    }).catch(() => {})
+  }
+
   const { error } = await adminClient
     .from('integrations')
     .delete()
     .eq('user_id', membership.account_id)
-    .eq('provider', provider)
+    .in('provider', ['gmail', 'youtube'])
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {

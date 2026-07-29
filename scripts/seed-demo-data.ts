@@ -83,8 +83,8 @@ async function seed(userId: string) {
   })
 
   await supabase.from('integrations').insert([
-    { user_id: userId, provider: 'youtube', scope: ['youtube.readonly'], metadata: { email: '@deep-xdd', demo: true } },
-    { user_id: userId, provider: 'gmail', scope: ['gmail.readonly'], metadata: { email: 'deep.creates@gmail.com', demo: true } },
+    { user_id: userId, provider: 'youtube', scope: ['youtube.readonly'], metadata: { email: '@deep-xdd' }, is_demo: true },
+    { user_id: userId, provider: 'gmail', scope: ['gmail.readonly'], metadata: { email: 'deep.creates@gmail.com' }, is_demo: true },
   ])
 
   const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString()

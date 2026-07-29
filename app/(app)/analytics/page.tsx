@@ -6,6 +6,7 @@ import { DashboardHeader } from '@/components/dash/DashboardHeader'
 import { MetricGrid, type Metric } from '@/components/dash/MetricCard'
 import { Panel } from '@/components/dash/Panel'
 import { LineTrendChart, type TrendPoint } from '@/components/dash/LineTrendChart'
+import { RefreshYoutubeButton } from '@/components/dash/RefreshYoutubeButton'
 import { FOCUS } from '@/components/dash/tokens'
 
 function formatMoney(cents: number) {
@@ -37,9 +38,10 @@ export default async function AnalyticsPage() {
     getChannelVideos(),
     getDeals(),
   ])
-  const youtubeConnected = integrations.some((i) => i.provider === 'youtube')
+  const youtube = integrations.find((i) => i.provider === 'youtube')
+  const youtubeConnected = !!youtube
 
-  if (!youtubeConnected || stats.length === 0) {
+  if (!youtubeConnected) {
     return (
       <>
         <DashboardHeader eyebrow="Analytics" title="Analytics" description="Your YouTube channel performance" />
@@ -61,6 +63,51 @@ export default async function AnalyticsPage() {
                 <span className="nebula-cta__label">Connect YouTube</span>
               </a>
             </div>
+          </div>
+        </main>
+      </>
+    )
+  }
+
+  // Connected but no daily-stats trend to show — either a real connection
+  // that hasn't fetched yet, or one whose Google grant only covers the Data
+  // API (video list, channel snippet), not the separate Analytics API a
+  // views/watch-time trend needs. Either way, showing the "not connected"
+  // empty state here would be wrong — the account IS connected, and its
+  // real video list (if fetched) still belongs on screen.
+  if (stats.length === 0) {
+    const topVideosOnly = [...videos].sort((a, b) => b.views - a.views).slice(0, 5)
+    return (
+      <>
+        <DashboardHeader eyebrow="Analytics" title="Analytics" description="Your YouTube channel performance" />
+        <main id="dashboard-main" className="console-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+            {!youtube?.isDemo && (
+              <div className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-white/[0.06] bg-white/[0.02] px-5 py-4">
+                <p className="font-nebula-ui text-[12.5px] text-zinc-400">
+                  Connected as {youtube?.accountLabel ?? 'your channel'}. Views/watch-time trend isn&apos;t available —
+                  this connection only has the YouTube Data scope, not the separate Analytics scope a daily trend needs.
+                </p>
+                <RefreshYoutubeButton />
+              </div>
+            )}
+            <Panel title="Top videos" titleId="videos-h">
+              {topVideosOnly.length === 0 ? (
+                <p className="px-5 pb-5 font-nebula-ui text-[12.5px] text-zinc-500">
+                  No video data yet{youtube?.isDemo ? '.' : ' — try refreshing.'}
+                </p>
+              ) : (
+                <ul className="pb-2">
+                  {topVideosOnly.map((v, i) => (
+                    <li key={v.id} className="flex items-center gap-4 border-t border-white/[0.05] px-5 py-3 first:border-t-0">
+                      <span className="w-4 shrink-0 font-nebula-mono text-[11px] text-zinc-600">{i + 1}</span>
+                      <p className="min-w-0 flex-1 truncate font-nebula-ui text-[13px] font-medium text-zinc-200">{v.title}</p>
+                      <span className="shrink-0 font-nebula-mono text-[12px] text-zinc-500">{formatCompact(v.views)} views</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
           </div>
         </main>
       </>
@@ -192,10 +239,12 @@ export default async function AnalyticsPage() {
             </Panel>
           )}
 
-          <p className="text-center font-nebula-ui text-[11px] text-zinc-600">
-            Showing seeded demo performance data for this account. In production, this pulls live from the YouTube
-            Analytics API for a connected channel.
-          </p>
+          {youtube?.isDemo && (
+            <p className="text-center font-nebula-ui text-[11px] text-zinc-600">
+              Showing seeded demo performance data for this account. In production, this pulls live from the YouTube
+              Analytics API for a connected channel.
+            </p>
+          )}
         </div>
       </main>
     </>

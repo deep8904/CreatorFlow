@@ -22,8 +22,10 @@ export default async function SettingsPage() {
       email={user?.email ?? ''}
       gmailConnected={!!gmail}
       gmailAccountLabel={gmail?.accountLabel ?? null}
+      gmailIsDemo={gmail?.isDemo ?? false}
       youtubeConnected={!!youtube}
       youtubeAccountLabel={youtube?.accountLabel ?? null}
+      youtubeIsDemo={youtube?.isDemo ?? false}
       notifyDealReminders={profile?.notify_deal_reminders ?? true}
       isOwner={(account?.role ?? 'owner') === 'owner'}
     />
