@@ -25,6 +25,7 @@ export default [
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         Request: 'readonly',
+        Response: 'readonly',
         URL: 'readonly',
         window: 'readonly',
         document: 'readonly',

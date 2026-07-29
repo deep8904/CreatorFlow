@@ -26,7 +26,13 @@ function triggerMeta(type: string) {
   return TRIGGER_META[type] ?? { label: type, icon: Zap }
 }
 
-export default function AutomationsBoard({ initialAutomations }: { initialAutomations: Automation[] }) {
+export default function AutomationsBoard({
+  initialAutomations,
+  gmailReallyConnected,
+}: {
+  initialAutomations: Automation[]
+  gmailReallyConnected: boolean
+}) {
   const [isPending, startTransition] = useTransition()
   const toast = useToast()
 
@@ -45,10 +51,21 @@ export default function AutomationsBoard({ initialAutomations }: { initialAutoma
         <div className="flex items-start gap-3 rounded-[12px] border border-orange-500/20 bg-orange-500/[0.06] px-4 py-3">
           <Zap size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-orange-400" />
           <p className="font-nebula-ui text-[12.5px] leading-relaxed text-zinc-300">
-            <span className="font-medium text-white">Preview only — none of these run.</span> Toggling saves your
-            preference for later, but nothing executes today: two of these three rules need a live Gmail/YouTube
-            connection this build has no production credentials for, and the trigger engine itself hasn&apos;t been
-            built yet. Every rule below is inert regardless of its toggle state.
+            {gmailReallyConnected ? (
+              <>
+                <span className="font-medium text-white">One rule is live.</span> With Gmail connected, "New
+                sponsorship email → Create a deal" actually runs when you check Gmail from the Deals page. The other
+                two still need YouTube publish events and a trigger engine this build doesn&apos;t have yet — toggling
+                those only saves a preference.
+              </>
+            ) : (
+              <>
+                <span className="font-medium text-white">Preview only — none of these run.</span> Toggling saves your
+                preference for later, but nothing executes today: these rules need a live Gmail/YouTube connection and
+                a trigger engine this build doesn&apos;t have yet. Every rule below is inert regardless of its toggle
+                state.
+              </>
+            )}
           </p>
         </div>
 
@@ -69,6 +86,7 @@ export default function AutomationsBoard({ initialAutomations }: { initialAutoma
                 const trigger = triggerMeta(auto.trigger_type)
                 const TriggerIcon = trigger.icon
                 const actionLabel = ACTION_META[auto.action_type] ?? auto.action_type
+                const isLive = gmailReallyConnected && auto.trigger_type === 'gmail.sponsorship_email_detected'
                 return (
                   <div key={auto.id} className="flex items-start gap-4 px-5 py-4">
                     <span aria-hidden className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-[9999px] bg-white/[0.06] text-zinc-300">
@@ -77,7 +95,7 @@ export default function AutomationsBoard({ initialAutomations }: { initialAutoma
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-nebula-ui text-[13.5px] font-medium text-zinc-100">{auto.name}</p>
-                        <Pill>Preview — not running</Pill>
+                        {isLive ? <Pill tone="positive">Live</Pill> : <Pill>Preview — not running</Pill>}
                       </div>
                       <p className="mt-1 flex flex-wrap items-center gap-1.5 font-nebula-mono text-[10.5px] uppercase tracking-[0.08em] text-zinc-500">
                         {trigger.label}
@@ -89,6 +107,11 @@ export default function AutomationsBoard({ initialAutomations }: { initialAutoma
                           {auto.config.description as string}
                         </p>
                       )}
+                      {isLive && (
+                        <p className="mt-1.5 font-nebula-ui text-[11px] text-zinc-600">
+                          Runs when you click &quot;Check for new deals&quot; on the Deals page — not automatic yet.
+                        </p>
+                      )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <button
@@ -97,10 +120,14 @@ export default function AutomationsBoard({ initialAutomations }: { initialAutoma
                         disabled={isPending}
                         role="switch"
                         aria-checked={auto.enabled}
-                        aria-label={`${auto.enabled ? 'Turn off' : 'Turn on'} the saved preference for ${auto.name} — preview only, does not start it running`}
-                        title="Saves your preference for when this ships — has no effect today"
+                        aria-label={
+                          isLive
+                            ? `${auto.enabled ? 'Turn off' : 'Turn on'} ${auto.name} — a real rule that creates deals from Gmail`
+                            : `${auto.enabled ? 'Turn off' : 'Turn on'} the saved preference for ${auto.name} — preview only, does not start it running`
+                        }
+                        title={isLive ? 'Real: creates deals from matching Gmail messages when enabled' : 'Saves your preference for when this ships — has no effect today'}
                         className={`relative mt-0.5 h-6 w-10 rounded-[9999px] transition-colors disabled:opacity-50 ${HOVER} ${FOCUS_INSET} ${
-                          auto.enabled ? 'bg-white/[0.28]' : 'bg-white/[0.12]'
+                          auto.enabled ? 'bg-orange-500' : 'bg-white/[0.12]'
                         }`}
                       >
                         <span
@@ -110,7 +137,7 @@ export default function AutomationsBoard({ initialAutomations }: { initialAutoma
                         />
                       </button>
                       <span className="whitespace-nowrap font-nebula-mono text-[9px] uppercase tracking-[0.08em] text-zinc-600">
-                        {auto.enabled ? 'Preference: on' : 'Preference: off'}
+                        {isLive ? (auto.enabled ? 'On' : 'Off') : auto.enabled ? 'Preference: on' : 'Preference: off'}
                       </span>
                     </div>
                   </div>

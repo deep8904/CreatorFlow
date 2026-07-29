@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 
 export type ToastVariant = 'success' | 'error' | 'info'
 
@@ -44,11 +44,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export function useToast() {
   const ctx = useContext(ToastContext)
   if (!ctx) throw new Error('useToast must be used within a ToastProvider')
-  return {
-    success: (message: string) => ctx.show(message, 'success'),
-    error: (message: string) => ctx.show(message, 'error'),
-    info: (message: string) => ctx.show(message, 'info'),
-  }
+  const { show } = ctx
+  // Stable across re-renders (including the re-render calling show() itself
+  // triggers) — otherwise any effect with `toast` in its dependency array
+  // that also calls toast.x() inside re-fires every time it runs, looping.
+  return useMemo(
+    () => ({
+      success: (message: string) => show(message, 'success'),
+      error: (message: string) => show(message, 'error'),
+      info: (message: string) => show(message, 'info'),
+    }),
+    [show],
+  )
 }
 
 export function useToastList() {

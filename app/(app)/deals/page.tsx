@@ -12,6 +12,13 @@ export default async function DealsPage() {
     getIntegrations(),
     getDealStageHistory(),
   ])
-  const gmailConnected = integrations.some((i) => i.provider === 'gmail')
-  return <DealsBoard initialDeals={deals} gmailConnected={gmailConnected} stageHistory={stageHistory} />
+  const gmail = integrations.find((i) => i.provider === 'gmail')
+  return (
+    <DealsBoard
+      initialDeals={deals}
+      gmailConnected={!!gmail}
+      gmailIsDemo={gmail?.isDemo ?? false}
+      stageHistory={stageHistory}
+    />
+  )
 }

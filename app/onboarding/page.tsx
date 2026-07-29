@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Check, Mail } from 'lucide-react'
-import { signUpWithEmail, resendConfirmationEmail } from '@/lib/supabase/auth'
+import { signUpWithEmail, resendConfirmationEmail, connectGoogle } from '@/lib/supabase/auth'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { completeOnboarding } from '@/lib/supabase/actions'
 import { YouTubeGlyph, GmailGlyph } from '@/components/ui/oauth-glyphs'
@@ -21,12 +21,11 @@ import {
   AuthConnectCard,
   AuthNotice,
 } from '@/components/auth'
+import { useToast } from '@/lib/toast'
 
 // Step order: welcome → (check-email, only when email confirmation is required) → youtube →
 // gmail → done.
 type Step = 'welcome' | 'check-email' | 'youtube' | 'gmail' | 'done'
-
-const CONNECT_NOTE = "Connecting a real account needs production Google OAuth credentials, which this build doesn't have yet."
 
 export default function OnboardingPage() {
   return (
@@ -38,6 +37,7 @@ export default function OnboardingPage() {
 
 function OnboardingFlow() {
   const searchParams = useSearchParams()
+  const toast = useToast()
   const nextHref = searchParams.get('next') || '/dashboard'
   const [step, setStep] = useState<Step>('welcome')
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -46,11 +46,42 @@ function OnboardingFlow() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [googleConnected, setGoogleConnected] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
   const noticeRef = useRef<HTMLDivElement>(null)
+  const handledOAuthReturn = useRef(false)
 
   useEffect(() => {
     if (step === 'check-email' || step === 'done') noticeRef.current?.focus()
   }, [step])
+
+  // Landing back here after the Google OAuth round trip — one grant covers
+  // both YouTube and Gmail, so a single query param flips both steps'
+  // connect cards to "Connected" rather than tracking them independently.
+  // The ref guard matters for the error path: toast.error triggers a
+  // context update that re-renders this component, which would otherwise
+  // re-fire this effect on the same still-present error param indefinitely.
+  useEffect(() => {
+    if (handledOAuthReturn.current) return
+    const connected = searchParams.get('integration_connected') === 'google'
+    const err = searchParams.get('integration_error')
+    if (!connected && !err) return
+    handledOAuthReturn.current = true
+    if (connected) queueMicrotask(() => setGoogleConnected(true))
+    if (err) toast.error(`Could not finish connecting: ${err}`)
+  }, [searchParams, toast])
+
+  const handleConnect = async () => {
+    setIsConnecting(true)
+    const rawNext = searchParams.get('next')
+    const onboardingReturn = rawNext ? `/onboarding?next=${encodeURIComponent(rawNext)}` : '/onboarding'
+    const { error: connectError } = await connectGoogle(onboardingReturn)
+    if (connectError) {
+      setIsConnecting(false)
+      toast.error(connectError.message)
+    }
+    // On success the browser is already navigating to Google.
+  }
 
   // Resuming an already-authenticated visit — this is exactly what happens
   // after clicking an email confirmation link: the welcome step's in-memory
@@ -221,7 +252,10 @@ function OnboardingFlow() {
             icon={<YouTubeGlyph size={22} />}
             name="YouTube Analytics"
             description="Views, watch time, subscribers, top videos"
-            note={CONNECT_NOTE}
+            connectedLabel="Views, watch time, subscribers, top videos"
+            connected={googleConnected}
+            onConnect={handleConnect}
+            connecting={isConnecting}
           />
 
           <AuthButton variant="calm" onClick={() => setStep('gmail')}>
@@ -239,7 +273,15 @@ function OnboardingFlow() {
             subtitle="Connect Gmail so brand deal emails get sorted automatically. We only look at sponsorship-related emails — we never read, delete, or send anything without your approval."
           />
 
-          <AuthConnectCard icon={<GmailGlyph size={22} />} name="Gmail" description="Brand deal detection from your inbox" note={CONNECT_NOTE} />
+          <AuthConnectCard
+            icon={<GmailGlyph size={22} />}
+            name="Gmail"
+            description="Brand deal detection from your inbox"
+            connectedLabel="Brand deal detection from your inbox"
+            connected={googleConnected}
+            onConnect={handleConnect}
+            connecting={isConnecting}
+          />
 
           <AuthButton variant="calm" onClick={() => setStep('done')}>
             Continue

@@ -88,3 +88,41 @@ export async function updateEmail(email: string) {
 
   return supabase.auth.updateUser({ email })
 }
+
+// Google scopes for both integrations in one grant — Supabase allows exactly
+// one linked identity per provider per user, so "Connect Gmail" and "Connect
+// YouTube" both trigger this same flow rather than two separate OAuth
+// grants that would silently overwrite each other's provider token.
+const GOOGLE_SCOPES = [
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/youtube.readonly',
+].join(' ')
+
+/**
+ * Links a Google identity to the *already signed-in* user (every place this
+ * is called — Settings, onboarding, Analytics — the user already has a real
+ * email/password session by the time they can see a Connect button).
+ * `access_type=offline` + `prompt=consent` are required or Google never
+ * issues a refresh token, per CLAUDE.md.
+ */
+export async function connectGoogle(next: string) {
+  const supabase = createSupabaseBrowserClient()
+  if (!supabase) {
+    throw new Error('Supabase environment variables are not configured.')
+  }
+
+  return supabase.auth.linkIdentity({
+    provider: 'google',
+    options: {
+      scopes: GOOGLE_SCOPES,
+      queryParams: { access_type: 'offline', prompt: 'consent' },
+      // flow=google_link tells the callback route to invoke connect-integration
+      // regardless of whether provider_token comes back — Google/Supabase can
+      // occasionally complete the identity link without handing back a
+      // provider_token (a transient PKCE/timing gap), and gating solely on
+      // provider_token being present would silently strand a linked-but-
+      // tokenless identity that linkIdentity then refuses to ever retry.
+      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}&flow=google_link`,
+    },
+  })
+}

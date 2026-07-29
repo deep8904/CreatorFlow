@@ -753,10 +753,18 @@
    `--nebula-angle-offset`/`--nebula-shine`. Shares `.nebula-cta__label`
    with the spinning variant (its own ::before glow layer stays at
    opacity: 0 either way, so nothing extra needs duplicating). */
+/* This used to reuse .nebula-cta's conic-gradient verbatim, which only
+   paints colour across ~35% of the ring's circumference (the rest is
+   `transparent`) — invisible while `.nebula-cta` is spinning, since the eye
+   sees a moving comet rather than the gap. Frozen at a fixed angle here,
+   that gap rendered as a permanent broken-looking half-ring on every
+   functional button using this class (Save changes, Add deal, Send invite,
+   etc. — nearly every primary button in the app). Fixed by looping the
+   gradient with no transparent stops, so the border reads as one complete,
+   evenly-toned ring at rest. */
 .nebula-cta-static {
   --nebula-angle: 45deg;
   --nebula-angle-offset: 0deg;
-  --nebula-percent: 20%;
   --nebula-shine: #fb923c;
   position: relative;
   isolation: isolate;
@@ -768,12 +776,11 @@
     linear-gradient(#000, #000) padding-box,
     conic-gradient(
       from calc(var(--nebula-angle) - var(--nebula-angle-offset)),
-      transparent 0%,
-      #ea580c 5%,
-      var(--nebula-shine) 15%,
-      #ea580c 30%,
-      transparent 40%,
-      transparent 100%
+      #ea580c 0%,
+      var(--nebula-shine) 25%,
+      #ea580c 50%,
+      var(--nebula-shine) 75%,
+      #ea580c 100%
     ) border-box;
   box-shadow: inset 0 0 0 1px #1a1818;
   transition:

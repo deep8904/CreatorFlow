@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState, useTransition } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Trash2, Download, BellRing } from 'lucide-react'
 import { updateProfile, disconnectIntegration, deleteAccount, updateNotifyDealReminders } from '@/lib/supabase/actions'
-import { updateEmail, updatePassword } from '@/lib/supabase/auth'
+import { updateEmail, updatePassword, connectGoogle } from '@/lib/supabase/auth'
 import { InitialsChip } from '@/components/dash/InitialsChip'
 import { Panel } from '@/components/dash/Panel'
 import { DashboardHeader } from '@/components/dash/DashboardHeader'
@@ -19,8 +19,10 @@ interface Props {
   email: string
   gmailConnected: boolean
   gmailAccountLabel: string | null
+  gmailIsDemo: boolean
   youtubeConnected: boolean
   youtubeAccountLabel: string | null
+  youtubeIsDemo: boolean
   notifyDealReminders: boolean
   isOwner: boolean
 }
@@ -30,13 +32,36 @@ export default function SettingsBoard({
   email,
   gmailConnected,
   gmailAccountLabel,
+  gmailIsDemo,
   youtubeConnected,
   youtubeAccountLabel,
+  youtubeIsDemo,
   notifyDealReminders,
   isOwner,
 }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const toast = useToast()
+  const [isConnecting, setIsConnecting] = useState(false)
+  const handledOAuthReturn = useRef(false)
+
+  // Landing back here after the Google OAuth round trip (app/auth/callback)
+  // — surface the result once, then drop the query params so a refresh
+  // doesn't re-show the toast. The ref guard (not just the param check)
+  // matters: toast.success/error triggers a context update that re-renders
+  // this component, and router.replace doesn't clear the params
+  // synchronously, so without it this effect fires repeatedly on the same
+  // stale params before the URL catches up.
+  useEffect(() => {
+    if (handledOAuthReturn.current) return
+    const connected = searchParams.get('integration_connected')
+    const error = searchParams.get('integration_error')
+    if (!connected && !error) return
+    handledOAuthReturn.current = true
+    if (connected) toast.success('Google account connected.')
+    if (error) toast.error(`Could not finish connecting: ${error}`)
+    router.replace('/settings')
+  }, [searchParams, toast, router])
   const [name, setName] = useState(fullName)
   const [emailInput, setEmailInput] = useState(email)
   const [isPending, startTransition] = useTransition()
@@ -106,6 +131,17 @@ export default function SettingsBoard({
     router.refresh()
   }
 
+  const handleConnect = async () => {
+    setIsConnecting(true)
+    const { error } = await connectGoogle('/settings')
+    if (error) {
+      setIsConnecting(false)
+      toast.error(error.message)
+    }
+    // On success the browser is already navigating to Google — no state
+    // update needed, this component is about to unmount.
+  }
+
   const toggleReminders = async () => {
     const next = !remindersOn
     setRemindersOn(next)
@@ -138,6 +174,7 @@ export default function SettingsBoard({
       name: 'Gmail',
       connected: gmailConnected,
       accountLabel: gmailAccountLabel,
+      isDemo: gmailIsDemo,
       description: 'Brand deal email detection',
       icon: <GmailGlyph />,
     },
@@ -146,6 +183,7 @@ export default function SettingsBoard({
       name: 'YouTube',
       connected: youtubeConnected,
       accountLabel: youtubeAccountLabel,
+      isDemo: youtubeIsDemo,
       description: 'Channel analytics and performance',
       icon: <YouTubeGlyph />,
     },
@@ -261,9 +299,9 @@ export default function SettingsBoard({
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1.5 font-nebula-ui text-[13.5px] font-medium text-zinc-100">
                     {acct.name}
-                    {acct.connected && (
+                    {acct.connected && acct.isDemo && (
                       <span
-                        title="Seeded demo data, not a live OAuth session — this build has no production Google credentials"
+                        title="Seeded demo data, not a live OAuth session"
                         className="rounded-[9999px] bg-white/[0.06] px-1.5 py-0.5 font-nebula-mono text-[9px] font-medium uppercase tracking-[0.08em] text-zinc-500"
                       >
                         Demo
@@ -271,7 +309,11 @@ export default function SettingsBoard({
                     )}
                   </p>
                   <p className="font-nebula-ui text-[12px] text-zinc-500">
-                    {acct.connected ? `Connected as ${acct.accountLabel ?? email} — demo data, not live` : acct.description}
+                    {acct.connected
+                      ? acct.isDemo
+                        ? `Connected as ${acct.accountLabel ?? email} — demo data, not live`
+                        : `Connected as ${acct.accountLabel ?? email}`
+                      : acct.description}
                   </p>
                 </div>
                 {acct.connected ? (
@@ -292,9 +334,18 @@ export default function SettingsBoard({
                       Connected
                     </span>
                   )
+                ) : isOwner ? (
+                  <button
+                    type="button"
+                    onClick={handleConnect}
+                    disabled={isConnecting}
+                    className={`shrink-0 rounded-[9999px] border border-white/10 px-3.5 py-1.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
+                  >
+                    {isConnecting ? 'Connecting…' : 'Connect'}
+                  </button>
                 ) : (
                   <span
-                    title="Connecting a real account requires production Google OAuth credentials"
+                    title="Only the workspace owner can connect an integration"
                     className="shrink-0 cursor-not-allowed rounded-[9999px] border border-white/10 px-3.5 py-1.5 font-nebula-ui text-[12px] font-medium text-zinc-600"
                   >
                     Connect

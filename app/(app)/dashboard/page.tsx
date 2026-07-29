@@ -101,7 +101,8 @@ export default async function DashboardPage({
   const canIdeas = canAccessModule(role, 'ideas')
   const canAnalyticsModule = canAccessModule(role, 'analytics')
 
-  const youtubeConnected = integrations.some((i) => i.provider === 'youtube')
+  const youtube = integrations.find((i) => i.provider === 'youtube')
+  const youtubeConnected = !!youtube
   // Whether to show the chart region at all is about connection status, not
   // about whether the *currently selected* range happens to have rows — a
   // connected account with no activity in the last 7 days is not the same
@@ -280,9 +281,11 @@ export default async function DashboardPage({
                           ) : hasTrendData ? (
                             <>
                               <LineTrendChart points={trendPoints} unit="views" />
-                              <p className="mt-3 font-nebula-ui text-[10.5px] text-zinc-600">
-                                Seeded demo data — in production this pulls live from the YouTube Analytics API.
-                              </p>
+                              {youtube?.isDemo && (
+                                <p className="mt-3 font-nebula-ui text-[10.5px] text-zinc-600">
+                                  Seeded demo data — in production this pulls live from the YouTube Analytics API.
+                                </p>
+                              )}
                             </>
                           ) : (
                             <div className="flex h-[180px] flex-col items-center justify-center gap-2 text-center">
