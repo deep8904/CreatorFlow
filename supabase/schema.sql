@@ -11,6 +11,7 @@ create table if not exists public.profiles (
   username text unique,
   avatar_url text,
   onboarding_completed boolean not null default false,
+  onboarding_checklist_dismissed boolean not null default false,
   timezone text,
   locale text,
   notify_deal_reminders boolean not null default true,

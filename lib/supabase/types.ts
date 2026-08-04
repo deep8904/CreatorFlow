@@ -4,6 +4,7 @@ export type Profile = {
   username: string | null
   avatar_url: string | null
   onboarding_completed: boolean
+  onboarding_checklist_dismissed: boolean
   timezone: string | null
   locale: string | null
   notify_deal_reminders: boolean

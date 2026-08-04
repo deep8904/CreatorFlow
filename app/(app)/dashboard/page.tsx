@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { Handshake, DollarSign, TrendingUp, Lightbulb } from 'lucide-react'
+import { Handshake, DollarSign, TrendingUp, Lightbulb, Receipt, FileText, CalendarClock, Video } from 'lucide-react'
 import {
   getDeals,
   getIdeas,
@@ -9,6 +9,7 @@ import {
   getChannelStats,
   getIntegrations,
   getCurrentAccount,
+  hasInvitedTeammate,
 } from '@/lib/supabase/queries'
 import type { Deal } from '@/lib/supabase/types'
 import { canAccessModule } from '@/lib/roles'
@@ -23,6 +24,7 @@ import { BreakdownList, type BreakdownRow } from '@/components/dash/BreakdownLis
 import { DealsTable, type DealRow } from '@/components/dash/DealsTable'
 import { AIAssistantPanel } from '@/components/dash/AIAssistantPanel'
 import { EmptyDashboard } from '@/components/dash/EmptyDashboard'
+import { OnboardingChecklist, type ChecklistItem } from '@/components/dash/OnboardingChecklist'
 
 export const metadata: Metadata = { title: 'Dashboard — CreatorFlow' }
 
@@ -37,6 +39,18 @@ function formatMoney(d: number) {
 
 function formatMoneyFull(d: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(d)
+}
+
+function formatCompactNumber(n: number) {
+  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
+}
+
+// Wall-clock reads (Date.now()) are impure and the lint rules for this repo
+// flag calling them directly inside a component body — same reason dueMeta
+// above wraps its own `new Date()` in a plain helper function instead of
+// inlining it.
+function daysAgoTimestamp(days: number) {
+  return Date.now() - days * 86_400_000
 }
 
 const DEAL_STAGE_LABEL: Record<Deal['status'], string> = {
@@ -80,15 +94,20 @@ export default async function DashboardPage({
   const { range } = await searchParams
   const days = range === '30' || range === '90' ? Number(range) : 7
 
-  const [deals, ideas, drafts, profile, channelStats, integrations, account] = await Promise.all([
-    getDeals(),
-    getIdeas(),
-    getDrafts(),
-    getCurrentProfile(),
-    getChannelStats(days),
-    getIntegrations(),
-    getCurrentAccount(),
-  ])
+  const [deals, ideas, drafts, profile, channelStats, momentumStats, integrations, account, invitedTeammate] =
+    await Promise.all([
+      getDeals(),
+      getIdeas(),
+      getDrafts(),
+      getCurrentProfile(),
+      getChannelStats(days),
+      // Fixed 28-vs-prior-28-day window for the momentum card — independent
+      // of the range selector above, which drives the separate trend chart.
+      getChannelStats(56),
+      getIntegrations(),
+      getCurrentAccount(),
+      hasInvitedTeammate(),
+    ])
   const role = account?.role ?? 'owner'
   // A role without a module's access always gets an RLS-empty array for it,
   // which is indistinguishable from "genuinely zero" — a Manager with no
@@ -99,6 +118,7 @@ export default async function DashboardPage({
   // CapturePills/EmptyDashboard elsewhere in the app.
   const canDeals = canAccessModule(role, 'deals')
   const canIdeas = canAccessModule(role, 'ideas')
+  const canDrafts = canAccessModule(role, 'drafts')
   const canAnalyticsModule = canAccessModule(role, 'analytics')
 
   const youtube = integrations.find((i) => i.provider === 'youtube')
@@ -118,7 +138,7 @@ export default async function DashboardPage({
   const pipelineValue = openDeals.reduce((acc, d) => acc + (d.rate_amount_cents ?? 0), 0) / 100
   const ideasInProgress = ideas.filter((i) => i.status === 'in_progress').length
 
-  const hasAnyData = deals.length > 0 || ideas.length > 0
+  const hasAnyData = deals.length > 0 || ideas.length > 0 || drafts.length > 0
 
   const firstName = profile?.full_name?.split(' ')[0]
   const needsNextStep = deals.filter((d) => d.status !== 'paid' && d.status !== 'delivered' && d.status !== 'lost')
@@ -128,6 +148,41 @@ export default async function DashboardPage({
       : needsNextStep.length === 1
         ? '1 deal needs a next step.'
         : `${needsNextStep.length} deals need a next step.`
+
+  // Invoices sent but not yet paid — the roadmap groups "overdue" and
+  // "awaiting payment" as one line, since once invoiced a deal is awaiting
+  // payment regardless of whether its due date has technically passed; the
+  // hint below still calls out how many of those are actually overdue.
+  const unpaidInvoices = deals.filter((d) => d.invoiced_at && !d.paid_at)
+  const overdueInvoices = unpaidInvoices.filter((d) => dueMeta(d.due_date).overdue)
+
+  // Single most urgent open deal by due date. Ideas/Drafts have no due-date
+  // concept in this schema, so "next thing due" is scoped to Deals only
+  // rather than inventing dates elsewhere.
+  const dueSortKey = (d: Deal) => (d.due_date ? new Date(d.due_date + 'T00:00:00Z').getTime() : Infinity)
+  const nextDueDeal = [...needsNextStep].filter((d) => d.due_date).sort((a, b) => dueSortKey(a) - dueSortKey(b))[0] ?? null
+  const nextDueMeta = nextDueDeal ? dueMeta(nextDueDeal.due_date) : null
+
+  const sevenDaysAgoMs = daysAgoTimestamp(7)
+  const ideasThisWeek = ideas.filter((i) => new Date(i.created_at).getTime() >= sevenDaysAgoMs).length
+
+  const draftsWithContent = drafts.filter((d) => d.body.trim().length > 0).length
+
+  // Fixed 28-vs-prior-28-day comparison for the momentum card, independent
+  // of the range selector driving the trend chart above.
+  const momentumCutoff28 = daysAgoTimestamp(28)
+  const momentumCutoff56 = daysAgoTimestamp(56)
+  const last28Stats = momentumStats.filter((s) => new Date(s.stat_date + 'T00:00:00Z').getTime() >= momentumCutoff28)
+  const prior28Stats = momentumStats.filter((s) => {
+    const t = new Date(s.stat_date + 'T00:00:00Z').getTime()
+    return t >= momentumCutoff56 && t < momentumCutoff28
+  })
+  const last28Views = last28Stats.reduce((acc, s) => acc + s.views, 0)
+  const prior28Views = prior28Stats.reduce((acc, s) => acc + s.views, 0)
+  const last28SubsGained = last28Stats.reduce((acc, s) => acc + s.subscribers_gained, 0)
+  // No fabricated percentage against a zero baseline — an account with less
+  // than 56 days of history just doesn't get a comparison yet.
+  const viewsDeltaPct = prior28Views === 0 ? null : ((last28Views - prior28Views) / prior28Views) * 100
 
   const metrics: Metric[] = [
     ...(canDeals
@@ -147,15 +202,49 @@ export default async function DashboardPage({
             hint: `across ${openDeals.length} open deals`,
             icon: <TrendingUp size={14} />,
           },
+          {
+            label: 'Invoices awaiting payment',
+            value: String(unpaidInvoices.length),
+            hint: overdueInvoices.length > 0 ? `${overdueInvoices.length} overdue` : 'none overdue',
+            icon: <Receipt size={14} />,
+          },
+          {
+            label: 'Next thing due',
+            value: nextDueMeta?.label ?? 'Clear',
+            hint: nextDueDeal ? (nextDueDeal.brand_name ?? 'Untitled deal') : "you're all caught up",
+            icon: <CalendarClock size={14} />,
+          },
         ]
       : []),
     ...(canIdeas
       ? [
           {
-            label: 'Ideas captured',
-            value: String(ideas.length),
-            hint: `${ideasInProgress} in progress`,
+            label: 'Ideas captured this week',
+            value: String(ideasThisWeek),
+            hint: `${ideas.length} total · ${ideasInProgress} in progress`,
             icon: <Lightbulb size={14} />,
+          },
+        ]
+      : []),
+    ...(canDrafts
+      ? [
+          {
+            label: 'Drafts in progress',
+            value: String(drafts.length),
+            hint: `${draftsWithContent} with content`,
+            icon: <FileText size={14} />,
+          },
+        ]
+      : []),
+    ...(canAnalyticsModule && youtubeConnected
+      ? [
+          {
+            label: 'Views, last 28 days',
+            value: formatCompactNumber(last28Views),
+            title: last28Views.toLocaleString(),
+            delta: viewsDeltaPct === null ? null : { pct: viewsDeltaPct, positive: viewsDeltaPct >= 0 },
+            hint: `${last28SubsGained >= 0 ? '+' : ''}${last28SubsGained.toLocaleString()} subscribers`,
+            icon: <Video size={14} />,
           },
         ]
       : []),
@@ -236,6 +325,18 @@ export default async function DashboardPage({
     value: s.views,
   }))
 
+  // Owner-only — connecting integrations and inviting teammates are owner
+  // actions in this app (see team_invites/team_members RLS), so showing
+  // this checklist to another role would just be pointing at things they
+  // can't do.
+  const checklistItems: ChecklistItem[] = [
+    { label: 'Connect Gmail or YouTube', done: integrations.length > 0, href: '/settings' },
+    { label: 'Add your first deal', done: deals.length > 0, href: '/deals?new=1' },
+    { label: 'Capture your first idea', done: ideas.length > 0, href: '/ideas?new=1' },
+    { label: 'Invite a teammate', done: invitedTeammate, href: '/team' },
+  ]
+  const showChecklist = role === 'owner' && !profile?.onboarding_checklist_dismissed
+
   return (
     <>
       <DashboardHeader
@@ -252,6 +353,12 @@ export default async function DashboardPage({
 
       <main id="dashboard-main" className="console-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto w-full max-w-[1320px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {showChecklist && (
+            <div className="mb-6">
+              <OnboardingChecklist items={checklistItems} />
+            </div>
+          )}
+
           {!hasAnyData ? (
             <EmptyDashboard role={role} />
           ) : (

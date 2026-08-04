@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowRight, Lightbulb, Mic, Trash2 } from 'lucide-react'
-import { createIdea, createDraftFromIdea, updateIdea, deleteIdea, type IdeaFormInput } from '@/lib/supabase/actions'
+import { ArrowRight, Lightbulb, Trash2 } from 'lucide-react'
+import { createDraftFromIdea, updateIdea, deleteIdea, type IdeaFormInput } from '@/lib/supabase/actions'
 import type { Idea } from '@/lib/supabase/types'
 import { GlassModal } from '@/components/dash/GlassModal'
+import { QuickIdeaForm } from '@/components/dash/QuickIdeaForm'
 import { FieldLabel, FieldInput, FieldTextarea } from '@/components/dash/FormField'
 import { SearchField } from '@/components/dash/SearchField'
 import { Pill, PillButton } from '@/components/dash/Pill'
@@ -13,7 +14,6 @@ import { DashboardHeader } from '@/components/dash/DashboardHeader'
 import { MetricGrid, type Metric } from '@/components/dash/MetricCard'
 import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
 import { useToast } from '@/lib/toast'
-import { useSpeechCapture } from '@/lib/useSpeechCapture'
 
 const STATUS_LABEL: Record<Idea['status'], string> = {
   new: 'New',
@@ -112,12 +112,6 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
   const [filter, setFilter] = useState<Idea['status'] | 'All'>('All')
   const [query, setQuery] = useState('')
   const [newOpen, setNewOpen] = useState(() => searchParams.get('new') === '1')
-  const [newTitle, setNewTitle] = useState('')
-  const [newNotes, setNewNotes] = useState('')
-  const [newTagsText, setNewTagsText] = useState('')
-  const { supported: speechSupported, listening, start: startListening, stop: stopListening } = useSpeechCapture(
-    (transcript) => setNewTitle((t) => (t ? `${t} ${transcript}` : transcript))
-  )
   const [isPending, startTransition] = useTransition()
   const [turningIntoDraftId, setTurningIntoDraftId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(() => searchParams.get('open'))
@@ -133,21 +127,6 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
   const filtered = query.trim()
     ? byStatus.filter((i) => i.title.toLowerCase().includes(query.trim().toLowerCase()))
     : byStatus
-
-  const addIdea = () => {
-    if (!newTitle.trim()) return
-    const title = newTitle.trim()
-    const notes = newNotes.trim()
-    const tags = newTagsText.split(',').map((t) => t.trim()).filter(Boolean)
-    setNewTitle('')
-    setNewNotes('')
-    setNewTagsText('')
-    setNewOpen(false)
-    startTransition(async () => {
-      const result = await createIdea(title, notes, tags)
-      if (result.error) toast.error(result.error)
-    })
-  }
 
   const turnIntoDraft = async (idea: Idea) => {
     setTurningIntoDraftId(idea.id)
@@ -213,69 +192,7 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
 
         {newOpen && (
           <div className="nebula-border mb-5 rounded-[1.25rem] bg-white/[0.03] p-5 backdrop-blur-xl">
-            <div className="mb-4 flex items-center gap-2">
-              <input
-                autoFocus
-                placeholder="What's the idea?"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) addIdea()
-                }}
-                className={`min-w-0 flex-1 bg-transparent font-nebula-ui text-[15px] text-white outline-none placeholder:text-zinc-600 ${FOCUS}`}
-              />
-              {speechSupported && (
-                <button
-                  type="button"
-                  onClick={() => (listening ? stopListening() : startListening())}
-                  aria-label={listening ? 'Stop voice capture' : 'Capture idea by voice'}
-                  aria-pressed={listening}
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9999px] ${HOVER} ${FOCUS} ${
-                    listening
-                      ? 'animate-pulse bg-orange-500/20 text-orange-300'
-                      : 'text-zinc-500 hover:bg-white/[0.06] hover:text-white'
-                  }`}
-                >
-                  <Mic size={15} strokeWidth={2} />
-                </button>
-              )}
-            </div>
-            <div className="mb-4 flex flex-col gap-2.5 sm:flex-row">
-              <input
-                placeholder="Notes (optional)"
-                value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
-                className={`min-w-0 flex-1 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-2 font-nebula-ui text-[13px] text-zinc-200 outline-none placeholder:text-zinc-600 ${FOCUS}`}
-              />
-              <input
-                placeholder="Tags — comma separated"
-                value={newTagsText}
-                onChange={(e) => setNewTagsText(e.target.value)}
-                className={`min-w-0 flex-1 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-2 font-nebula-ui text-[13px] text-zinc-200 outline-none placeholder:text-zinc-600 ${FOCUS}`}
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={addIdea}
-                disabled={isPending}
-                className={`nebula-cta-static inline-flex h-9 items-center rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium disabled:pointer-events-none disabled:opacity-50 ${FOCUS}`}
-              >
-                <span className="nebula-cta__label">Save idea</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setNewOpen(false)
-                  setNewTitle('')
-                  setNewNotes('')
-                  setNewTagsText('')
-                }}
-                className={`inline-flex h-9 items-center rounded-[9999px] px-4 font-nebula-ui text-[12.5px] font-medium text-zinc-400 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
-              >
-                Cancel
-              </button>
-            </div>
+            <QuickIdeaForm onSaved={() => setNewOpen(false)} onCancel={() => setNewOpen(false)} />
           </div>
         )}
 

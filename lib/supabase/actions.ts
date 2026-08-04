@@ -154,6 +154,7 @@ export async function createDraft(
   if (error || !data) return { id: null, error: 'Could not create the draft. Please try again.' }
 
   revalidatePath('/drafts')
+  revalidatePath('/dashboard')
   return { id: data.id as string }
 }
 
@@ -338,6 +339,63 @@ export async function completeOnboarding(): Promise<ActionResult> {
 
   const { error } = await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id)
   if (error) return { error: 'Could not save. Please try again.' }
+
+  return {}
+}
+
+export async function dismissOnboardingChecklist(): Promise<ActionResult> {
+  const { user } = await getAuthenticatedUser()
+  const supabase = await createSupabaseServerClient()
+  if (!user || !supabase) return { error: 'You must be signed in.' }
+
+  const { error } = await supabase.from('profiles').update({ onboarding_checklist_dismissed: true }).eq('id', user.id)
+  if (error) return { error: 'Could not save. Please try again.' }
+
+  revalidatePath('/dashboard')
+  return {}
+}
+
+/**
+ * The "never land on a blank screen" affordance from the onboarding
+ * checklist — one realistic sample deal/idea/draft, in the spirit of
+ * scripts/seed-demo-data.ts but implemented as a normal RLS-scoped action
+ * rather than that script's service-role CLI tool, since this needs to run
+ * safely for an arbitrary real signed-in account, not just the one
+ * hardcoded demo user. Guarded on the account genuinely being empty so it
+ * can't be used to spam duplicate sample content into a real workspace.
+ */
+export async function seedSampleData(): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient()
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
+
+  const [{ count: dealsCount }, { count: ideasCount }, { count: draftsCount }] = await Promise.all([
+    supabase.from('deals').select('id', { count: 'exact', head: true }).eq('user_id', account.accountId),
+    supabase.from('ideas').select('id', { count: 'exact', head: true }).eq('user_id', account.accountId),
+    supabase.from('drafts').select('id', { count: 'exact', head: true }).eq('user_id', account.accountId),
+  ])
+  if ((dealsCount ?? 0) > 0 || (ideasCount ?? 0) > 0 || (draftsCount ?? 0) > 0) {
+    return { error: 'Your workspace already has content — sample data is only for a fresh start.' }
+  }
+
+  const dealResult = await createDeal({
+    brand_name: 'Aura Skincare',
+    contact_name: 'Priya Nair',
+    rate_amount_cents: 150000,
+    deliverables: '1 dedicated YouTube video',
+    notes: 'This is a sample deal to show you around — edit or delete it any time.',
+  })
+  if (dealResult.error) return { error: dealResult.error }
+
+  const ideaResult = await createIdea(
+    'Desk setup tour 2026',
+    'Full walkthrough — mic, lighting, monitor arm, new chair. This is a sample idea to show you around — edit or delete it any time.',
+    ['setup', 'gear']
+  )
+  if (ideaResult.error) return { error: ideaResult.error }
+
+  const draftResult = await createDraft('Sponsor pitch template — cold outreach version')
+  if (draftResult.error) return { error: draftResult.error }
 
   return {}
 }

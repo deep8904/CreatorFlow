@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/dash/Sidebar'
 import SkipLink from '@/components/dash/SkipLink'
+import { CommandPalette } from '@/components/dash/CommandPalette'
 import { MobileNavDrawer, MobileNavProvider, MobileTopBar } from '@/components/dash/MobileNav'
 import { getCurrentProfile, getDeals, getCurrentAccount } from '@/lib/supabase/queries'
 import { getAuthenticatedUser } from '@/lib/supabase/server'
@@ -69,6 +70,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </MobileNavProvider>
+
+      <CommandPalette role={role} />
     </div>
   )
 }

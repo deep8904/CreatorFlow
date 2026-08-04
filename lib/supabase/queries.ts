@@ -168,6 +168,29 @@ export async function getIntegrations(): Promise<IntegrationStatus[]> {
   return (data?.integrations as IntegrationStatus[]) ?? []
 }
 
+/**
+ * Lightweight check for the onboarding checklist's "invite a teammate" item
+ * — a count of two lookups, not the full member/invite/profile join getTeam()
+ * does for the actual Team page.
+ */
+export async function hasInvitedTeammate(): Promise<boolean> {
+  const account = await getCurrentAccount()
+  if (!account) return false
+
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) return false
+
+  const [{ count: memberCount }, { count: inviteCount }] = await Promise.all([
+    supabase.from('team_members').select('user_id', { count: 'exact', head: true }).eq('account_id', account.accountId),
+    supabase
+      .from('team_invites')
+      .select('id', { count: 'exact', head: true })
+      .eq('account_id', account.accountId)
+      .eq('status', 'pending'),
+  ])
+  return (memberCount ?? 0) > 1 || (inviteCount ?? 0) > 0
+}
+
 export type TeamData = {
   accountId: string
   workspaceName: string
