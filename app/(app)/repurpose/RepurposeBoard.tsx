@@ -1,14 +1,118 @@
 'use client'
 
 import { useState } from 'react'
-import { Film, Lightbulb, FileText, Sparkles, Link as LinkIcon } from 'lucide-react'
+import { Film, Lightbulb, FileText, Sparkles, Link as LinkIcon, CalendarClock, Clock } from 'lucide-react'
 import type { ChannelVideo, RepurposedContent, Idea } from '@/lib/supabase/types'
 import type { DraftWithIdeaTitle } from '@/lib/supabase/queries'
+import type { BestTimeAnalysis } from '@/lib/bestTimeToPublish'
 import { Panel } from '@/components/dash/Panel'
 import { Pill } from '@/components/dash/Pill'
 import { DashboardHeader } from '@/components/dash/DashboardHeader'
 import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
 import { useToast } from '@/lib/toast'
+
+/**
+ * "Highlighted colored boxes" per the roadmap, but never a single
+ * confident-looking pick without the caveat attached — and never a pick at
+ * all for a dimension whose winning bucket didn't clear
+ * MIN_VIDEOS_PER_BUCKET (see lib/bestTimeToPublish.ts). Honest > punchy.
+ */
+function BestTimeToPublishPanel({ bestTime }: { bestTime: BestTimeAnalysis }) {
+  if (bestTime.status === 'insufficient_data') {
+    return (
+      <Panel title="Best time to publish" titleId="best-time-h">
+        <div className="flex items-start gap-3 px-5 pb-5">
+          <CalendarClock size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-zinc-500" />
+          <div>
+            <p className="font-nebula-ui text-[13px] text-zinc-300">
+              Not enough data yet — {bestTime.videoCount} of {bestTime.minRequired} videos analyzed.
+            </p>
+            <p className="mt-1 font-nebula-ui text-[12px] text-zinc-500">
+              Publish {bestTime.minRequired - bestTime.videoCount} more and this fills in with a real pattern from
+              your own channel, not a generic benchmark.
+            </p>
+          </div>
+        </div>
+      </Panel>
+    )
+  }
+
+  const maxDayViews = Math.max(1, ...bestTime.dayBuckets.map((b) => b.avgViews))
+
+  return (
+    <Panel
+      title="Best time to publish"
+      titleId="best-time-h"
+      eyebrow={`Based on your last ${bestTime.videoCount} published videos`}
+    >
+      <div className="flex flex-col gap-4 px-5 pb-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-[12px] bg-orange-500/[0.08] p-3.5">
+            <p className="flex items-center gap-1.5 font-nebula-mono text-[10px] font-medium uppercase tracking-[0.1em] text-orange-300">
+              <CalendarClock size={11} strokeWidth={2} /> Best day
+            </p>
+            {bestTime.bestDay ? (
+              <>
+                <p className="mt-1.5 font-nebula-heading text-[17px] font-semibold text-white">{bestTime.bestDay.label}</p>
+                <p className="mt-0.5 font-nebula-ui text-[11.5px] text-zinc-500">
+                  Avg {bestTime.bestDay.avgViews.toLocaleString()} views across {bestTime.bestDay.count} videos
+                </p>
+              </>
+            ) : (
+              <p className="mt-1.5 font-nebula-ui text-[12.5px] text-zinc-400">
+                No single day stands out yet — too few videos per weekday to call it.
+              </p>
+            )}
+          </div>
+          <div className="rounded-[12px] bg-white/[0.04] p-3.5">
+            <p className="flex items-center gap-1.5 font-nebula-mono text-[10px] font-medium uppercase tracking-[0.1em] text-zinc-400">
+              <Clock size={11} strokeWidth={2} /> Best time of day
+            </p>
+            {bestTime.bestDaypart ? (
+              <>
+                <p className="mt-1.5 font-nebula-heading text-[17px] font-semibold text-white">{bestTime.bestDaypart.label}</p>
+                <p className="mt-0.5 font-nebula-ui text-[11.5px] text-zinc-500">
+                  Avg {bestTime.bestDaypart.avgViews.toLocaleString()} views across {bestTime.bestDaypart.count} videos
+                </p>
+              </>
+            ) : (
+              <p className="mt-1.5 font-nebula-ui text-[12.5px] text-zinc-400">
+                No single window stands out yet — too few videos per window to call it.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 font-nebula-mono text-[10px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+            By day of week
+          </p>
+          <div className="flex items-end gap-1.5">
+            {bestTime.dayBuckets.map((b) => (
+              <div key={b.label} className="flex flex-1 flex-col items-center gap-1">
+                <div className="flex h-16 w-full items-end">
+                  <div
+                    className={`w-full rounded-t-[4px] ${b.count === 0 ? 'bg-white/[0.04]' : 'bg-orange-500/50'}`}
+                    style={{ height: `${b.count === 0 ? 3 : Math.max(6, (b.avgViews / maxDayViews) * 100)}%` }}
+                    title={b.count === 0 ? 'No videos' : `${b.count} videos, avg ${b.avgViews.toLocaleString()} views`}
+                  />
+                </div>
+                <span className="font-nebula-mono text-[9.5px] text-zinc-600">{b.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {!bestTime.timezoneIsAccountSpecific && (
+          <p className="font-nebula-ui text-[10.5px] text-zinc-600">
+            Your account has no timezone on file, so day/time grouping uses UTC — actual local-time results may
+            differ.
+          </p>
+        )}
+      </div>
+    </Panel>
+  )
+}
 
 type RepurposedWithVideo = RepurposedContent & { channel_videos: { title: string } | null }
 
@@ -89,11 +193,13 @@ export default function RepurposeBoard({
   repurposed,
   drafts,
   ideas,
+  bestTime,
 }: {
   videos: ChannelVideo[]
   repurposed: RepurposedWithVideo[]
   drafts: DraftWithIdeaTitle[]
   ideas: Idea[]
+  bestTime: BestTimeAnalysis
 }) {
   const toast = useToast()
 
@@ -143,6 +249,10 @@ export default function RepurposeBoard({
 
       <main id="dashboard-main" className="console-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto w-full max-w-[1240px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div className="mb-6">
+            <BestTimeToPublishPanel bestTime={bestTime} />
+          </div>
+
           <div className="mb-6 flex max-w-[560px] gap-2">
             <div className="relative flex-1">
               <LinkIcon size={13} strokeWidth={2} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
