@@ -37,7 +37,10 @@ create table if not exists public.drafts (
   title text not null,
   body text not null default '',
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  -- Stage 2.3: Content Calendar reads this alongside deals due_date/
+  -- usage_rights_expires_at. See 20260804090000_calendar_dates.sql.
+  due_date date
 );
 
 create table if not exists public.deals (
@@ -56,7 +59,13 @@ create table if not exists public.deals (
   paid_at date,
   is_priority boolean not null default false,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  -- Schema-only today — see 20260729030000_deal_archive_flag.sql. No
+  -- application code reads or writes this yet; the "Deal marked Paid ->
+  -- Archive contract" automation is still preview-only in AutomationsBoard.tsx.
+  archived boolean not null default false,
+  -- Stage 2.3: Content Calendar. See 20260804090000_calendar_dates.sql.
+  usage_rights_expires_at date
 );
 
 -- fetch-gmail-deals is idempotent over a given email thread — this is what
@@ -370,7 +379,9 @@ begin
     (new.id, 'Deal marked Paid → Archive contract', 'deals.status_changed_to_paid', 'deals.archive_contract',
       jsonb_build_object('description', 'Keep your Deals view focused on what''s active.'), false),
     (new.id, 'New video published → Suggest a repurpose', 'youtube.video_published', 'repurpose.suggest',
-      jsonb_build_object('description', 'As soon as a new video goes live, queue it up in Repurpose so clips and posts are ready same-day.'), false)
+      jsonb_build_object('description', 'As soon as a new video goes live, queue it up in Repurpose so clips and posts are ready same-day.'), false),
+    (new.id, 'Deal gone quiet or invoice overdue → Flag for follow-up', 'deals.needs_follow_up', 'deals.flag_follow_up',
+      jsonb_build_object('description', 'Deals stuck 5+ days in Inbound/Negotiating, or with an unpaid invoice past its due date, already show on your Dashboard and in Deals regardless of this toggle.'), false)
   on conflict do nothing;
 
   insert into public.team_members (account_id, user_id, role)
@@ -508,7 +519,12 @@ create table if not exists public.channel_videos (
   likes integer not null default 0,
   comments integer not null default 0,
   duration_seconds integer,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Schema-only today — see 20260729030100_channel_video_repurpose_suggested.sql.
+  -- No application code reads or writes this yet; the "New video published
+  -- -> Suggest a repurpose" automation is still preview-only, and no
+  -- publish-event source exists to set this flag.
+  repurpose_suggested boolean not null default false
 );
 
 -- Saved AI repurposing runs against a published video.
@@ -524,9 +540,28 @@ create table if not exists public.repurposed_content (
   created_at timestamptz not null default now()
 );
 
+-- Stage 2.2: Auto-Generated Media Kit. One row per account — a share link
+-- gets regenerated in place (new share_token), not replaced by a second
+-- row, so there's exactly one link to reason about at a time.
+create table if not exists public.media_kits (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  share_token uuid not null default gen_random_uuid(),
+  show_dollar_amounts boolean not null default false,
+  view_count integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id),
+  unique (share_token)
+);
+
+create trigger update_media_kits_updated_at before update on public.media_kits
+for each row execute function public.update_updated_at();
+
 alter table public.channel_stats_daily enable row level security;
 alter table public.channel_videos enable row level security;
 alter table public.repurposed_content enable row level security;
+alter table public.media_kits enable row level security;
 
 -- Role-scoped data access. See has_role_access() above — user_id on each of
 -- these tables is the account id, and access is granted per the module's
@@ -568,6 +603,13 @@ create policy "Role-scoped channel stats access" on public.channel_stats_daily
 create policy "Role-scoped channel videos access" on public.channel_videos
   for all using (public.has_role_access(user_id, array['owner','manager','editor','designer']))
   with check (public.has_role_access(user_id, array['owner','manager','editor','designer']));
+
+-- Deliberately no anon policy here — see the comment on the table
+-- definition above. The public share page reads through a service-role
+-- client instead of this policy.
+create policy "Role-scoped media kit access" on public.media_kits
+  for all using (public.has_role_access(user_id, array['owner','manager']))
+  with check (public.has_role_access(user_id, array['owner','manager']));
 
 -- PostgREST only exposes the `public` schema by default, so the edge
 -- functions that own OAuth token lifecycle (connect-integration,

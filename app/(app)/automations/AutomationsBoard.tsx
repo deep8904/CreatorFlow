@@ -1,7 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
-import { Zap, Mail, Handshake, Video, ArrowRight } from 'lucide-react'
+import { Zap, Mail, Handshake, Video, ArrowRight, AlertTriangle } from 'lucide-react'
 import { toggleAutomation } from '@/lib/supabase/actions'
 import type { Automation } from '@/lib/supabase/types'
 import { Panel } from '@/components/dash/Panel'
@@ -14,12 +14,14 @@ const TRIGGER_META: Record<string, { label: string; icon: typeof Mail }> = {
   'gmail.sponsorship_email_detected': { label: 'Sponsorship email detected', icon: Mail },
   'deals.status_changed_to_paid': { label: 'Deal marked paid', icon: Handshake },
   'youtube.video_published': { label: 'Video published', icon: Video },
+  'deals.needs_follow_up': { label: 'Deal gone quiet or invoice overdue', icon: AlertTriangle },
 }
 
 const ACTION_META: Record<string, string> = {
   'deals.create': 'Create a deal',
   'deals.archive_contract': 'Archive contract',
   'repurpose.suggest': 'Suggest a repurpose',
+  'deals.flag_follow_up': 'Flag for follow-up',
 }
 
 function triggerMeta(type: string) {
@@ -54,16 +56,18 @@ export default function AutomationsBoard({
             {gmailReallyConnected ? (
               <>
                 <span className="font-medium text-white">One rule is live.</span> With Gmail connected, "New
-                sponsorship email → Create a deal" actually runs when you check Gmail from the Deals page. The other
-                two still need YouTube publish events and a trigger engine this build doesn&apos;t have yet — toggling
-                those only saves a preference.
+                sponsorship email → Create a deal" actually runs when you check Gmail from the Deals page. The others
+                still need a trigger engine this build doesn&apos;t have yet — toggling them only saves a preference.
+                (The follow-up detection itself is real and already shows on your Dashboard and in Deals, independent
+                of this toggle.)
               </>
             ) : (
               <>
                 <span className="font-medium text-white">Preview only — none of these run.</span> Toggling saves your
                 preference for later, but nothing executes today: these rules need a live Gmail/YouTube connection and
-                a trigger engine this build doesn&apos;t have yet. Every rule below is inert regardless of its toggle
-                state.
+                a trigger engine this build doesn&apos;t have yet. (The follow-up detection itself is real and already
+                shows on your Dashboard and in Deals, independent of this toggle.) Every rule below is inert regardless
+                of its toggle state.
               </>
             )}
           </p>

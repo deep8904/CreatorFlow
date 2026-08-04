@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { Handshake, DollarSign, TrendingUp, Lightbulb, Receipt, FileText, CalendarClock, Video } from 'lucide-react'
+import { Handshake, DollarSign, TrendingUp, Lightbulb, Receipt, FileText, CalendarClock, Video, AlertTriangle } from 'lucide-react'
 import {
   getDeals,
   getIdeas,
@@ -13,6 +13,7 @@ import {
 } from '@/lib/supabase/queries'
 import type { Deal } from '@/lib/supabase/types'
 import { canAccessModule } from '@/lib/roles'
+import { getDealsNeedingFollowUp } from '@/lib/dealUrgency'
 import { DashboardHeader, CapturePills } from '@/components/dash/DashboardHeader'
 import { DateRangeMenu } from '@/components/dash/DateRangeMenu'
 import { MetricGrid, type Metric } from '@/components/dash/MetricCard'
@@ -156,6 +157,14 @@ export default async function DashboardPage({
   const unpaidInvoices = deals.filter((d) => d.invoiced_at && !d.paid_at)
   const overdueInvoices = unpaidInvoices.filter((d) => dueMeta(d.due_date).overdue)
 
+  // "Needs follow-up" — deals stuck in a pre-close stage for 5+ days, or an
+  // invoice sent but unpaid past its due date. Distinct from "needs a next
+  // step" below (every open, non-terminal deal) — this is the flagged
+  // subset that's actually gone quiet or overdue, not just in progress.
+  const followUpDeals = canDeals ? getDealsNeedingFollowUp(deals) : []
+  const overdueFollowUpCount = followUpDeals.filter((f) => f.reason === 'overdue_invoice').length
+  const staleFollowUpCount = followUpDeals.filter((f) => f.reason === 'stale').length
+
   // Single most urgent open deal by due date. Ideas/Drafts have no due-date
   // concept in this schema, so "next thing due" is scoped to Deals only
   // rather than inventing dates elsewhere.
@@ -207,6 +216,15 @@ export default async function DashboardPage({
             value: String(unpaidInvoices.length),
             hint: overdueInvoices.length > 0 ? `${overdueInvoices.length} overdue` : 'none overdue',
             icon: <Receipt size={14} />,
+          },
+          {
+            label: 'Needs follow-up',
+            value: String(followUpDeals.length),
+            hint:
+              followUpDeals.length === 0
+                ? "you're all caught up"
+                : `${overdueFollowUpCount} overdue invoice${overdueFollowUpCount === 1 ? '' : 's'} · ${staleFollowUpCount} gone quiet`,
+            icon: <AlertTriangle size={14} />,
           },
           {
             label: 'Next thing due',
@@ -319,6 +337,23 @@ export default async function DashboardPage({
         due: due.label,
       }
     })
+
+  const FOLLOWUP_REASON_LABEL: Record<'stale' | 'overdue_invoice', string> = {
+    stale: 'Gone quiet',
+    overdue_invoice: 'Invoice overdue',
+  }
+  // Overdue invoices first (money already owed beats a lead going cold).
+  const followUpRows: DealRow[] = [...followUpDeals]
+    .sort((a, b) => Number(b.reason === 'overdue_invoice') - Number(a.reason === 'overdue_invoice'))
+    .slice(0, 6)
+    .map(({ deal, reason }) => ({
+      id: deal.id,
+      brand: deal.brand_name ?? 'Untitled deal',
+      stage: DEAL_STAGE_LABEL[deal.status],
+      stageTone: 'attention',
+      value: deal.rate_amount_cents === null ? '—' : formatMoney(deal.rate_amount_cents / 100),
+      due: FOLLOWUP_REASON_LABEL[reason],
+    }))
 
   const trendPoints: TrendPoint[] = channelStats.map((s) => ({
     label: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(s.stat_date + 'T00:00:00Z')),
@@ -462,6 +497,26 @@ export default async function DashboardPage({
                 if (canDeals) {
                   row3.push(
                     {
+                      key: 'followup',
+                      node: (
+                        <Panel
+                          title="Needs follow-up"
+                          titleId="followup-h"
+                          eyebrow={followUpDeals.length > 0 ? `${followUpDeals.length} flagged` : undefined}
+                        >
+                          {followUpRows.length === 0 ? (
+                            <p className="px-5 pb-5 font-nebula-ui text-[12.5px] text-zinc-500">
+                              Nothing needs a follow-up right now.
+                            </p>
+                          ) : (
+                            <div className="pb-2">
+                              <DealsTable rows={followUpRows} />
+                            </div>
+                          )}
+                        </Panel>
+                      ),
+                    },
+                    {
                       key: 'upcoming',
                       node: (
                         <Panel
@@ -517,7 +572,11 @@ export default async function DashboardPage({
                     )}
 
                     {row3.length > 0 && (
-                      <div className={`grid grid-cols-1 gap-6 ${gridColsClass(row3.length, 'lg:grid-cols-[minmax(0,1fr)_360px]')}`}>
+                      <div
+                        className={`grid grid-cols-1 gap-6 ${
+                          row3.length === 3 ? 'lg:grid-cols-3' : gridColsClass(row3.length, 'lg:grid-cols-[minmax(0,1fr)_360px]')
+                        }`}
+                      >
                         {row3.map((item) => (
                           <div key={item.key}>{item.node}</div>
                         ))}

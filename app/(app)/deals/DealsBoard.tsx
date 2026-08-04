@@ -34,6 +34,7 @@ import {
   type DealFormInput,
 } from '@/lib/supabase/actions'
 import type { Deal, DealStageHistory } from '@/lib/supabase/types'
+import { getDealsNeedingFollowUp, type FollowUpReason } from '@/lib/dealUrgency'
 import { InitialsChip } from '@/components/dash/InitialsChip'
 import { GlassModal } from '@/components/dash/GlassModal'
 import { FieldLabel, FieldInput, FieldTextarea } from '@/components/dash/FormField'
@@ -54,6 +55,11 @@ const STAGE_LABEL: Record<Deal['status'], string> = {
 }
 
 const STAGES: Deal['status'][] = ['inbound', 'negotiating', 'contracted', 'delivered', 'paid', 'lost']
+
+const FOLLOWUP_REASON_LABEL: Record<FollowUpReason, string> = {
+  stale: 'Gone quiet — no update in 5+ days',
+  overdue_invoice: 'Invoice sent, unpaid, and past due',
+}
 
 const STAGE_DOT: Record<Deal['status'], string> = {
   inbound: 'bg-zinc-500',
@@ -133,6 +139,7 @@ function DealModal({
   const [rate, setRate] = useState(initial?.rate_amount_cents ? String(initial.rate_amount_cents / 100) : '')
   const [deliverables, setDeliverables] = useState(initial?.deliverables ?? '')
   const [dueDate, setDueDate] = useState(initial?.due_date ?? '')
+  const [usageRightsExpiresAt, setUsageRightsExpiresAt] = useState(initial?.usage_rights_expires_at ?? '')
   const [notes, setNotes] = useState(initial?.notes ?? '')
 
   const submit = () => {
@@ -143,6 +150,7 @@ function DealModal({
       rate_amount_cents: rate ? Math.round(parseFloat(rate) * 100) : null,
       deliverables,
       due_date: dueDate || null,
+      usage_rights_expires_at: usageRightsExpiresAt || null,
       notes,
     })
   }
@@ -175,6 +183,15 @@ function DealModal({
             <FieldLabel htmlFor="deal-due">Due date</FieldLabel>
             <FieldInput id="deal-due" type="date" value={dueDate ?? ''} onChange={(e) => setDueDate(e.target.value)} />
           </div>
+        </div>
+        <div>
+          <FieldLabel htmlFor="deal-usage-rights">Usage rights expire</FieldLabel>
+          <FieldInput
+            id="deal-usage-rights"
+            type="date"
+            value={usageRightsExpiresAt ?? ''}
+            onChange={(e) => setUsageRightsExpiresAt(e.target.value)}
+          />
         </div>
         <div>
           <FieldLabel htmlFor="deal-deliverables">Deliverables</FieldLabel>
@@ -259,7 +276,11 @@ export default function DealsBoard({
   const [selectMode, setSelectMode] = useState(false)
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set())
   const [isCheckingGmail, setIsCheckingGmail] = useState(false)
+  const [followUpOnly, setFollowUpOnly] = useState(false)
   const selected = initialDeals.find((d) => d.id === selectedId) ?? null
+
+  const followUpByDealId = new Map(getDealsNeedingFollowUp(initialDeals).map((f) => [f.deal.id, f.reason]))
+  const selectedFollowUpReason = selected ? followUpByDealId.get(selected.id) : undefined
 
   useEffect(() => {
     if (searchParams.get('new') === '1' || searchParams.get('deal')) {
@@ -290,10 +311,11 @@ export default function DealsBoard({
   const searchedDeals = query.trim()
     ? initialDeals.filter((d) => (d.brand_name ?? '').toLowerCase().includes(query.trim().toLowerCase()))
     : initialDeals
+  const followUpFilteredDeals = followUpOnly ? searchedDeals.filter((d) => followUpByDealId.has(d.id)) : searchedDeals
   // Priority deals float to the top within whatever grouping they land in
   // (stage column, or the low-volume flat list) — a plain, predictable sort
   // rather than a computed urgency score.
-  const visibleDeals = [...searchedDeals].sort((a, b) => Number(b.is_priority) - Number(a.is_priority))
+  const visibleDeals = [...followUpFilteredDeals].sort((a, b) => Number(b.is_priority) - Number(a.is_priority))
   const isLowVolume = initialDeals.length <= LOW_VOLUME_THRESHOLD
 
   const toggleSelectMode = () => {
@@ -419,6 +441,7 @@ export default function DealsBoard({
     { label: 'Pipeline value', value: `$${pipelineValue.toLocaleString()}`, hint: `across ${openDeals.length} open` },
     { label: 'Collected to date', value: `$${collectedTotal.toLocaleString()}`, hint: `across ${paidDeals.length} deals` },
     { label: 'Needs a next step', value: String(needsNextStepCount) },
+    { label: 'Needs follow-up', value: String(followUpByDealId.size), icon: <AlertTriangle size={14} /> },
   ]
 
   return (
@@ -449,6 +472,21 @@ export default function DealsBoard({
               </button>
             )}
             <SearchField value={query} onChange={setQuery} placeholder="Search deals" className="w-[160px]" />
+            {followUpByDealId.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setFollowUpOnly((v) => !v)}
+                aria-pressed={followUpOnly}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-[9999px] border px-3.5 font-nebula-ui text-[12.5px] font-medium ${HOVER} ${FOCUS} ${
+                  followUpOnly
+                    ? 'border-orange-400/60 bg-orange-500/[0.12] text-orange-300'
+                    : 'border-white/10 text-zinc-300 hover:bg-white/[0.05] hover:text-white'
+                }`}
+              >
+                <AlertTriangle size={13} strokeWidth={2} />
+                Needs follow-up ({followUpByDealId.size})
+              </button>
+            )}
             {initialDeals.length > 0 && (
               <button
                 type="button"
@@ -699,11 +737,24 @@ export default function DealsBoard({
               </button>
             </div>
 
+            {selectedFollowUpReason && (
+              <div className="flex items-start gap-2.5 rounded-[12px] bg-orange-500/10 p-3">
+                <AlertTriangle size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-orange-300" />
+                <div>
+                  <p className="font-nebula-ui text-[12px] font-semibold text-orange-300">Needs follow-up</p>
+                  <p className="mt-0.5 font-nebula-ui text-[12px] leading-snug text-zinc-400">
+                    {FOLLOWUP_REASON_LABEL[selectedFollowUpReason]}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-4">
               {[
                 { label: 'Contact', value: selected.contact_name ?? '—' },
                 { label: 'Rate', value: formatRate(selected.rate_amount_cents) },
                 { label: 'Due date', value: formatDueDate(selected.due_date) ?? '—' },
+                { label: 'Usage rights expire', value: formatDueDate(selected.usage_rights_expires_at) ?? '—' },
                 { label: 'Deliverables', value: selected.deliverables ?? '—' },
               ].map((f) => (
                 <div key={f.label}>

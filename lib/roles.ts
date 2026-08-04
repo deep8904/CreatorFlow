@@ -31,6 +31,8 @@ export type ModuleKey =
   | 'analytics'
   | 'repurpose'
   | 'automations'
+  | 'mediaKit'
+  | 'calendar'
   | 'team'
   | 'settings'
 
@@ -49,6 +51,16 @@ export const MODULE_ROLES: Record<ModuleKey, Role[]> = {
   analytics: ['owner', 'manager', 'editor', 'designer'],
   repurpose: ['owner', 'editor', 'designer'],
   automations: ['owner', 'manager'],
+  // Same scope as deals — the kit surfaces closed-deal history and
+  // (optionally) rate figures, so it shouldn't reach a wider audience than
+  // deals financials already do.
+  mediaKit: ['owner', 'manager'],
+  // Union of deals (owner, manager) + drafts (owner, editor) — the two
+  // sources this scoped-to-Deals-and-Drafts calendar reads from. A role
+  // only sees the categories it could already see on their own page; this
+  // just makes the calendar page itself reachable by anyone who can see at
+  // least one of the two. Widen this union as Stage 3.1 adds more sources.
+  calendar: ['owner', 'manager', 'editor'],
   team: ALL_ROLES,
   settings: ALL_ROLES,
 }
@@ -65,6 +77,8 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   analytics: 'Analytics',
   repurpose: 'Repurpose',
   automations: 'Automations',
+  mediaKit: 'Media Kit',
+  calendar: 'Calendar',
   team: 'Team',
   settings: 'Settings',
 }
@@ -75,9 +89,11 @@ const MODULE_ORDER: ModuleKey[] = [
   'ideas',
   'drafts',
   'deals',
+  'calendar',
   'analytics',
   'repurpose',
   'automations',
+  'mediaKit',
   'team',
   'settings',
 ]

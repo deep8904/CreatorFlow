@@ -31,6 +31,7 @@ export type Draft = {
   body: string
   created_at: string
   updated_at: string
+  due_date: string | null
 }
 
 export type Deal = {
@@ -50,6 +51,10 @@ export type Deal = {
   is_priority: boolean
   created_at: string
   updated_at: string
+  // Schema-only today, no app logic reads/writes it yet — see
+  // supabase/migrations/20260729030000_deal_archive_flag.sql.
+  archived: boolean
+  usage_rights_expires_at: string | null
 }
 
 export type DealStageHistory = {
@@ -82,6 +87,16 @@ export type Automation = {
   action_type: string
   config: Record<string, unknown> | null
   enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type MediaKit = {
+  id: string
+  user_id: string
+  share_token: string
+  show_dollar_amounts: boolean
+  view_count: number
   created_at: string
   updated_at: string
 }
@@ -139,6 +154,9 @@ export type ChannelVideo = {
   comments: number
   duration_seconds: number | null
   created_at: string
+  // Schema-only today, no app logic reads/writes it yet — see
+  // supabase/migrations/20260729030100_channel_video_repurpose_suggested.sql.
+  repurpose_suggested: boolean
 }
 
 export type RepurposedContent = {

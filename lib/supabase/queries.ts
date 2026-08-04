@@ -8,6 +8,7 @@ import type {
   DealStageHistory,
   Draft,
   Idea,
+  MediaKit,
   Profile,
   RepurposedContent,
   Role,
@@ -293,6 +294,34 @@ export async function getChannelVideos(): Promise<ChannelVideo[]> {
     .order('published_at', { ascending: false })
   if (error) throw new Error(error.message)
   return (data as ChannelVideo[]) ?? []
+}
+
+// Get-or-create — every account gets exactly one media kit row, lazily
+// created the first time the Media Kit page (or a regenerate/toggle
+// action) touches it, rather than provisioning one at signup for accounts
+// that may never use the feature.
+export async function getOrCreateMediaKit(): Promise<MediaKit | null> {
+  const account = await getCurrentAccount()
+  if (!account) return null
+
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) return null
+
+  const { data: existing, error: selectError } = await supabase
+    .from('media_kits')
+    .select('*')
+    .eq('user_id', account.accountId)
+    .maybeSingle()
+  if (selectError) throw new Error(selectError.message)
+  if (existing) return existing as MediaKit
+
+  const { data: created, error: insertError } = await supabase
+    .from('media_kits')
+    .insert({ user_id: account.accountId })
+    .select('*')
+    .single()
+  if (insertError) throw new Error(insertError.message)
+  return created as MediaKit
 }
 
 export type RepurposedContentWithVideo = RepurposedContent & { channel_videos: { title: string } | null }

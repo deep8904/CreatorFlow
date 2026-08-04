@@ -1,5 +1,6 @@
 'use server'
 
+import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient, getAuthenticatedUser } from './server'
 import { getCurrentAccount } from './queries'
@@ -107,7 +108,12 @@ export async function toggleAutomation(id: string, enabled: boolean): Promise<Ac
   return {}
 }
 
-export async function updateDraftContent(id: string, body: string, title?: string): Promise<ActionResult> {
+export async function updateDraftContent(
+  id: string,
+  body: string,
+  title?: string,
+  dueDate?: string | null
+): Promise<ActionResult> {
   const supabase = await createSupabaseServerClient()
   const account = await getCurrentAccount()
   if (!account || !supabase) return { error: 'You must be signed in.' }
@@ -115,14 +121,15 @@ export async function updateDraftContent(id: string, body: string, title?: strin
   const trimmedTitle = title?.trim()
   if (title !== undefined && !trimmedTitle) return { error: 'Give the draft a title.' }
 
-  const { error } = await supabase
-    .from('drafts')
-    .update(trimmedTitle ? { body, title: trimmedTitle } : { body })
-    .eq('id', id)
-    .eq('user_id', account.accountId)
+  const update: { body: string; title?: string; due_date?: string | null } = { body }
+  if (trimmedTitle) update.title = trimmedTitle
+  if (dueDate !== undefined) update.due_date = dueDate
+
+  const { error } = await supabase.from('drafts').update(update).eq('id', id).eq('user_id', account.accountId)
   if (error) return { error: 'Could not save the draft. Please try again.' }
 
   revalidatePath('/drafts')
+  revalidatePath('/calendar')
   return {}
 }
 
@@ -218,6 +225,7 @@ export type DealFormInput = {
   deliverables?: string
   notes?: string
   due_date?: string | null
+  usage_rights_expires_at?: string | null
 }
 
 export async function createDeal(input: DealFormInput): Promise<ActionResult> {
@@ -236,12 +244,14 @@ export async function createDeal(input: DealFormInput): Promise<ActionResult> {
     deliverables: input.deliverables?.trim() || null,
     notes: input.notes?.trim() || null,
     due_date: input.due_date || null,
+    usage_rights_expires_at: input.usage_rights_expires_at || null,
     status: 'inbound',
   })
   if (error) return { error: 'Could not save the deal. Please try again.' }
 
   revalidatePath('/deals')
   revalidatePath('/dashboard')
+  revalidatePath('/calendar')
   return {}
 }
 
@@ -262,6 +272,7 @@ export async function updateDeal(id: string, input: DealFormInput): Promise<Acti
       deliverables: input.deliverables?.trim() || null,
       notes: input.notes?.trim() || null,
       due_date: input.due_date || null,
+      usage_rights_expires_at: input.usage_rights_expires_at || null,
     })
     .eq('id', id)
     .eq('user_id', account.accountId)
@@ -269,6 +280,7 @@ export async function updateDeal(id: string, input: DealFormInput): Promise<Acti
 
   revalidatePath('/deals')
   revalidatePath('/dashboard')
+  revalidatePath('/calendar')
   return {}
 }
 
@@ -447,6 +459,39 @@ export async function updateNotifyDealReminders(enabled: boolean): Promise<Actio
 
   revalidatePath('/settings')
   revalidatePath('/', 'layout')
+  return {}
+}
+
+export async function updateMediaKitVisibility(showDollarAmounts: boolean): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient()
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
+
+  const { error } = await supabase
+    .from('media_kits')
+    .update({ show_dollar_amounts: showDollarAmounts })
+    .eq('user_id', account.accountId)
+  if (error) return { error: 'Could not save your changes. Please try again.' }
+
+  revalidatePath('/media-kit')
+  return {}
+}
+
+// Regenerating swaps the token in place rather than deleting/recreating the
+// row — the view_count and visibility preference carry over, only the old
+// link stops resolving.
+export async function regenerateMediaKitShareToken(): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient()
+  const account = await getCurrentAccount()
+  if (!account || !supabase) return { error: 'You must be signed in.' }
+
+  const { error } = await supabase
+    .from('media_kits')
+    .update({ share_token: randomUUID() })
+    .eq('user_id', account.accountId)
+  if (error) return { error: 'Could not regenerate the share link. Please try again.' }
+
+  revalidatePath('/media-kit')
   return {}
 }
 

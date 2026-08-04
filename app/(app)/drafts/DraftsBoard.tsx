@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Sparkles, Save, Plus, FileText, Trash2, ArrowLeft, Mic } from 'lucide-react'
+import { Sparkles, Save, Plus, FileText, Trash2, ArrowLeft, Mic, CalendarClock } from 'lucide-react'
 import { updateDraftContent, createDraft, deleteDraft } from '@/lib/supabase/actions'
 import type { DraftWithIdeaTitle } from '@/lib/supabase/queries'
 import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
@@ -46,15 +46,26 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
   const router = useRouter()
   const searchParams = useSearchParams()
   const toast = useToast()
-  const [activeDraft, setActiveDraft] = useState<DraftWithIdeaTitle | null>(initialDrafts[0] ?? null)
+  // Deep-link support for `/drafts?draft=<id>` — same pattern as Deals'
+  // `?deal=<id>`, used by the Content Calendar to jump straight to a
+  // draft. Resolved via a lazy initializer (not an effect) so there's no
+  // extra render cycle between the deep-linked draft and first paint.
+  const [activeDraft, setActiveDraft] = useState<DraftWithIdeaTitle | null>(() => {
+    const draftId = searchParams.get('draft')
+    if (draftId) return initialDrafts.find((d) => d.id === draftId) ?? initialDrafts[0] ?? null
+    return initialDrafts[0] ?? null
+  })
   const [content, setContent] = useState(activeDraft?.body ?? '')
   const [title, setTitle] = useState(activeDraft?.title ?? '')
+  const [dueDate, setDueDate] = useState(activeDraft?.due_date ?? '')
   const [isPending, startTransition] = useTransition()
   const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [mobileShowEditor, setMobileShowEditor] = useState(false)
+  const [mobileShowEditor, setMobileShowEditor] = useState(() => searchParams.get('draft') !== null)
   const pendingSelectId = useRef<string | null>(null)
-  const isDirty = activeDraft !== null && (content !== activeDraft.body || title !== activeDraft.title)
+  const isDirty =
+    activeDraft !== null &&
+    (content !== activeDraft.body || title !== activeDraft.title || dueDate !== (activeDraft.due_date ?? ''))
   const { supported: speechSupported, listening, start: startListening, stop: stopListening } = useSpeechCapture(
     (transcript) => setContent((c) => (c ? `${c}\n${transcript}` : transcript))
   )
@@ -66,6 +77,7 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
       setActiveDraft(created)
       setContent(created.body)
       setTitle(created.title)
+      setDueDate(created.due_date ?? '')
       setMobileShowEditor(true)
       pendingSelectId.current = null
     }
@@ -85,6 +97,7 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
     setActiveDraft(draft)
     setContent(draft.body)
     setTitle(draft.title)
+    setDueDate(draft.due_date ?? '')
     setMobileShowEditor(true)
   }
 
@@ -93,8 +106,9 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
     const savedId = activeDraft.id
     const savedBody = content
     const savedTitle = title.trim()
+    const savedDueDate = dueDate || null
     startTransition(async () => {
-      const result = await updateDraftContent(savedId, savedBody, savedTitle)
+      const result = await updateDraftContent(savedId, savedBody, savedTitle, savedDueDate)
       if (result.error) {
         toast.error(result.error)
         return
@@ -105,7 +119,9 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
       // without this, `isDirty` keeps comparing against the pre-save
       // body/title forever and "Unsaved changes" never clears until the
       // next full page load, even though the save genuinely succeeded.
-      setActiveDraft((prev) => (prev && prev.id === savedId ? { ...prev, body: savedBody, title: savedTitle } : prev))
+      setActiveDraft((prev) =>
+        prev && prev.id === savedId ? { ...prev, body: savedBody, title: savedTitle, due_date: savedDueDate } : prev
+      )
     })
   }
 
@@ -124,6 +140,7 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
       setActiveDraft(null)
       setContent('')
       setTitle('')
+      setDueDate('')
       router.refresh()
     })
   }
@@ -147,6 +164,12 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
     Promise.resolve().then(() => handleNewDraft())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
+
+  // The draft itself is already resolved via the lazy state initializer
+  // above — this just cleans the param out of the URL once mounted.
+  useEffect(() => {
+    if (searchParams.get('draft')) router.replace('/drafts')
+  }, [searchParams, router])
 
   const handleAiAssist = () => {
     setContent((c) => c + buildAiAssistSuggestion(title, c, activeDraft?.ideas?.title ?? null))
@@ -230,6 +253,16 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
                   aria-label="Draft title"
                   className={`w-full truncate rounded-[6px] bg-transparent px-1 -mx-1 font-nebula-heading text-[16px] font-semibold text-white outline-none hover:bg-white/[0.04] focus:bg-white/[0.04] ${FOCUS}`}
                 />
+                <label className="mt-1 flex w-fit items-center gap-1.5 rounded-[6px] px-1 -mx-1 hover:bg-white/[0.04]">
+                  <CalendarClock size={12} strokeWidth={2} className="shrink-0 text-zinc-600" />
+                  <span className="sr-only">Due date</span>
+                  <input
+                    type="date"
+                    value={dueDate ?? ''}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className={`bg-transparent font-nebula-ui text-[11px] text-zinc-500 outline-none ${FOCUS}`}
+                  />
+                </label>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2 overflow-x-auto">
