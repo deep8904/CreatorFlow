@@ -40,7 +40,17 @@ function useMobileNav() {
   return ctx
 }
 
-export function MobileTopBar({ urgentCount, role }: { urgentCount: number; role: Role }) {
+export function MobileTopBar({
+  notificationCount,
+  notificationHref,
+  notificationLabel,
+  role,
+}: {
+  notificationCount: number
+  notificationHref: string
+  notificationLabel?: string
+  role: Role
+}) {
   const { setOpen } = useMobileNav()
   return (
     <div className="flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.06] px-4 md:hidden">
@@ -56,7 +66,9 @@ export function MobileTopBar({ urgentCount, role }: { urgentCount: number; role:
       <span className="min-w-0 flex-1 truncate font-nebula-heading text-[14px] font-semibold text-white">
         CreatorFlow
       </span>
-      {canAccessModule(role, 'deals') && <NotificationBell count={urgentCount} size="compact" />}
+      {(canAccessModule(role, 'deals') || canAccessModule(role, 'drafts')) && (
+        <NotificationBell count={notificationCount} href={notificationHref} label={notificationLabel} size="compact" />
+      )}
     </div>
   )
 }

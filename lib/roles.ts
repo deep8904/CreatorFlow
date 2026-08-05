@@ -46,7 +46,9 @@ export type ModuleKey =
 export const MODULE_ROLES: Record<ModuleKey, Role[]> = {
   dashboard: ALL_ROLES,
   ideas: ['owner', 'editor'],
-  drafts: ['owner', 'editor'],
+  // Stage 3.2: Manager reviews (approve/reject), Designer submits alongside
+  // Editor — the two gaps Gate 0 flagged when this was owner/editor-only.
+  drafts: ['owner', 'manager', 'editor', 'designer'],
   deals: ['owner', 'manager'],
   analytics: ['owner', 'manager', 'editor', 'designer'],
   repurpose: ['owner', 'editor', 'designer'],
@@ -55,12 +57,13 @@ export const MODULE_ROLES: Record<ModuleKey, Role[]> = {
   // (optionally) rate figures, so it shouldn't reach a wider audience than
   // deals financials already do.
   mediaKit: ['owner', 'manager'],
-  // Union of deals (owner, manager) + drafts (owner, editor) — the two
-  // sources this scoped-to-Deals-and-Drafts calendar reads from. A role
-  // only sees the categories it could already see on their own page; this
-  // just makes the calendar page itself reachable by anyone who can see at
-  // least one of the two. Widen this union as Stage 3.1 adds more sources.
-  calendar: ['owner', 'manager', 'editor'],
+  // Union of deals (owner, manager) + drafts (owner, manager, editor,
+  // designer) — the two sources this scoped-to-Deals-and-Drafts calendar
+  // reads from. A role only sees the categories it could already see on
+  // their own page; this just makes the calendar page itself reachable by
+  // anyone who can see at least one of the two. Widen this union as later
+  // stages add more sources.
+  calendar: ['owner', 'manager', 'editor', 'designer'],
   team: ALL_ROLES,
   settings: ALL_ROLES,
 }

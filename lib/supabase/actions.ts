@@ -145,6 +145,57 @@ export async function deleteDraft(id: string): Promise<ActionResult> {
   return {}
 }
 
+// Stage 3.2 — Approval-as-a-Capability. Submit is a plain update: Editor/
+// Designer already have full drafts access, and the RLS with-check on
+// "Role-scoped drafts access" only allows them to land on 'draft' or
+// 'pending_review', so this can't be used to self-approve. Approve/reject
+// go through the two SECURITY DEFINER RPCs instead, which check for
+// Manager/Owner explicitly (see 20260804220000_draft_approvals.sql).
+export async function submitDraftForReview(id: string): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient()
+  const account = await getCurrentAccount()
+  const { user } = await getAuthenticatedUser()
+  if (!account || !supabase || !user) return { error: 'You must be signed in.' }
+
+  const { error } = await supabase
+    .from('drafts')
+    .update({ status: 'pending_review', submitted_by: user.id })
+    .eq('id', id)
+    .eq('user_id', account.accountId)
+  if (error) return { error: 'Could not submit the draft for review. Please try again.' }
+
+  revalidatePath('/drafts')
+  revalidatePath('/dashboard')
+  return {}
+}
+
+export async function approveDraft(id: string, notes?: string): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) return { error: 'You must be signed in.' }
+
+  const { error } = await supabase.rpc('approve_draft', { p_draft_id: id, p_notes: notes?.trim() || null })
+  if (error) return { error: error.message || 'Could not approve the draft.' }
+
+  revalidatePath('/drafts')
+  revalidatePath('/dashboard')
+  return {}
+}
+
+export async function requestDraftChanges(id: string, notes: string): Promise<ActionResult> {
+  const trimmed = notes.trim()
+  if (!trimmed) return { error: 'Explain what needs to change.' }
+
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) return { error: 'You must be signed in.' }
+
+  const { error } = await supabase.rpc('request_draft_changes', { p_draft_id: id, p_notes: trimmed })
+  if (error) return { error: error.message || 'Could not request changes on the draft.' }
+
+  revalidatePath('/drafts')
+  revalidatePath('/dashboard')
+  return {}
+}
+
 export async function createDraft(
   title = 'Untitled draft',
   ideaId: string | null = null,

@@ -4,15 +4,18 @@ import Sidebar from '@/components/dash/Sidebar'
 import SkipLink from '@/components/dash/SkipLink'
 import { CommandPalette } from '@/components/dash/CommandPalette'
 import { MobileNavDrawer, MobileNavProvider, MobileTopBar } from '@/components/dash/MobileNav'
-import { getCurrentProfile, getDeals, getCurrentAccount } from '@/lib/supabase/queries'
+import { getCurrentProfile, getDeals, getDrafts, getCurrentAccount } from '@/lib/supabase/queries'
 import { getAuthenticatedUser } from '@/lib/supabase/server'
 import { countUrgentDeals } from '@/lib/dealUrgency'
+import { countDraftsPendingReview, countDraftsNeedingRevision } from '@/lib/draftReview'
+import { canAccessModule } from '@/lib/roles'
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const [profile, { user }, deals, account] = await Promise.all([
+  const [profile, { user }, deals, drafts, account] = await Promise.all([
     getCurrentProfile(),
     getAuthenticatedUser(),
     getDeals(),
+    getDrafts(),
     getCurrentAccount(),
   ])
 
@@ -34,10 +37,25 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const name = profile?.full_name ?? 'Your account'
   const email = user?.email ?? ''
   const role = account?.role ?? 'owner'
-  // getDeals() already returns [] for a role with no deals access (Manager/
-  // Owner only) via has_role_access RLS, so this naturally reports zero
-  // urgent deals for everyone else — no extra role check needed here.
+  // getDeals()/getDrafts() already return [] for a role with no access via
+  // has_role_access RLS, so each count naturally reports zero for a role
+  // that shouldn't see it — no extra role check needed for that part. The
+  // role checks below are for which *side* of the review workflow this
+  // person is on, not for data access.
   const urgentCount = profile?.notify_deal_reminders === false ? 0 : countUrgentDeals(deals)
+  const reviewCount = role === 'owner' || role === 'manager' ? countDraftsPendingReview(drafts) : 0
+  const revisionCount =
+    role === 'owner' || role === 'editor' || role === 'designer' ? countDraftsNeedingRevision(drafts, user.id) : 0
+  const notificationCount = urgentCount + reviewCount + revisionCount
+  const notificationHref =
+    urgentCount > 0 ? '/deals' : reviewCount + revisionCount > 0 ? '/drafts' : canAccessModule(role, 'deals') ? '/deals' : '/drafts'
+  const notificationLabel = [
+    urgentCount > 0 ? `${urgentCount} deal${urgentCount === 1 ? '' : 's'} due or overdue` : null,
+    reviewCount > 0 ? `${reviewCount} draft${reviewCount === 1 ? '' : 's'} awaiting your review` : null,
+    revisionCount > 0 ? `${revisionCount} draft${revisionCount === 1 ? '' : 's'} sent back to you` : null,
+  ]
+    .filter((s): s is string => !!s)
+    .join(' · ') || undefined
 
   return (
     <div className="nebula-console relative h-[100dvh] w-full overflow-hidden overscroll-none bg-black font-nebula-ui text-zinc-200 antialiased selection:bg-orange-500/30 selection:text-orange-200 lg:p-2.5 2xl:p-4">
@@ -59,13 +77,25 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             } as CSSProperties
           }
         >
-          <Sidebar name={name} email={email} urgentCount={urgentCount} role={role} />
+          <Sidebar
+            name={name}
+            email={email}
+            notificationCount={notificationCount}
+            notificationHref={notificationHref}
+            notificationLabel={notificationLabel}
+            role={role}
+          />
           <MobileNavDrawer name={name} email={email} role={role} />
 
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             {/* In normal flow, so nothing needs padding around it — the old
                 `pt-14 md:pt-0` class of layout bug is gone with no capability lost. */}
-            <MobileTopBar urgentCount={urgentCount} role={role} />
+            <MobileTopBar
+              notificationCount={notificationCount}
+              notificationHref={notificationHref}
+              notificationLabel={notificationLabel}
+              role={role}
+            />
             {children}
           </div>
         </div>

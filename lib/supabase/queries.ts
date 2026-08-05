@@ -31,6 +31,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 export type CurrentAccount = {
   accountId: string
   role: Role
+  userId: string
 }
 
 /**
@@ -55,7 +56,7 @@ export async function getCurrentAccount(): Promise<CurrentAccount | null> {
     memberships.find((m) => m.account_id !== user.id) ?? memberships.find((m) => m.account_id === user.id)
   if (!resolved) return null
 
-  return { accountId: resolved.account_id, role: resolved.role }
+  return { accountId: resolved.account_id, role: resolved.role, userId: user.id }
 }
 
 export async function getIdeas(): Promise<Idea[]> {

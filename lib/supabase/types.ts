@@ -25,6 +25,8 @@ export type Idea = {
   updated_at: string
 }
 
+export type DraftStatus = 'draft' | 'pending_review' | 'approved' | 'changes_requested'
+
 export type Draft = {
   id: string
   user_id: string
@@ -34,6 +36,9 @@ export type Draft = {
   created_at: string
   updated_at: string
   due_date: string | null
+  status: DraftStatus
+  submitted_by: string | null
+  review_notes: string | null
 }
 
 export type Deal = {

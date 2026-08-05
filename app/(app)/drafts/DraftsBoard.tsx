@@ -2,8 +2,16 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Sparkles, Save, Plus, FileText, Trash2, ArrowLeft, Mic, CalendarClock } from 'lucide-react'
-import { updateDraftContent, createDraft, deleteDraft, setViewPreference } from '@/lib/supabase/actions'
+import { Sparkles, Save, Plus, FileText, Trash2, ArrowLeft, Mic, CalendarClock, Send, CheckCircle2, RotateCcw } from 'lucide-react'
+import {
+  updateDraftContent,
+  createDraft,
+  deleteDraft,
+  setViewPreference,
+  submitDraftForReview,
+  approveDraft,
+  requestDraftChanges,
+} from '@/lib/supabase/actions'
 import type { DraftWithIdeaTitle } from '@/lib/supabase/queries'
 import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
 import { ViewSwitcher, type ViewType } from '@/components/dash/views/ViewSwitcher'
@@ -11,22 +19,25 @@ import { GalleryView } from '@/components/dash/views/GalleryView'
 import { BoardView, type BoardColumn } from '@/components/dash/views/BoardView'
 import { CalendarView, type CalendarItem } from '@/components/calendar/CalendarView'
 import type { ViewCardItem } from '@/components/dash/views/ViewCardItem'
+import { DRAFT_STATUS_LABEL, DRAFT_STATUS_CLASSES } from '@/lib/draftReview'
+import type { DraftStatus, Role } from '@/lib/supabase/types'
 import { useToast } from '@/lib/toast'
 import { useSpeechCapture } from '@/lib/useSpeechCapture'
 
-type DueBucket = 'overdue' | 'this_week' | 'later' | 'none'
-const BUCKET_LABEL: Record<DueBucket, string> = {
-  overdue: 'Overdue',
-  this_week: 'Due this week',
-  later: 'Later',
-  none: 'No due date',
-}
-const BUCKET_ORDER: DueBucket[] = ['overdue', 'this_week', 'later', 'none']
+const STATUS_ORDER: DraftStatus[] = ['draft', 'pending_review', 'changes_requested', 'approved']
 
-/**
- * Drafts has no status field (that's Stage 3.2) — board view groups by
- * due-date urgency instead, the only structured field available today.
- */
+function StatusPill({ status }: { status: DraftStatus }) {
+  return (
+    <span
+      className={`inline-flex w-fit items-center rounded-[9999px] px-2 py-0.5 font-nebula-mono text-[10px] font-medium uppercase tracking-wide ${DRAFT_STATUS_CLASSES[status]}`}
+    >
+      {DRAFT_STATUS_LABEL[status]}
+    </span>
+  )
+}
+
+type DueBucket = 'overdue' | 'this_week' | 'later' | 'none'
+
 function dueBucket(dueDate: string | null): DueBucket {
   if (!dueDate) return 'none'
   const d = new Date(dueDate + 'T00:00:00Z')
@@ -83,13 +94,22 @@ function buildAiAssistSuggestion(title: string, existingContent: string, linkedI
 export default function DraftsBoard({
   initialDrafts,
   initialView,
+  role,
+  userId,
 }: {
   initialDrafts: DraftWithIdeaTitle[]
   initialView: ViewType
+  role: Role
+  userId: string
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const toast = useToast()
+  // Stage 3.2: Owner/Editor/Designer write content and submit for review;
+  // Manager/Owner approve or reject. Owner gets both — a solo owner is their
+  // own reviewer. Manager-only sees the content read-only.
+  const canEditContent = role === 'owner' || role === 'editor' || role === 'designer'
+  const canReview = role === 'owner' || role === 'manager'
   const [view, setView] = useState<ViewType>(initialView)
   // Deep-link support for `/drafts?draft=<id>` — same pattern as Deals'
   // `?deal=<id>`, used by the Content Calendar to jump straight to a
@@ -190,6 +210,57 @@ export default function DraftsBoard({
     })
   }
 
+  const handleSubmitForReview = () => {
+    if (!activeDraft) return
+    const id = activeDraft.id
+    startTransition(async () => {
+      const result = await submitDraftForReview(id)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      setActiveDraft((prev) => (prev && prev.id === id ? { ...prev, status: 'pending_review', submitted_by: userId } : prev))
+      router.refresh()
+    })
+  }
+
+  const handleApprove = () => {
+    if (!activeDraft) return
+    const id = activeDraft.id
+    startTransition(async () => {
+      const result = await approveDraft(id)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      setActiveDraft((prev) => (prev && prev.id === id ? { ...prev, status: 'approved' } : prev))
+      router.refresh()
+    })
+  }
+
+  const handleRequestChanges = () => {
+    if (!activeDraft) return
+    const notes = window.prompt('What needs to change?')
+    if (notes === null) return
+    const trimmed = notes.trim()
+    if (!trimmed) {
+      toast.error('Explain what needs to change.')
+      return
+    }
+    const id = activeDraft.id
+    startTransition(async () => {
+      const result = await requestDraftChanges(id, trimmed)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      setActiveDraft((prev) =>
+        prev && prev.id === id ? { ...prev, status: 'changes_requested', review_notes: trimmed } : prev
+      )
+      router.refresh()
+    })
+  }
+
   const handleNewDraft = async () => {
     if (isDirty && !window.confirm('You have unsaved changes. Start a new draft anyway?')) return
     setIsCreating(true)
@@ -251,20 +322,33 @@ export default function DraftsBoard({
     void setViewPreference('drafts', next)
   }
 
-  const toCardItem = (draft: DraftWithIdeaTitle): ViewCardItem => ({
-    id: draft.id,
-    title: draft.title,
-    meta: draft.due_date ? `Due ${formatShortDate(draft.due_date)}` : undefined,
-    preview: draft.body || undefined,
-    tags: draft.ideas?.title ? [`From: ${draft.ideas.title}`] : undefined,
-    tone: dueBucket(draft.due_date) === 'overdue' ? 'attention' : 'default',
-    href: `/drafts?draft=${draft.id}`,
-  })
+  const toCardItem = (draft: DraftWithIdeaTitle): ViewCardItem => {
+    const tags = [draft.ideas?.title ? `From: ${draft.ideas.title}` : null, DRAFT_STATUS_LABEL[draft.status]].filter(
+      (t): t is string => !!t
+    )
+    return {
+      id: draft.id,
+      title: draft.title,
+      meta: draft.due_date ? `Due ${formatShortDate(draft.due_date)}` : undefined,
+      preview: draft.body || undefined,
+      tags: tags.length ? tags : undefined,
+      tone:
+        draft.status === 'changes_requested' || dueBucket(draft.due_date) === 'overdue'
+          ? 'attention'
+          : draft.status === 'approved'
+            ? 'positive'
+            : 'default',
+      href: `/drafts?draft=${draft.id}`,
+    }
+  }
 
-  const boardColumns: BoardColumn[] = BUCKET_ORDER.map((bucket) => ({
-    key: bucket,
-    label: BUCKET_LABEL[bucket],
-    items: initialDrafts.filter((d) => dueBucket(d.due_date) === bucket).map(toCardItem),
+  // Status columns, not due-date buckets — Stage 3.2 gives Drafts a real
+  // status field, so the board now surfaces the approval state (the thing
+  // most worth seeing at a glance) the same way Deals' board surfaces stage.
+  const boardColumns: BoardColumn[] = STATUS_ORDER.map((status) => ({
+    key: status,
+    label: DRAFT_STATUS_LABEL[status],
+    items: initialDrafts.filter((d) => d.status === status).map(toCardItem),
   }))
 
   // Same honesty rule as CalendarBoard (Stage 2.3): only drafts that actually
@@ -340,15 +424,17 @@ export default function DraftsBoard({
             </p>
             <h1 className="mt-1 font-nebula-heading text-[17px] font-semibold text-white">Drafts</h1>
           </div>
-          <button
-            type="button"
-            onClick={handleNewDraft}
-            disabled={isCreating}
-            aria-label="New draft"
-            className={`grid h-8 w-8 shrink-0 place-items-center rounded-[9999px] bg-orange-500/[0.15] text-orange-300 hover:bg-orange-500/[0.25] disabled:opacity-50 ${HOVER} ${FOCUS}`}
-          >
-            <Plus size={14} strokeWidth={2.5} />
-          </button>
+          {canEditContent && (
+            <button
+              type="button"
+              onClick={handleNewDraft}
+              disabled={isCreating}
+              aria-label="New draft"
+              className={`grid h-8 w-8 shrink-0 place-items-center rounded-[9999px] bg-orange-500/[0.15] text-orange-300 hover:bg-orange-500/[0.25] disabled:opacity-50 ${HOVER} ${FOCUS}`}
+            >
+              <Plus size={14} strokeWidth={2.5} />
+            </button>
+          )}
         </div>
         <div className="console-scroll flex flex-1 flex-col gap-1 overflow-y-auto p-2">
           {initialDrafts.length === 0 ? (
@@ -372,7 +458,10 @@ export default function DraftsBoard({
                 {draft.ideas?.title && (
                   <p className="mb-1 truncate font-nebula-ui text-[11px] text-zinc-500">From: {draft.ideas.title}</p>
                 )}
-                <p className="font-nebula-ui text-[11px] text-zinc-600">{new Date(draft.updated_at).toLocaleDateString()}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-nebula-ui text-[11px] text-zinc-600">{new Date(draft.updated_at).toLocaleDateString()}</p>
+                  {draft.status !== 'draft' && <StatusPill status={draft.status} />}
+                </div>
               </button>
             ))
           )}
@@ -392,16 +481,22 @@ export default function DraftsBoard({
                 <ArrowLeft size={16} strokeWidth={2} />
               </button>
               <div className="min-w-0 flex-1 md:mr-4">
-                {activeDraft.ideas?.title && (
-                  <p className="mb-0.5 truncate font-nebula-ui text-[11px] text-zinc-600">
-                    From: <span className="font-medium text-zinc-400">{activeDraft.ideas.title}</span>
-                  </p>
-                )}
+                <div className="mb-0.5 flex items-center gap-2">
+                  {activeDraft.ideas?.title && (
+                    <p className="truncate font-nebula-ui text-[11px] text-zinc-600">
+                      From: <span className="font-medium text-zinc-400">{activeDraft.ideas.title}</span>
+                    </p>
+                  )}
+                  {activeDraft.status !== 'draft' && <StatusPill status={activeDraft.status} />}
+                </div>
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  readOnly={!canEditContent}
                   aria-label="Draft title"
-                  className={`w-full truncate rounded-[6px] bg-transparent px-1 -mx-1 font-nebula-heading text-[16px] font-semibold text-white outline-none hover:bg-white/[0.04] focus:bg-white/[0.04] ${FOCUS}`}
+                  className={`w-full truncate rounded-[6px] bg-transparent px-1 -mx-1 font-nebula-heading text-[16px] font-semibold text-white outline-none ${
+                    canEditContent ? 'hover:bg-white/[0.04] focus:bg-white/[0.04]' : ''
+                  } ${FOCUS}`}
                 />
                 <label className="mt-1 flex w-fit items-center gap-1.5 rounded-[6px] px-1 -mx-1 hover:bg-white/[0.04]">
                   <CalendarClock size={12} strokeWidth={2} className="shrink-0 text-zinc-600" />
@@ -410,7 +505,8 @@ export default function DraftsBoard({
                     type="date"
                     value={dueDate ?? ''}
                     onChange={(e) => setDueDate(e.target.value)}
-                    className={`bg-transparent font-nebula-ui text-[11px] text-zinc-500 outline-none ${FOCUS}`}
+                    disabled={!canEditContent}
+                    className={`bg-transparent font-nebula-ui text-[11px] text-zinc-500 outline-none disabled:opacity-70 ${FOCUS}`}
                   />
                 </label>
               </div>
@@ -419,7 +515,40 @@ export default function DraftsBoard({
               {isDirty && !isPending && (
                 <span className="whitespace-nowrap font-nebula-ui text-[11px] text-zinc-600">Unsaved changes</span>
               )}
-              {speechSupported && (
+              {canReview && activeDraft.status === 'pending_review' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleApprove}
+                    disabled={isPending}
+                    className={`flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[9999px] bg-emerald-500/[0.15] px-3.5 font-nebula-ui text-[12px] font-medium text-emerald-300 hover:bg-emerald-500/[0.25] disabled:opacity-50 ${HOVER} ${FOCUS}`}
+                  >
+                    <CheckCircle2 size={14} strokeWidth={2} />
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRequestChanges}
+                    disabled={isPending}
+                    className={`flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[9999px] border border-white/10 px-3.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS}`}
+                  >
+                    <RotateCcw size={13} strokeWidth={2} />
+                    Request changes
+                  </button>
+                </>
+              )}
+              {canEditContent && (activeDraft.status === 'draft' || activeDraft.status === 'changes_requested') && (
+                <button
+                  type="button"
+                  onClick={handleSubmitForReview}
+                  disabled={isPending || !title.trim()}
+                  className={`flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[9999px] border border-orange-500/30 bg-orange-500/[0.12] px-3.5 font-nebula-ui text-[12px] font-medium text-orange-300 hover:bg-orange-500/[0.2] disabled:pointer-events-none disabled:opacity-50 ${HOVER} ${FOCUS}`}
+                >
+                  <Send size={13} strokeWidth={2} />
+                  {activeDraft.status === 'changes_requested' ? 'Resubmit for review' : 'Submit for review'}
+                </button>
+              )}
+              {canEditContent && speechSupported && (
                 <button
                   type="button"
                   onClick={() => (listening ? stopListening() : startListening())}
@@ -434,44 +563,60 @@ export default function DraftsBoard({
                   <Mic size={15} strokeWidth={2} />
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handleAiAssist}
-                title="Inserts a structure template — preview only, not a live AI call"
-                className={`flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[9999px] border border-white/10 px-3.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
-              >
-                <Sparkles size={13} strokeWidth={2} className="text-orange-400" />
-                AI assist — preview
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isPending || !title.trim()}
-                className={`nebula-cta-static flex h-9 items-center gap-1.5 rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium disabled:pointer-events-none disabled:opacity-50 ${FOCUS}`}
-              >
-                <span className="nebula-cta__label flex items-center gap-1.5">
-                  {!isPending && <Save size={13} strokeWidth={2} />}
-                  {isPending ? 'Saving…' : 'Save'}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                aria-label="Delete draft"
-                title="Delete draft"
-                className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9999px] text-zinc-500 hover:bg-white/[0.08] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
-              >
-                <Trash2 size={15} strokeWidth={2} />
-              </button>
+              {canEditContent && (
+                <button
+                  type="button"
+                  onClick={handleAiAssist}
+                  title="Inserts a structure template — preview only, not a live AI call"
+                  className={`flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[9999px] border border-white/10 px-3.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
+                >
+                  <Sparkles size={13} strokeWidth={2} className="text-orange-400" />
+                  AI assist — preview
+                </button>
+              )}
+              {canEditContent && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isPending || !title.trim()}
+                  className={`nebula-cta-static flex h-9 items-center gap-1.5 rounded-[9999px] px-4 font-nebula-tech text-[12.5px] font-medium disabled:pointer-events-none disabled:opacity-50 ${FOCUS}`}
+                >
+                  <span className="nebula-cta__label flex items-center gap-1.5">
+                    {!isPending && <Save size={13} strokeWidth={2} />}
+                    {isPending ? 'Saving…' : 'Save'}
+                  </span>
+                </button>
+              )}
+              {canEditContent && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  aria-label="Delete draft"
+                  title="Delete draft"
+                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9999px] text-zinc-500 hover:bg-white/[0.08] hover:text-white disabled:opacity-50 ${HOVER} ${FOCUS_INSET}`}
+                >
+                  <Trash2 size={15} strokeWidth={2} />
+                </button>
+              )}
             </div>
           </div>
+
+          {activeDraft.status === 'changes_requested' && activeDraft.review_notes && (
+            <div className="mx-4 mt-4 rounded-[12px] border border-rose-500/20 bg-rose-500/[0.06] px-4 py-3 md:mx-8">
+              <p className="font-nebula-mono text-[10px] font-medium uppercase tracking-wide text-rose-300">
+                Changes requested
+              </p>
+              <p className="mt-1 font-nebula-ui text-[13px] leading-relaxed text-zinc-300">{activeDraft.review_notes}</p>
+            </div>
+          )}
 
           <textarea
             className={`flex-1 resize-none bg-transparent px-6 py-6 font-nebula-ui text-[15px] leading-[1.75] text-zinc-200 outline-none placeholder:text-zinc-600 md:px-12 md:py-10 ${FOCUS}`}
             style={{ letterSpacing: '-0.2px' }}
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            readOnly={!canEditContent}
             placeholder="Start writing..."
           />
         </div>

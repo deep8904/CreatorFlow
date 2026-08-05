@@ -20,12 +20,16 @@ import type { Role } from '@/lib/supabase/types'
 export function Sidebar({
   name,
   email,
-  urgentCount,
+  notificationCount,
+  notificationHref,
+  notificationLabel,
   role,
 }: {
   name: string
   email: string
-  urgentCount: number
+  notificationCount: number
+  notificationHref: string
+  notificationLabel?: string
   role: Role
 }) {
   const pathname = usePathname()
@@ -50,7 +54,9 @@ export function Sidebar({
             </span>
           )}
         </div>
-        {!collapsed && canAccessModule(role, 'deals') && <NotificationBell count={urgentCount} size="compact" />}
+        {!collapsed && (canAccessModule(role, 'deals') || canAccessModule(role, 'drafts')) && (
+          <NotificationBell count={notificationCount} href={notificationHref} label={notificationLabel} size="compact" />
+        )}
       </div>
 
       <nav aria-label="Primary" className="console-scroll flex-1 overflow-y-auto px-3 py-2">

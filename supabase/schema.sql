@@ -41,7 +41,12 @@ create table if not exists public.drafts (
   updated_at timestamptz not null default now(),
   -- Stage 2.3: Content Calendar reads this alongside deals due_date/
   -- usage_rights_expires_at. See 20260804090000_calendar_dates.sql.
-  due_date date
+  due_date date,
+  -- Stage 3.2: approval workflow. See 20260804220000_draft_approvals.sql.
+  status text not null default 'draft'
+    check (status = any (array['draft','pending_review','approved','changes_requested'])),
+  submitted_by uuid references auth.users(id) on delete set null,
+  review_notes text
 );
 
 create table if not exists public.deals (
@@ -492,6 +497,71 @@ revoke execute on function public.accept_team_invite(uuid) from public;
 grant execute on function public.transfer_account_ownership(uuid) to authenticated;
 grant execute on function public.accept_team_invite(uuid) to authenticated;
 
+-- Stage 3.2: the two approval-workflow transitions. Both check for
+-- Manager/Owner explicitly rather than relying on RLS's row-level grant --
+-- RLS can't restrict *which column values* an already-permitted role may
+-- write, so this is the actual enforcement point for "only a
+-- Manager/Owner may approve or reject," mirroring the RPC-boundary pattern
+-- established above rather than widening a raw table grant.
+create or replace function public.approve_draft(p_draft_id uuid, p_notes text default null)
+returns public.drafts
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_draft public.drafts;
+begin
+  select * into v_draft from public.drafts where id = p_draft_id for update;
+  if v_draft is null then
+    raise exception 'Draft not found.';
+  end if;
+  if not public.has_role_access(v_draft.user_id, array['owner','manager']) then
+    raise exception 'Only a Manager or Owner can approve a draft.';
+  end if;
+
+  update public.drafts
+    set status = 'approved', review_notes = p_notes, updated_at = now()
+    where id = p_draft_id
+    returning * into v_draft;
+
+  return v_draft;
+end;
+$$;
+
+create or replace function public.request_draft_changes(p_draft_id uuid, p_notes text)
+returns public.drafts
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_draft public.drafts;
+begin
+  if p_notes is null or btrim(p_notes) = '' then
+    raise exception 'Review notes are required when requesting changes.';
+  end if;
+
+  select * into v_draft from public.drafts where id = p_draft_id for update;
+  if v_draft is null then
+    raise exception 'Draft not found.';
+  end if;
+  if not public.has_role_access(v_draft.user_id, array['owner','manager']) then
+    raise exception 'Only a Manager or Owner can request changes on a draft.';
+  end if;
+
+  update public.drafts
+    set status = 'changes_requested', review_notes = p_notes, updated_at = now()
+    where id = p_draft_id
+    returning * into v_draft;
+
+  return v_draft;
+end;
+$$;
+
+revoke all on function public.approve_draft(uuid, text) from public;
+revoke all on function public.request_draft_changes(uuid, text) from public;
+grant execute on function public.approve_draft(uuid, text) to authenticated;
+grant execute on function public.request_draft_changes(uuid, text) to authenticated;
+
 -- Cached/seeded YouTube channel performance, standing in for a live API pull when
 -- no real YouTube account is connected (see integrations table). Daily granularity
 -- so the Analytics screen can compute "this month vs last month" comparisons.
@@ -585,9 +655,28 @@ create policy "Role-scoped ideas access" on public.ideas
   for all using (public.has_role_access(user_id, array['owner','editor']))
   with check (public.has_role_access(user_id, array['owner','editor']));
 
+-- Stage 3.2: Manager gets read access for review, additive to the
+-- content-edit policy below (a separate SELECT policy, not a replacement,
+-- so Manager still can't insert/update/delete a draft's content directly).
+create policy "Manager can view drafts for review" on public.drafts
+  for select using (public.has_role_access(user_id, array['owner','manager']));
+
+-- Designer joins Editor with full content-edit access (Gate 0's other RBAC
+-- gap). The with-check blocks Editor/Designer from ever setting status to
+-- approved/changes_requested themselves -- those transitions only happen
+-- through approve_draft()/request_draft_changes() (see
+-- 20260804220000_draft_approvals.sql), which check for Manager/Owner
+-- explicitly. Enforced at the RLS layer, so it holds even against a direct
+-- API call, not just against the UI.
 create policy "Role-scoped drafts access" on public.drafts
-  for all using (public.has_role_access(user_id, array['owner','editor']))
-  with check (public.has_role_access(user_id, array['owner','editor']));
+  for all using (public.has_role_access(user_id, array['owner','editor','designer']))
+  with check (
+    public.has_role_access(user_id, array['owner'])
+    or (
+      public.has_role_access(user_id, array['editor','designer'])
+      and status = any (array['draft','pending_review'])
+    )
+  );
 
 create policy "Role-scoped automations access" on public.automations
   for all using (public.has_role_access(user_id, array['owner','manager']))
