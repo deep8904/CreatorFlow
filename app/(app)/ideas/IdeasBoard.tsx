@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowRight, Lightbulb, Trash2 } from 'lucide-react'
-import { createDraftFromIdea, updateIdea, deleteIdea, type IdeaFormInput } from '@/lib/supabase/actions'
+import { createDraftFromIdea, updateIdea, deleteIdea, setViewPreference, type IdeaFormInput } from '@/lib/supabase/actions'
 import type { Idea } from '@/lib/supabase/types'
 import { GlassModal } from '@/components/dash/GlassModal'
 import { QuickIdeaForm } from '@/components/dash/QuickIdeaForm'
@@ -13,6 +13,11 @@ import { Pill, PillButton } from '@/components/dash/Pill'
 import { DashboardHeader } from '@/components/dash/DashboardHeader'
 import { MetricGrid, type Metric } from '@/components/dash/MetricCard'
 import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
+import { ViewSwitcher, type ViewType } from '@/components/dash/views/ViewSwitcher'
+import { GalleryView } from '@/components/dash/views/GalleryView'
+import { BoardView, type BoardColumn } from '@/components/dash/views/BoardView'
+import { CalendarView, type CalendarItem } from '@/components/calendar/CalendarView'
+import type { ViewCardItem } from '@/components/dash/views/ViewCardItem'
 import { useToast } from '@/lib/toast'
 
 const STATUS_LABEL: Record<Idea['status'], string> = {
@@ -105,12 +110,13 @@ function IdeaModal({
   )
 }
 
-export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
+export default function IdeasBoard({ initialIdeas, initialView }: { initialIdeas: Idea[]; initialView: ViewType }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const toast = useToast()
   const [filter, setFilter] = useState<Idea['status'] | 'All'>('All')
   const [query, setQuery] = useState('')
+  const [view, setView] = useState<ViewType>(initialView)
   const [newOpen, setNewOpen] = useState(() => searchParams.get('new') === '1')
   const [isPending, startTransition] = useTransition()
   const [turningIntoDraftId, setTurningIntoDraftId] = useState<string | null>(null)
@@ -118,15 +124,61 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
   const editing = initialIdeas.find((i) => i.id === editingId) ?? null
 
   useEffect(() => {
-    if (searchParams.get('new') === '1' || searchParams.get('open')) {
+    if (searchParams.get('new') === '1') {
       router.replace('/ideas')
     }
   }, [searchParams, router])
+
+  // Separate from the effect above: Board/Gallery/Calendar items link to
+  // `/ideas?open=<id>` for a same-page transition (IdeasBoard never
+  // unmounts), so `editingId`'s lazy useState initializer only ever catches
+  // the very first page load — this is what makes clicking one of those
+  // cards actually open the modal on every subsequent click too.
+  useEffect(() => {
+    const openId = searchParams.get('open')
+    if (!openId || openId === editingId) return
+    // Deferred a tick — this project's stricter react-hooks/set-state-in-
+    // effect rule flags a direct setState call in an effect body.
+    queueMicrotask(() => setEditingId(openId))
+    router.replace('/ideas')
+  }, [searchParams, editingId, router])
+
+  const changeView = (next: ViewType) => {
+    setView(next)
+    void setViewPreference('ideas', next)
+  }
 
   const byStatus = filter === 'All' ? initialIdeas : initialIdeas.filter((i) => i.status === filter)
   const filtered = query.trim()
     ? byStatus.filter((i) => i.title.toLowerCase().includes(query.trim().toLowerCase()))
     : byStatus
+
+  const toCardItem = (idea: Idea): ViewCardItem => ({
+    id: idea.id,
+    title: idea.title,
+    meta: STATUS_LABEL[idea.status],
+    preview: idea.notes ?? undefined,
+    tags: idea.tags,
+    tone: idea.status === 'done' ? 'positive' : 'default',
+    href: `/ideas?open=${idea.id}`,
+  })
+
+  const boardColumns: BoardColumn[] = ALL_STATUSES.map((status) => ({
+    key: status,
+    label: STATUS_LABEL[status],
+    items: filtered.filter((i) => i.status === status).map(toCardItem),
+  }))
+
+  // Ideas have no due date — this is honestly labelled "Captured" rather
+  // than fabricating a deadline that doesn't exist in the data.
+  const calendarItems: CalendarItem[] = filtered.map((idea) => ({
+    id: idea.id,
+    date: idea.created_at.slice(0, 10),
+    label: idea.title,
+    sublabel: 'Captured',
+    tone: idea.status === 'done' ? 'positive' : 'default',
+    href: `/ideas?open=${idea.id}`,
+  }))
 
   const turnIntoDraft = async (idea: Idea) => {
     setTurningIntoDraftId(idea.id)
@@ -211,7 +263,10 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
               </button>
             ))}
           </div>
-          <SearchField value={query} onChange={setQuery} placeholder="Search ideas" className="w-full sm:w-[180px]" />
+          <div className="flex items-center gap-2.5">
+            <ViewSwitcher value={view} onChange={changeView} />
+            <SearchField value={query} onChange={setQuery} placeholder="Search ideas" className="w-full sm:w-[180px]" />
+          </div>
         </div>
 
         {filtered.length === 0 ? (
@@ -235,7 +290,7 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
               </button>
             )}
           </div>
-        ) : (
+        ) : view === 'table' ? (
           <div className="flex flex-col gap-2.5">
             {filtered.map((idea) => (
               <div
@@ -284,6 +339,14 @@ export default function IdeasBoard({ initialIdeas }: { initialIdeas: Idea[] }) {
               </div>
             ))}
           </div>
+        ) : view === 'board' ? (
+          <div className="flex h-[560px]">
+            <BoardView columns={boardColumns} />
+          </div>
+        ) : view === 'gallery' ? (
+          <GalleryView items={filtered.map(toCardItem)} />
+        ) : (
+          <CalendarView items={calendarItems} />
         )}
       </div>
 

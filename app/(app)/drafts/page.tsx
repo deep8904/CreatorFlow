@@ -1,12 +1,14 @@
 import type { Metadata } from 'next'
-import { getDrafts } from '@/lib/supabase/queries'
+import { getDrafts, getCurrentProfile } from '@/lib/supabase/queries'
 import { requireModuleAccess } from '@/lib/supabase/access'
+import type { ViewType } from '@/components/dash/views/ViewSwitcher'
 import DraftsBoard from './DraftsBoard'
 
 export const metadata: Metadata = { title: 'Drafts — CreatorFlow' }
 
 export default async function DraftsPage() {
   await requireModuleAccess('drafts')
-  const drafts = await getDrafts()
-  return <DraftsBoard initialDrafts={drafts} />
+  const [drafts, profile] = await Promise.all([getDrafts(), getCurrentProfile()])
+  const initialView = (profile?.view_preferences?.drafts as ViewType | undefined) ?? 'table'
+  return <DraftsBoard initialDrafts={drafts} initialView={initialView} />
 }

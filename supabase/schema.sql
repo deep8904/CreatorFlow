@@ -15,6 +15,7 @@ create table if not exists public.profiles (
   timezone text,
   locale text,
   notify_deal_reminders boolean not null default true,
+  view_preferences jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

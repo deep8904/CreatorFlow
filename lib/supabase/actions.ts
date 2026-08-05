@@ -368,6 +368,28 @@ export async function dismissOnboardingChecklist(): Promise<ActionResult> {
 }
 
 /**
+ * Persists the last-used multi-view (table/board/gallery/calendar) per
+ * module — merged into the existing jsonb map rather than overwritten, so
+ * setting Ideas' view never clobbers Drafts' saved view.
+ */
+export async function setViewPreference(module: 'ideas' | 'drafts', view: string): Promise<ActionResult> {
+  const { user } = await getAuthenticatedUser()
+  const supabase = await createSupabaseServerClient()
+  if (!user || !supabase) return { error: 'You must be signed in.' }
+
+  const { data: profile } = await supabase.from('profiles').select('view_preferences').eq('id', user.id).maybeSingle()
+  const current = (profile?.view_preferences as Record<string, string> | null) ?? {}
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ view_preferences: { ...current, [module]: view } })
+    .eq('id', user.id)
+  if (error) return { error: 'Could not save your view preference.' }
+
+  return {}
+}
+
+/**
  * The "never land on a blank screen" affordance from the onboarding
  * checklist — one realistic sample deal/idea/draft, in the spirit of
  * scripts/seed-demo-data.ts but implemented as a normal RLS-scoped action

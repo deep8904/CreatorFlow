@@ -8,6 +8,8 @@ export type Profile = {
   timezone: string | null
   locale: string | null
   notify_deal_reminders: boolean
+  // Last-used multi-view per module, e.g. {"ideas": "board", "drafts": "gallery"}.
+  view_preferences: Record<string, string>
   created_at: string
   updated_at: string
 }
@@ -66,12 +68,15 @@ export type DealStageHistory = {
   changed_at: string
 }
 
+// Tokens live in Supabase Vault — these are secret references, never the
+// token value itself (matches supabase/schema.sql's public.integrations).
 export type Integration = {
   id: string
   user_id: string
   provider: string
-  access_token_encrypted: string | null
-  refresh_token_encrypted: string | null
+  access_token_secret_id: string | null
+  refresh_token_secret_id: string | null
+  is_demo: boolean
   expires_at: string | null
   scope: string[] | null
   metadata: Record<string, unknown> | null

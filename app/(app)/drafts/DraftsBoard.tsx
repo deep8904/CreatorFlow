@@ -3,11 +3,49 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Sparkles, Save, Plus, FileText, Trash2, ArrowLeft, Mic, CalendarClock } from 'lucide-react'
-import { updateDraftContent, createDraft, deleteDraft } from '@/lib/supabase/actions'
+import { updateDraftContent, createDraft, deleteDraft, setViewPreference } from '@/lib/supabase/actions'
 import type { DraftWithIdeaTitle } from '@/lib/supabase/queries'
 import { FOCUS, FOCUS_INSET, HOVER } from '@/components/dash/tokens'
+import { ViewSwitcher, type ViewType } from '@/components/dash/views/ViewSwitcher'
+import { GalleryView } from '@/components/dash/views/GalleryView'
+import { BoardView, type BoardColumn } from '@/components/dash/views/BoardView'
+import { CalendarView, type CalendarItem } from '@/components/calendar/CalendarView'
+import type { ViewCardItem } from '@/components/dash/views/ViewCardItem'
 import { useToast } from '@/lib/toast'
 import { useSpeechCapture } from '@/lib/useSpeechCapture'
+
+type DueBucket = 'overdue' | 'this_week' | 'later' | 'none'
+const BUCKET_LABEL: Record<DueBucket, string> = {
+  overdue: 'Overdue',
+  this_week: 'Due this week',
+  later: 'Later',
+  none: 'No due date',
+}
+const BUCKET_ORDER: DueBucket[] = ['overdue', 'this_week', 'later', 'none']
+
+/**
+ * Drafts has no status field (that's Stage 3.2) — board view groups by
+ * due-date urgency instead, the only structured field available today.
+ */
+function dueBucket(dueDate: string | null): DueBucket {
+  if (!dueDate) return 'none'
+  const d = new Date(dueDate + 'T00:00:00Z')
+  const today = new Date()
+  const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+  const days = Math.round((d.getTime() - todayUTC) / 86_400_000)
+  if (days < 0) return 'overdue'
+  if (days <= 7) return 'this_week'
+  return 'later'
+}
+
+function formatShortDate(iso: string) {
+  // timeZone: 'UTC' matters — without it, a date-only value like "2026-08-01"
+  // parsed as midnight UTC can render as the previous day in any timezone
+  // behind UTC (confirmed live: showed "Jul 31" for an Aug 1 due date).
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
+    new Date(iso + 'T00:00:00Z')
+  )
+}
 
 function firstNonEmptyLine(text: string) {
   return text.split('\n').map((l) => l.trim()).find(Boolean) ?? null
@@ -42,10 +80,17 @@ function buildAiAssistSuggestion(title: string, existingContent: string, linkedI
   return `\n\n[Structure template — preview only, not a live AI call. Built from what you've written, not a generic skeleton. Starting point, edit freely.]\n${hook}\n${body}\n${close}`
 }
 
-export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWithIdeaTitle[] }) {
+export default function DraftsBoard({
+  initialDrafts,
+  initialView,
+}: {
+  initialDrafts: DraftWithIdeaTitle[]
+  initialView: ViewType
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const toast = useToast()
+  const [view, setView] = useState<ViewType>(initialView)
   // Deep-link support for `/drafts?draft=<id>` — same pattern as Deals'
   // `?deal=<id>`, used by the Content Calendar to jump straight to a
   // draft. Resolved via a lazy initializer (not an effect) so there's no
@@ -165,18 +210,123 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
-  // The draft itself is already resolved via the lazy state initializer
-  // above — this just cleans the param out of the URL once mounted.
+  // The initial deep-linked draft is already resolved via the lazy state
+  // initializer above (covers a real page load). This effect covers the
+  // other case: Board/Gallery/Calendar items link to `/drafts?draft=<id>`
+  // for a same-page transition — DraftsBoard never unmounts, so without
+  // this, clicking one of those cards would update the URL but never
+  // actually switch the open draft or leave browse mode.
   useEffect(() => {
-    if (searchParams.get('draft')) router.replace('/drafts')
-  }, [searchParams, router])
+    const draftId = searchParams.get('draft')
+    if (!draftId) return
+    if (draftId === activeDraft?.id) {
+      router.replace('/drafts')
+      return
+    }
+    const target = initialDrafts.find((d) => d.id === draftId)
+    if (!target) {
+      router.replace('/drafts')
+      return
+    }
+    if (isDirty && !window.confirm('You have unsaved changes. Switch drafts anyway?')) {
+      router.replace('/drafts')
+      return
+    }
+    // Deferred a tick — this project's stricter react-hooks/set-state-in-
+    // effect rule flags direct setState calls in an effect body.
+    queueMicrotask(() => {
+      setActiveDraft(target)
+      setContent(target.body)
+      setTitle(target.title)
+      setDueDate(target.due_date ?? '')
+      setMobileShowEditor(true)
+      setView('table')
+    })
+    router.replace('/drafts')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  const changeView = (next: ViewType) => {
+    setView(next)
+    void setViewPreference('drafts', next)
+  }
+
+  const toCardItem = (draft: DraftWithIdeaTitle): ViewCardItem => ({
+    id: draft.id,
+    title: draft.title,
+    meta: draft.due_date ? `Due ${formatShortDate(draft.due_date)}` : undefined,
+    preview: draft.body || undefined,
+    tags: draft.ideas?.title ? [`From: ${draft.ideas.title}`] : undefined,
+    tone: dueBucket(draft.due_date) === 'overdue' ? 'attention' : 'default',
+    href: `/drafts?draft=${draft.id}`,
+  })
+
+  const boardColumns: BoardColumn[] = BUCKET_ORDER.map((bucket) => ({
+    key: bucket,
+    label: BUCKET_LABEL[bucket],
+    items: initialDrafts.filter((d) => dueBucket(d.due_date) === bucket).map(toCardItem),
+  }))
+
+  // Same honesty rule as CalendarBoard (Stage 2.3): only drafts that actually
+  // have a due date show up here, nothing fabricated.
+  const calendarItems: CalendarItem[] = initialDrafts
+    .filter((d): d is DraftWithIdeaTitle & { due_date: string } => !!d.due_date)
+    .map((d) => ({
+      id: d.id,
+      date: d.due_date,
+      label: d.title,
+      sublabel: 'Draft due',
+      tone: dueBucket(d.due_date) === 'overdue' ? 'attention' : 'positive',
+      href: `/drafts?draft=${d.id}`,
+    }))
 
   const handleAiAssist = () => {
     setContent((c) => c + buildAiAssistSuggestion(title, c, activeDraft?.ideas?.title ?? null))
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-2.5 sm:px-6">
+        <p className="flex items-center gap-1.5 font-nebula-mono text-[10.5px] font-medium uppercase tracking-[0.16em] text-orange-400">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-[9999px] bg-orange-400" />
+          Drafts
+        </p>
+        <ViewSwitcher value={view} onChange={changeView} />
+      </div>
+
+      {view !== 'table' ? (
+        <div className="console-scroll min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+          {initialDrafts.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+              <span aria-hidden className="grid h-11 w-11 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
+                <FileText size={18} strokeWidth={2} />
+              </span>
+              <p className="font-nebula-heading text-[16px] font-semibold text-white">No drafts yet.</p>
+              <p className="font-nebula-ui text-[13px] text-zinc-500">Turn one of your ideas into a draft to start writing.</p>
+            </div>
+          ) : view === 'board' ? (
+            <div className="flex h-full">
+              <BoardView columns={boardColumns} />
+            </div>
+          ) : view === 'gallery' ? (
+            <GalleryView items={initialDrafts.map(toCardItem)} />
+          ) : (
+            <CalendarView
+              items={calendarItems}
+              emptyState={
+                <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
+                  <span aria-hidden className="grid h-11 w-11 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
+                    <CalendarClock size={18} strokeWidth={2} />
+                  </span>
+                  <p className="font-nebula-heading text-[16px] font-semibold text-white">No due dates set.</p>
+                  <p className="font-nebula-ui text-[13px] text-zinc-500">Set a due date on a draft and it shows up here.</p>
+                </div>
+              }
+            />
+          )}
+        </div>
+      ) : (
+    <div className="flex min-h-0 flex-1 overflow-hidden">
       <div
         className={`w-full shrink-0 flex-col border-r border-white/[0.06] bg-white/[0.02] backdrop-blur-xl md:flex md:w-[260px] ${
           mobileShowEditor ? 'hidden md:flex' : 'flex'
@@ -337,6 +487,8 @@ export default function DraftsBoard({ initialDrafts }: { initialDrafts: DraftWit
             </p>
           </div>
         </div>
+      )}
+    </div>
       )}
     </div>
   )
