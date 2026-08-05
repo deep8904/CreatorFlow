@@ -1,4 +1,6 @@
 create extension if not exists pgcrypto;
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
 
 -- Supabase Vault (pgsodium-backed) ships enabled on every Supabase project by
 -- default and isn't user-creatable via `create extension` on hosted
@@ -120,8 +122,29 @@ create table if not exists public.automations (
   config jsonb,
   enabled boolean not null default true,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  -- Stage 3.3: a real cron expression (UTC), null for event-based rules.
+  -- See 20260804230000_butler_automations.sql.
+  schedule text,
+  -- Butler-style human phrasing shown in the UI instead of cron syntax.
+  schedule_label text
 );
+
+-- Stage 3.3: one row per scheduled run, written by the
+-- run-scheduled-automations edge function (service-role only — no INSERT
+-- policy for authenticated users below) so the Automations page can
+-- honestly show "last checked" instead of just trusting the toggle is on.
+create table if not exists public.automation_activity (
+  id uuid primary key default gen_random_uuid(),
+  automation_id uuid not null references public.automations(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  ran_at timestamptz not null default now(),
+  summary text not null,
+  details jsonb
+);
+
+create index if not exists automation_activity_automation_id_ran_at_idx
+  on public.automation_activity (automation_id, ran_at desc);
 
 alter table public.profiles enable row level security;
 alter table public.ideas enable row level security;
@@ -130,6 +153,7 @@ alter table public.deals enable row level security;
 alter table public.deal_stage_history enable row level security;
 alter table public.integrations enable row level security;
 alter table public.automations enable row level security;
+alter table public.automation_activity enable row level security;
 
 create policy "Users can view own profile" on public.profiles
   for select using (auth.uid() = id);
@@ -374,20 +398,26 @@ begin
   )
   on conflict (id) do nothing;
 
-  -- Every account gets the same 3 baseline automations disabled by default —
+  -- Every account gets the same baseline automations disabled by default —
   -- gmail.sponsorship_email_detected has a real effect once Gmail is
   -- connected (fetch-gmail-deals creates real deals from it), so this is
-  -- opt-in via the Automations page, not on by default.
-  insert into public.automations (user_id, name, trigger_type, action_type, config, enabled)
+  -- opt-in via the Automations page, not on by default. The two scheduled
+  -- rules (deals.needs_follow_up, schedule.weekly_digest) are genuinely
+  -- cron-driven as of Stage 3.3 — see run-scheduled-automations.
+  insert into public.automations (user_id, name, trigger_type, action_type, config, enabled, schedule, schedule_label)
   values
     (new.id, 'New sponsorship email → Create a deal', 'gmail.sponsorship_email_detected', 'deals.create',
-      jsonb_build_object('description', 'When Gmail detects a new brand deal email, automatically create a deal card for it.'), false),
+      jsonb_build_object('description', 'When Gmail detects a new brand deal email, automatically create a deal card for it.'), false, null, null),
     (new.id, 'Deal marked Paid → Archive contract', 'deals.status_changed_to_paid', 'deals.archive_contract',
-      jsonb_build_object('description', 'Keep your Deals view focused on what''s active.'), false),
+      jsonb_build_object('description', 'Keep your Deals view focused on what''s active.'), false, null, null),
     (new.id, 'New video published → Suggest a repurpose', 'youtube.video_published', 'repurpose.suggest',
-      jsonb_build_object('description', 'As soon as a new video goes live, queue it up in Repurpose so clips and posts are ready same-day.'), false),
+      jsonb_build_object('description', 'As soon as a new video goes live, queue it up in Repurpose so clips and posts are ready same-day.'), false, null, null),
     (new.id, 'Deal gone quiet or invoice overdue → Flag for follow-up', 'deals.needs_follow_up', 'deals.flag_follow_up',
-      jsonb_build_object('description', 'Deals stuck 5+ days in Inbound/Negotiating, or with an unpaid invoice past its due date, already show on your Dashboard and in Deals regardless of this toggle.'), false)
+      jsonb_build_object('description', 'Deals stuck 5+ days in Inbound/Negotiating, or with an unpaid invoice past its due date, already show on your Dashboard and in Deals regardless of this toggle.'), false,
+      '0 13 * * *', 'Checked daily, 1pm UTC'),
+    (new.id, 'Monday digest — what''s due this week', 'schedule.weekly_digest', 'deals.summarize_week',
+      jsonb_build_object('description', 'Every Monday, a summary of deals and drafts due in the next 7 days.'), false,
+      '0 14 * * 1', 'Every Monday, 2pm UTC')
   on conflict do nothing;
 
   insert into public.team_members (account_id, user_id, role)
@@ -682,6 +712,9 @@ create policy "Role-scoped automations access" on public.automations
   for all using (public.has_role_access(user_id, array['owner','manager']))
   with check (public.has_role_access(user_id, array['owner','manager']));
 
+create policy "Role-scoped automation activity access" on public.automation_activity
+  for select using (public.has_role_access(user_id, array['owner','manager']));
+
 create policy "Role-scoped repurpose access" on public.repurposed_content
   for all using (public.has_role_access(user_id, array['owner','editor','designer']))
   with check (public.has_role_access(user_id, array['owner','editor','designer']));
@@ -762,3 +795,39 @@ grant execute on function public.vault_create_secret_for_integration(text, text)
 grant execute on function public.vault_read_secret_for_integration(uuid) to service_role;
 grant execute on function public.vault_update_secret_for_integration(uuid, text) to service_role;
 grant execute on function public.vault_delete_secret_for_integration(uuid) to service_role;
+
+-- Stage 3.3: the two standing pg_cron jobs that drive run-scheduled-
+-- automations. cron.schedule() upserts by job name, so re-running this is
+-- safe. The service-role key they authorize with lives in Vault under the
+-- name 'service_role_key' — populated with its real value directly against
+-- the live project, never committed here (see
+-- 20260804230000_butler_automations.sql).
+select cron.schedule(
+  'automation-follow-up-check',
+  '0 13 * * *',
+  $cron$
+  select net.http_post(
+    url := 'https://fpzvtetxiazleoijoisq.supabase.co/functions/v1/run-scheduled-automations',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+    ),
+    body := jsonb_build_object('job', 'follow_up')
+  );
+  $cron$
+);
+
+select cron.schedule(
+  'automation-monday-digest',
+  '0 14 * * 1',
+  $cron$
+  select net.http_post(
+    url := 'https://fpzvtetxiazleoijoisq.supabase.co/functions/v1/run-scheduled-automations',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+    ),
+    body := jsonb_build_object('job', 'digest')
+  );
+  $cron$
+);

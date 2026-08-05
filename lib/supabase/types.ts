@@ -99,6 +99,20 @@ export type Automation = {
   enabled: boolean
   created_at: string
   updated_at: string
+  // Stage 3.3: a real cron expression (UTC); null for event-based rules.
+  schedule: string | null
+  schedule_label: string | null
+}
+
+// Stage 3.3: one row per pg_cron-triggered run, written by the
+// run-scheduled-automations edge function.
+export type AutomationActivity = {
+  id: string
+  automation_id: string
+  user_id: string
+  ran_at: string
+  summary: string
+  details: Record<string, unknown> | null
 }
 
 export type MediaKit = {

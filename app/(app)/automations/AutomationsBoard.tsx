@@ -1,9 +1,10 @@
 'use client'
 
 import { useTransition } from 'react'
-import { Zap, Mail, Handshake, Video, ArrowRight, AlertTriangle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Zap, Mail, Handshake, Video, ArrowRight, AlertTriangle, CalendarClock } from 'lucide-react'
 import { toggleAutomation } from '@/lib/supabase/actions'
-import type { Automation } from '@/lib/supabase/types'
+import type { Automation, AutomationActivity } from '@/lib/supabase/types'
 import { Panel } from '@/components/dash/Panel'
 import { Pill } from '@/components/dash/Pill'
 import { DashboardHeader } from '@/components/dash/DashboardHeader'
@@ -15,6 +16,7 @@ const TRIGGER_META: Record<string, { label: string; icon: typeof Mail }> = {
   'deals.status_changed_to_paid': { label: 'Deal marked paid', icon: Handshake },
   'youtube.video_published': { label: 'Video published', icon: Video },
   'deals.needs_follow_up': { label: 'Deal gone quiet or invoice overdue', icon: AlertTriangle },
+  'schedule.weekly_digest': { label: 'Every Monday', icon: CalendarClock },
 }
 
 const ACTION_META: Record<string, string> = {
@@ -22,26 +24,57 @@ const ACTION_META: Record<string, string> = {
   'deals.archive_contract': 'Archive contract',
   'repurpose.suggest': 'Suggest a repurpose',
   'deals.flag_follow_up': 'Flag for follow-up',
+  'deals.summarize_week': 'Summarize the week',
 }
 
 function triggerMeta(type: string) {
   return TRIGGER_META[type] ?? { label: type, icon: Zap }
 }
 
+function timeAgo(iso: string): string {
+  const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.round(hours / 24)}d ago`
+}
+
 export default function AutomationsBoard({
   initialAutomations,
+  activity,
   gmailReallyConnected,
 }: {
   initialAutomations: Automation[]
+  activity: AutomationActivity[]
   gmailReallyConnected: boolean
 }) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const toast = useToast()
+
+  // `activity` is already ordered newest-first, so the first row seen per
+  // automation is its latest run.
+  const latestActivity = new Map<string, AutomationActivity>()
+  for (const row of activity) {
+    if (!latestActivity.has(row.automation_id)) latestActivity.set(row.automation_id, row)
+  }
+
+  const scheduledCount = initialAutomations.filter((a) => a.schedule && a.enabled).length
 
   const toggle = (id: string, enabled: boolean) => {
     startTransition(async () => {
       const result = await toggleAutomation(id, !enabled)
-      if (result.error) toast.error(result.error)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      // toggleAutomation's revalidatePath marks the route stale, but this is
+      // a Client Component invoking the action directly (not a <form
+      // action>) — Next.js won't pick up fresh props without an explicit
+      // refresh. Confirmed live: without this, the toggle visibly did
+      // nothing even though the DB write succeeded.
+      router.refresh()
     })
   }
 
@@ -53,23 +86,22 @@ export default function AutomationsBoard({
         <div className="flex items-start gap-3 rounded-[12px] border border-orange-500/20 bg-orange-500/[0.06] px-4 py-3">
           <Zap size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-orange-400" />
           <p className="font-nebula-ui text-[12.5px] leading-relaxed text-zinc-300">
-            {gmailReallyConnected ? (
-              <>
-                <span className="font-medium text-white">One rule is live.</span> With Gmail connected, "New
-                sponsorship email → Create a deal" actually runs when you check Gmail from the Deals page. The others
-                still need a trigger engine this build doesn&apos;t have yet — toggling them only saves a preference.
-                (The follow-up detection itself is real and already shows on your Dashboard and in Deals, independent
-                of this toggle.)
-              </>
-            ) : (
-              <>
-                <span className="font-medium text-white">Preview only — none of these run.</span> Toggling saves your
-                preference for later, but nothing executes today: these rules need a live Gmail/YouTube connection and
-                a trigger engine this build doesn&apos;t have yet. (The follow-up detection itself is real and already
-                shows on your Dashboard and in Deals, independent of this toggle.) Every rule below is inert regardless
-                of its toggle state.
-              </>
+            <span className="font-medium text-white">
+              {scheduledCount > 0 && gmailReallyConnected
+                ? `${scheduledCount + 1} rules are live.`
+                : scheduledCount > 0
+                  ? `${scheduledCount} rule${scheduledCount === 1 ? ' is' : 's are'} live.`
+                  : gmailReallyConnected
+                    ? 'One rule is live.'
+                    : 'Turn on a rule to make it live.'}
+            </span>{' '}
+            The two scheduled rules (deal follow-up, Monday digest) run automatically on a real timer once turned
+            on — no manual trigger needed. {gmailReallyConnected && (
+              <>With Gmail connected, "New sponsorship email → Create a deal" runs when you check Gmail from the
+              Deals page. </>
             )}
+            The rest still need a trigger engine this build doesn&apos;t have yet — toggling them only saves a
+            preference.
           </p>
         </div>
 
@@ -90,7 +122,15 @@ export default function AutomationsBoard({
                 const trigger = triggerMeta(auto.trigger_type)
                 const TriggerIcon = trigger.icon
                 const actionLabel = ACTION_META[auto.action_type] ?? auto.action_type
-                const isLive = gmailReallyConnected && auto.trigger_type === 'gmail.sponsorship_email_detected'
+                const isGmailLive = gmailReallyConnected && auto.trigger_type === 'gmail.sponsorship_email_detected'
+                const isScheduled = !!auto.schedule
+                const isLive = isGmailLive || (isScheduled && auto.enabled)
+                const lastRun = latestActivity.get(auto.id)
+                const liveDescription = isGmailLive
+                  ? 'a real rule that creates deals from Gmail'
+                  : isScheduled
+                    ? `a real rule that runs automatically (${auto.schedule_label})`
+                    : 'a live rule'
                 return (
                   <div key={auto.id} className="flex items-start gap-4 px-5 py-4">
                     <span aria-hidden className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-[9999px] bg-white/[0.06] text-zinc-300">
@@ -105,15 +145,30 @@ export default function AutomationsBoard({
                         {trigger.label}
                         <ArrowRight size={11} strokeWidth={2} className="text-zinc-600" />
                         {actionLabel}
+                        {isScheduled && auto.schedule_label && (
+                          <>
+                            <span aria-hidden>·</span>
+                            {auto.schedule_label}
+                          </>
+                        )}
                       </p>
                       {typeof auto.config?.description === 'string' && (
                         <p className="mt-1.5 font-nebula-ui text-[12.5px] leading-relaxed text-zinc-500">
                           {auto.config.description as string}
                         </p>
                       )}
-                      {isLive && (
+                      {isGmailLive && (
                         <p className="mt-1.5 font-nebula-ui text-[11px] text-zinc-600">
                           Runs when you click &quot;Check for new deals&quot; on the Deals page — not automatic yet.
+                        </p>
+                      )}
+                      {isScheduled && (
+                        <p className="mt-1.5 font-nebula-ui text-[11px] text-zinc-600">
+                          {!auto.enabled
+                            ? `Off — turn on to have this run automatically, ${auto.schedule_label?.toLowerCase()}.`
+                            : lastRun
+                              ? `Last checked ${timeAgo(lastRun.ran_at)} — ${lastRun.summary}`
+                              : `Scheduled, ${auto.schedule_label?.toLowerCase()} — hasn't run yet.`}
                         </p>
                       )}
                     </div>
@@ -125,11 +180,15 @@ export default function AutomationsBoard({
                         role="switch"
                         aria-checked={auto.enabled}
                         aria-label={
-                          isLive
-                            ? `${auto.enabled ? 'Turn off' : 'Turn on'} ${auto.name} — a real rule that creates deals from Gmail`
+                          isLive || isScheduled
+                            ? `${auto.enabled ? 'Turn off' : 'Turn on'} ${auto.name} — ${liveDescription}`
                             : `${auto.enabled ? 'Turn off' : 'Turn on'} the saved preference for ${auto.name} — preview only, does not start it running`
                         }
-                        title={isLive ? 'Real: creates deals from matching Gmail messages when enabled' : 'Saves your preference for when this ships — has no effect today'}
+                        title={
+                          isLive || isScheduled
+                            ? `Real: ${liveDescription} when enabled`
+                            : 'Saves your preference for when this ships — has no effect today'
+                        }
                         className={`relative mt-0.5 h-6 w-10 rounded-[9999px] transition-colors disabled:opacity-50 ${HOVER} ${FOCUS_INSET} ${
                           auto.enabled ? 'bg-orange-500' : 'bg-white/[0.12]'
                         }`}
@@ -141,7 +200,7 @@ export default function AutomationsBoard({
                         />
                       </button>
                       <span className="whitespace-nowrap font-nebula-mono text-[9px] uppercase tracking-[0.08em] text-zinc-600">
-                        {isLive ? (auto.enabled ? 'On' : 'Off') : auto.enabled ? 'Preference: on' : 'Preference: off'}
+                        {isLive || isScheduled ? (auto.enabled ? 'On' : 'Off') : auto.enabled ? 'Preference: on' : 'Preference: off'}
                       </span>
                     </div>
                   </div>

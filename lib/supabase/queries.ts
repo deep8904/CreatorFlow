@@ -2,6 +2,7 @@ import { createSupabaseServerClient, getAuthenticatedUser } from './server'
 import type {
   Account,
   Automation,
+  AutomationActivity,
   ChannelStatsDaily,
   ChannelVideo,
   Deal,
@@ -144,6 +145,25 @@ export async function getAutomations(): Promise<Automation[]> {
     .order('created_at', { ascending: true })
   if (error) throw new Error(error.message)
   return (data as Automation[]) ?? []
+}
+
+// Stage 3.3: recent run history for the schedule-based rules — enough to
+// find "the latest row per automation" client-side without a per-row query.
+export async function getAutomationActivity(): Promise<AutomationActivity[]> {
+  const account = await getCurrentAccount()
+  if (!account) return []
+
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) return []
+
+  const { data, error } = await supabase
+    .from('automation_activity')
+    .select('*')
+    .eq('user_id', account.accountId)
+    .order('ran_at', { ascending: false })
+    .limit(50)
+  if (error) throw new Error(error.message)
+  return (data as AutomationActivity[]) ?? []
 }
 
 export type IntegrationStatus = {
