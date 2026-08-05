@@ -69,9 +69,9 @@ export function DetailCards() {
               {/* Floating widget — a deal value, tilted right */}
               <div
                 aria-hidden
-                className="absolute right-4 top-6 flex h-10 w-20 rotate-12 sm:right-12 sm:top-8 items-center justify-center rounded-lg border border-orange-500/20 bg-orange-500/10 shadow-lg backdrop-blur-sm transition-transform duration-500 hover:scale-105"
+                className="absolute right-4 top-6 flex h-10 w-20 rotate-12 sm:right-12 sm:top-8 items-center justify-center rounded-lg border border-orange-500/30 bg-zinc-900/90 shadow-lg transition-transform duration-500 hover:scale-105"
               >
-                <span className="font-nebula-mono text-[10px] font-medium tracking-wider text-orange-200/70">
+                <span className="font-nebula-mono text-[10px] font-medium tracking-wider text-orange-400">
                   $1,500
                 </span>
               </div>
@@ -170,8 +170,13 @@ export function DetailCards() {
                   </svg>
                 </div>
 
-                {/* Satellites */}
-                <div aria-hidden className="absolute right-[28%] top-[25%] z-10 transition-all duration-300 hover:z-20 hover:scale-110">
+                {/* Satellites — placed by radius+angle from centre, not container
+                    percentages, so they clear the hub instead of hiding behind it. */}
+                <div
+                  aria-hidden
+                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-transform duration-300 hover:z-20 hover:scale-110"
+                  style={{ left: 'calc(50% + 75px)', top: 'calc(50% - 53px)' }}
+                >
                   <div className="flex h-10 w-10 items-center justify-center rounded-[9999px] border border-white/10 bg-zinc-900/90 shadow-lg shadow-orange-500/10 ring-1 ring-white/5 backdrop-blur">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400">
                       <circle cx="18" cy="18" r="3" />
@@ -182,7 +187,11 @@ export function DetailCards() {
                   </div>
                 </div>
 
-                <div aria-hidden className="absolute bottom-[28%] left-[30%] z-10 transition-all duration-300 hover:z-20 hover:scale-110">
+                <div
+                  aria-hidden
+                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-transform duration-300 hover:z-20 hover:scale-110"
+                  style={{ left: 'calc(50% - 75px)', top: 'calc(50% + 53px)' }}
+                >
                   <div className="flex h-9 w-9 items-center justify-center rounded-[9999px] border border-white/10 bg-zinc-900/90 shadow-lg shadow-emerald-500/10 ring-1 ring-white/5 backdrop-blur">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400">
                       <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
