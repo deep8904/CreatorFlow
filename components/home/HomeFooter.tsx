@@ -86,15 +86,13 @@ export function HomeFooter() {
           <div className="grid gap-12 md:grid-cols-[2fr_1fr_1fr_1fr]">
             <div>
               <div className="mb-4 flex items-center gap-2">
-                <span aria-hidden className="grid h-6 w-6 place-items-center rounded-md bg-gradient-to-br from-orange-500 to-orange-700 font-nebula-tech text-[11px] font-bold text-white">
-                  F
-                </span>
+                <img src="/brand/logo-mark.png" alt="" aria-hidden width={24} height={24} className="h-6 w-6 shrink-0" />
                 <span className="font-nebula-ui text-base font-medium tracking-tight text-white">
                   CreatorFlow
                 </span>
               </div>
               <p className="max-w-xs font-nebula-ui text-sm leading-relaxed text-gray-500">
-                The business side of your channel — brand deals, ideas, drafts and analytics — in
+                The business side of your channel (brand deals, ideas, drafts and analytics) in
                 one place. Free and open source.
               </p>
             </div>

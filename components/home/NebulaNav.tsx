@@ -30,9 +30,7 @@ export function NebulaNav() {
         }}
       >
         <Link href="/" className="flex shrink-0 items-center gap-2 rounded-[9999px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-500">
-          <span aria-hidden className="grid h-6 w-6 place-items-center rounded-md bg-gradient-to-br from-orange-500 to-orange-700 font-nebula-tech text-[11px] font-bold text-white">
-            F
-          </span>
+          <img src="/brand/logo-mark.png" alt="" aria-hidden width={24} height={24} className="h-6 w-6 shrink-0" />
           <span className="font-nebula-ui text-sm font-medium tracking-tight text-white sm:text-base">
             CreatorFlow
           </span>
@@ -58,10 +56,10 @@ export function NebulaNav() {
           </a>
         </div>
 
-        <div className="flex shrink-0 items-center gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           <Link
             href="/login"
-            className="relative after:absolute after:inset-x-0 after:-inset-y-3 after:content-[''] hidden rounded font-nebula-ui text-xs font-medium text-gray-300 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-500 md:block"
+            className="relative after:absolute after:inset-x-0 after:-inset-y-3 after:content-[''] rounded font-nebula-ui text-xs font-medium text-gray-300 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-500"
           >
             Sign in
           </Link>
@@ -75,7 +73,7 @@ export function NebulaNav() {
               className="nebula-beam absolute inset-[-100%] bg-[conic-gradient(from_90deg_at_50%_50%,transparent_0%,transparent_75%,#ffffff_100%)] opacity-0 transition-opacity duration-300 [animation:nebulaBeamSpin_3s_linear_infinite] group-hover:opacity-100"
             />
             <span aria-hidden className="absolute inset-0 rounded-[9999px] bg-zinc-800 transition-opacity duration-300 group-hover:opacity-0" />
-            <span className="relative flex h-full w-full items-center justify-center gap-2 rounded-[9999px] bg-gradient-to-b from-zinc-800 to-zinc-950 px-4 py-2.5 font-nebula-ui text-[11px] sm:px-6 sm:text-xs font-medium uppercase tracking-widest text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] transition-colors duration-300 group-hover:text-white">
+            <span className="relative flex h-full w-full items-center justify-center gap-2 rounded-[9999px] bg-gradient-to-b from-zinc-800 to-zinc-950 px-3 py-2.5 font-nebula-ui text-[11px] sm:px-6 sm:text-xs font-medium uppercase tracking-widest text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] transition-colors duration-300 group-hover:text-white">
               <span className="relative z-10">Start free</span>
               <svg
                 aria-hidden
