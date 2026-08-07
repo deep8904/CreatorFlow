@@ -3,7 +3,7 @@ import { getDeals, getIntegrations, getDealStageHistory } from '@/lib/supabase/q
 import { requireModuleAccess } from '@/lib/supabase/access'
 import DealsBoard from './DealsBoard'
 
-export const metadata: Metadata = { title: 'Deals — CreatorFlow' }
+export const metadata: Metadata = { title: 'Deals - CreatorFlow' }
 
 export default async function DealsPage() {
   await requireModuleAccess('deals')

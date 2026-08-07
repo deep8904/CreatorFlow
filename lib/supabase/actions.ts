@@ -460,7 +460,7 @@ export async function seedSampleData(): Promise<ActionResult> {
     supabase.from('drafts').select('id', { count: 'exact', head: true }).eq('user_id', account.accountId),
   ])
   if ((dealsCount ?? 0) > 0 || (ideasCount ?? 0) > 0 || (draftsCount ?? 0) > 0) {
-    return { error: 'Your workspace already has content — sample data is only for a fresh start.' }
+    return { error: 'Your workspace already has content. Sample data is only for a fresh start.' }
   }
 
   const dealResult = await createDeal({
@@ -468,18 +468,18 @@ export async function seedSampleData(): Promise<ActionResult> {
     contact_name: 'Priya Nair',
     rate_amount_cents: 150000,
     deliverables: '1 dedicated YouTube video',
-    notes: 'This is a sample deal to show you around — edit or delete it any time.',
+    notes: 'This is a sample deal to show you around. Edit or delete it any time.',
   })
   if (dealResult.error) return { error: dealResult.error }
 
   const ideaResult = await createIdea(
     'Desk setup tour 2026',
-    'Full walkthrough — mic, lighting, monitor arm, new chair. This is a sample idea to show you around — edit or delete it any time.',
+    'Full walkthrough: mic, lighting, monitor arm, new chair. This is a sample idea to show you around. Edit or delete it any time.',
     ['setup', 'gear']
   )
   if (ideaResult.error) return { error: ideaResult.error }
 
-  const draftResult = await createDraft('Sponsor pitch template — cold outreach version')
+  const draftResult = await createDraft('Sponsor pitch template (cold outreach version)')
   if (draftResult.error) return { error: draftResult.error }
 
   return {}
@@ -632,7 +632,7 @@ export async function sendTeamInvite(email: string, role: Role): Promise<ActionR
   const trimmedEmail = email.trim().toLowerCase()
   if (!trimmedEmail) return { error: 'Enter an email address.' }
   if (!ASSIGNABLE_ROLES.includes(role)) {
-    return { error: 'Ownership can only change hands by transferring an existing member — invite them as a role first.' }
+    return { error: 'Ownership can only change hands by transferring an existing member. Invite them as a role first.' }
   }
 
   const { user } = await getAuthenticatedUser()

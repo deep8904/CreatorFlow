@@ -4,7 +4,7 @@ import { requireModuleAccess } from '@/lib/supabase/access'
 import type { ViewType } from '@/components/dash/views/ViewSwitcher'
 import DraftsBoard from './DraftsBoard'
 
-export const metadata: Metadata = { title: 'Drafts — CreatorFlow' }
+export const metadata: Metadata = { title: 'Drafts - CreatorFlow' }
 
 export default async function DraftsPage() {
   await requireModuleAccess('drafts')

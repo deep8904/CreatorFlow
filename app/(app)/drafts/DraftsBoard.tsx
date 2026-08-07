@@ -78,17 +78,17 @@ function buildAiAssistSuggestion(title: string, existingContent: string, linkedI
   const lineCount = existingContent.split('\n').filter((l) => l.trim()).length
 
   const hook = anchor
-    ? `Hook: open with "${trimTo(anchor, 90)}" — that's your strongest line so far, lead with it.`
+    ? `Hook: open with "${trimTo(anchor, 90)}," since that's your strongest line so far. Lead with it.`
     : `Hook: open with the single most surprising thing about "${topic}."`
 
   const body =
     lineCount > 1
-      ? `Body: you've already got ${lineCount} lines down — expand each into 2-3 sentences of spoken narration, in order.`
-      : `Body: break "${topic}" into 3 beats — what happened, why it mattered, what you'd do differently.`
+      ? `Body: you've already got ${lineCount} lines down. Expand each into 2-3 sentences of spoken narration, in order.`
+      : `Body: break "${topic}" into 3 beats: what happened, why it mattered, what you'd do differently.`
 
   const close = `Close: one clear call to action tying back to ${topic}.`
 
-  return `\n\n[Structure template — preview only, not a live AI call. Built from what you've written, not a generic skeleton. Starting point, edit freely.]\n${hook}\n${body}\n${close}`
+  return `\n\n[Structure template, preview only, not a live AI call. Built from what you've written, not a generic skeleton. Starting point, edit freely.]\n${hook}\n${body}\n${close}`
 }
 
 export default function DraftsBoard({
@@ -567,11 +567,11 @@ export default function DraftsBoard({
                 <button
                   type="button"
                   onClick={handleAiAssist}
-                  title="Inserts a structure template — preview only, not a live AI call"
+                  title="Inserts a structure template. Preview only, not a live AI call."
                   className={`flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[9999px] border border-white/10 px-3.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
                 >
                   <Sparkles size={13} strokeWidth={2} className="text-orange-400" />
-                  AI assist — preview
+                  AI assist (preview)
                 </button>
               )}
               {canEditContent && (

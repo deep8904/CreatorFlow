@@ -39,7 +39,7 @@ export function Hero() {
           >
             <span aria-hidden className="flex h-1.5 w-1.5 rounded-[9999px] bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
             <span className="font-nebula-ui text-xs font-medium tracking-wide text-orange-100/80 transition-colors group-hover:text-white">
-              Free &amp; open source — no cut of your deals
+              Free &amp; open source, no cut of your deals
             </span>
           </div>
         </NebulaReveal>
@@ -80,7 +80,7 @@ export function Hero() {
         <NebulaReveal delay={600}>
           <p className="mx-auto mb-12 max-w-3xl font-nebula-heading text-xl font-medium leading-relaxed tracking-normal text-gray-400 md:text-2xl">
             Every idea captured before it slips away. Every brand deal tracked so nothing falls
-            through the cracks. A faster path from idea to published — and a clear read on what&apos;s
+            through the cracks. A faster path from idea to published, and a clear read on what&apos;s
             actually working.
           </p>
         </NebulaReveal>

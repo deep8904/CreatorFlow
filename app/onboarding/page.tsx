@@ -245,7 +245,7 @@ function OnboardingFlow() {
             eyebrow="Step 1 of 2"
             align="start"
             title="Connect YouTube"
-            subtitle="Connect YouTube to see your performance alongside everything else. We only read analytics — we never post or modify anything."
+            subtitle="Connect YouTube to see your performance alongside everything else. We only read analytics, and we never post or modify anything."
           />
 
           <AuthConnectCard
@@ -270,7 +270,7 @@ function OnboardingFlow() {
             eyebrow="Step 2 of 2"
             align="start"
             title="Connect Gmail"
-            subtitle="Connect Gmail so brand deal emails get sorted automatically. We only look at sponsorship-related emails — we never read, delete, or send anything without your approval."
+            subtitle="Connect Gmail so brand deal emails get sorted automatically. We only look at sponsorship-related emails, and we never read, delete, or send anything without your approval."
           />
 
           <AuthConnectCard

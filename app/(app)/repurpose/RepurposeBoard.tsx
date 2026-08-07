@@ -25,7 +25,7 @@ function BestTimeToPublishPanel({ bestTime }: { bestTime: BestTimeAnalysis }) {
           <CalendarClock size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-zinc-500" />
           <div>
             <p className="font-nebula-ui text-[13px] text-zinc-300">
-              Not enough data yet — {bestTime.videoCount} of {bestTime.minRequired} videos analyzed.
+              Not enough data yet, {bestTime.videoCount} of {bestTime.minRequired} videos analyzed.
             </p>
             <p className="mt-1 font-nebula-ui text-[12px] text-zinc-500">
               Publish {bestTime.minRequired - bestTime.videoCount} more and this fills in with a real pattern from
@@ -60,7 +60,7 @@ function BestTimeToPublishPanel({ bestTime }: { bestTime: BestTimeAnalysis }) {
               </>
             ) : (
               <p className="mt-1.5 font-nebula-ui text-[12.5px] text-zinc-400">
-                No single day stands out yet — too few videos per weekday to call it.
+                No single day stands out yet. Too few videos per weekday to call it.
               </p>
             )}
           </div>
@@ -77,7 +77,7 @@ function BestTimeToPublishPanel({ bestTime }: { bestTime: BestTimeAnalysis }) {
               </>
             ) : (
               <p className="mt-1.5 font-nebula-ui text-[12.5px] text-zinc-400">
-                No single window stands out yet — too few videos per window to call it.
+                No single window stands out yet. Too few videos per window to call it.
               </p>
             )}
           </div>
@@ -105,7 +105,7 @@ function BestTimeToPublishPanel({ bestTime }: { bestTime: BestTimeAnalysis }) {
 
         {!bestTime.timezoneIsAccountSpecific && (
           <p className="font-nebula-ui text-[10.5px] text-zinc-600">
-            Your account has no timezone on file, so day/time grouping uses UTC — actual local-time results may
+            Your account has no timezone on file, so day/time grouping uses UTC. Actual local-time results may
             differ.
           </p>
         )}
@@ -169,11 +169,11 @@ function repurposeTextSource(title: string, body: string | null): {
   const beats = lines.slice(0, 3)
 
   return {
-    summary: cleanBody ? firstSentence(cleanBody, 180) : `A quick take on "${title}" — no script yet, just the idea.`,
+    summary: cleanBody ? firstSentence(cleanBody, 180) : `A quick take on "${title}," no script yet, just the idea.`,
     angles:
       beats.length > 0
         ? beats.map((b, i) => (i === 0 ? `Open on: "${firstSentence(b, 90)}"` : firstSentence(b, 90)))
-        : [`Cold open with the title as your hook: "${title}"`, 'Get to the point in the first 2 seconds — no intro.'],
+        : [`Cold open with the title as your hook: "${title}"`, 'Get to the point in the first 2 seconds, no intro.'],
     socialPosts: [
       `TikTok/Reels: 15–30s cut leading with your strongest line from "${title}".`,
       `Shorts: same cut, vertical crop, on-screen captions burned in.`,
@@ -220,7 +220,7 @@ export default function RepurposeBoard({
     const match = videos.find((v) => v.youtube_video_id && trimmed.includes(v.youtube_video_id))
     if (!match) {
       toast.info(
-        'This demo only recognizes pre-seeded videos from your connected channel — try picking a video, draft, or idea from the list instead.'
+        'This demo only recognizes pre-seeded videos from your connected channel. Try picking a video, draft, or idea from the list instead.'
       )
       return
     }
@@ -372,7 +372,7 @@ export default function RepurposeBoard({
                       )}
 
                       <p className="text-center font-nebula-ui text-[11px] text-zinc-600">
-                        Preview only — seeded example suggestions, not a live AI call. In production, generating this
+                        Preview only, seeded example suggestions, not a live AI call. In production, generating this
                         calls Gemini against the video&apos;s real transcript.
                       </p>
                     </div>
@@ -419,7 +419,7 @@ export default function RepurposeBoard({
                     </Panel>
 
                     <p className="text-center font-nebula-ui text-[11px] text-zinc-600">
-                      Preview only — built from what you&apos;ve written so far, not a live AI call. In production,
+                      Preview only, built from what you&apos;ve written so far, not a live AI call. In production,
                       this would call Gemini against your full draft.
                     </p>
                   </div>

@@ -13,7 +13,7 @@ import { NebulaReveal } from './NebulaReveal'
  */
 
 const COMMITMENTS = [
-  'No cut of your deals — ever',
+  'No cut of your deals, ever',
   'Free forever, no paid tier',
   'Open source',
   'Export everything, any time',

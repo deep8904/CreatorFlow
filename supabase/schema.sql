@@ -413,9 +413,9 @@ begin
     (new.id, 'New video published → Suggest a repurpose', 'youtube.video_published', 'repurpose.suggest',
       jsonb_build_object('description', 'As soon as a new video goes live, queue it up in Repurpose so clips and posts are ready same-day.'), false, null, null),
     (new.id, 'Deal gone quiet or invoice overdue → Flag for follow-up', 'deals.needs_follow_up', 'deals.flag_follow_up',
-      jsonb_build_object('description', 'Deals stuck 5+ days in Inbound/Negotiating, or with an unpaid invoice past its due date, already show on your Dashboard and in Deals regardless of this toggle.'), false,
+      jsonb_build_object('description', 'Deals stuck 5+ days in Inbound/Negotiating, or with an unpaid invoice past its due date, already show on your Dashboard and in Deals right away, with no toggle needed. Turn this on for a daily scheduled check that logs what it found here too.'), false,
       '0 13 * * *', 'Checked daily, 1pm UTC'),
-    (new.id, 'Monday digest — what''s due this week', 'schedule.weekly_digest', 'deals.summarize_week',
+    (new.id, 'Monday digest: what''s due this week', 'schedule.weekly_digest', 'deals.summarize_week',
       jsonb_build_object('description', 'Every Monday, a summary of deals and drafts due in the next 7 days.'), false,
       '0 14 * * 1', 'Every Monday, 2pm UTC')
   on conflict do nothing;

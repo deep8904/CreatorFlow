@@ -80,7 +80,7 @@ export default function ResetPasswordPage() {
           required
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
-          placeholder="••••••••"
+          placeholder="Repeat the password"
           invalid={confirmInvalid}
         />
 

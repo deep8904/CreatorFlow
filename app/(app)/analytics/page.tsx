@@ -15,7 +15,7 @@ function formatMoney(cents: number) {
   )
 }
 
-export const metadata: Metadata = { title: 'Analytics — CreatorFlow' }
+export const metadata: Metadata = { title: 'Analytics - CreatorFlow' }
 
 function monthKey(dateStr: string) {
   return dateStr.slice(0, 7)
@@ -85,7 +85,7 @@ export default async function AnalyticsPage() {
             {!youtube?.isDemo && (
               <div className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-white/[0.06] bg-white/[0.02] px-5 py-4">
                 <p className="font-nebula-ui text-[12.5px] text-zinc-400">
-                  Connected as {youtube?.accountLabel ?? 'your channel'}. Views/watch-time trend isn&apos;t available —
+                  Connected as {youtube?.accountLabel ?? 'your channel'}. Views/watch-time trend isn&apos;t available:
                   this connection only has the YouTube Data scope, not the separate Analytics scope a daily trend needs.
                 </p>
                 <RefreshYoutubeButton />
@@ -94,7 +94,7 @@ export default async function AnalyticsPage() {
             <Panel title="Top videos" titleId="videos-h">
               {topVideosOnly.length === 0 ? (
                 <p className="px-5 pb-5 font-nebula-ui text-[12.5px] text-zinc-500">
-                  No video data yet{youtube?.isDemo ? '.' : ' — try refreshing.'}
+                  No video data yet{youtube?.isDemo ? '.' : '. Try refreshing.'}
                 </p>
               ) : (
                 <ul className="pb-2">

@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
       }).catch(() => {})
     }
     return new Response(
-      JSON.stringify({ error: "Google didn't finish granting access — please click Connect and try again." }),
+      JSON.stringify({ error: "Google didn't finish granting access. Please click Connect and try again." }),
       { status: 502, headers: { 'Content-Type': 'application/json' } },
     )
   }

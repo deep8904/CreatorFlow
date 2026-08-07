@@ -59,7 +59,7 @@ export function DashboardHeader({
           </h1>
           <p className="mt-1 font-nebula-ui text-[13px] text-zinc-500">{description}</p>
         </div>
-        {right && <div className="flex shrink-0 flex-wrap items-center gap-2.5">{right}</div>}
+        {right && <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto sm:shrink-0">{right}</div>}
       </div>
     </header>
   )

@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
           body={
             <>
               If an account exists for <span className="text-zinc-100">{email.trim()}</span>, we&apos;ve sent a link to reset
-              your password. Links expire after a while — if yours doesn&apos;t work, send another below.
+              your password. Links expire after a while, so if yours doesn&apos;t work, send another below.
             </>
           }
         >

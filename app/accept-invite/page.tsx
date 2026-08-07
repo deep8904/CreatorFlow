@@ -6,7 +6,7 @@ import { ROLE_LABELS, ROLE_DESCRIPTIONS } from '@/lib/roles'
 import { AuthShell, AuthNotice, AuthButton, AuthLink } from '@/components/auth'
 import { AcceptInviteButton } from './AcceptInviteButton'
 
-export const metadata: Metadata = { title: 'Accept invite — CreatorFlow' }
+export const metadata: Metadata = { title: 'Accept invite - CreatorFlow' }
 export const viewport: Viewport = { colorScheme: 'dark', themeColor: '#000000' }
 
 export default async function AcceptInvitePage({

@@ -4,7 +4,7 @@ import { getDeals, getDrafts } from '@/lib/supabase/queries'
 import { canAccessModule } from '@/lib/roles'
 import CalendarBoard from './CalendarBoard'
 
-export const metadata: Metadata = { title: 'Calendar — CreatorFlow' }
+export const metadata: Metadata = { title: 'Calendar - CreatorFlow' }
 
 export default async function CalendarPage() {
   const account = await requireModuleAccess('calendar')

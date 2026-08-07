@@ -51,7 +51,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'CreatorFlow — Fewer dropped ideas. More consistent you.',
+  title: 'CreatorFlow: Fewer dropped ideas. More consistent you.',
   description:
     'Every idea captured before it slips away. Every brand deal tracked so nothing falls through the cracks. A faster path from idea to published. And a clear read on what\'s actually working.',
   generator: 'v0.app',

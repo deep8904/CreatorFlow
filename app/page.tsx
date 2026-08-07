@@ -9,7 +9,7 @@ import { FeatureBento } from '@/components/home/FeatureBento'
 import { HomeFooter } from '@/components/home/HomeFooter'
 
 export const metadata: Metadata = {
-  title: 'CreatorFlow — Fewer dropped ideas. More consistent you.',
+  title: 'CreatorFlow: Fewer dropped ideas. More consistent you.',
   description:
     'Free and open source. Every idea captured before it slips away, every brand deal tracked from first email to paid, and a clear read on what is actually working.',
 }

@@ -3,7 +3,7 @@ import { getCurrentProfile, getIntegrations, getCurrentAccount } from '@/lib/sup
 import { getAuthenticatedUser } from '@/lib/supabase/server'
 import SettingsBoard from './SettingsBoard'
 
-export const metadata: Metadata = { title: 'Settings — CreatorFlow' }
+export const metadata: Metadata = { title: 'Settings - CreatorFlow' }
 
 export default async function SettingsPage() {
   const [profile, integrations, { user }, account] = await Promise.all([

@@ -81,7 +81,7 @@ export function QuickIdeaForm({
           className={`min-w-0 flex-1 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-2 font-nebula-ui text-[13px] text-zinc-200 outline-none placeholder:text-zinc-600 ${FOCUS}`}
         />
         <input
-          placeholder="Tags — comma separated"
+          placeholder="Tags, comma separated"
           value={tagsText}
           onChange={(e) => setTagsText(e.target.value)}
           className={`min-w-0 flex-1 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-2 font-nebula-ui text-[13px] text-zinc-200 outline-none placeholder:text-zinc-600 ${FOCUS}`}

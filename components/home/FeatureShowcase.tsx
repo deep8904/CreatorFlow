@@ -61,7 +61,7 @@ export function FeatureShowcase() {
 
               <div className="space-y-6 font-nebula-ui text-lg leading-relaxed text-gray-400">
                 <p>
-                  Deals move through a pipeline you can actually see — Inbound, Negotiating,
+                  Deals move through a pipeline you can actually see: Inbound, Negotiating,
                   Contracted, Delivered, Paid. Nothing sits forgotten in an inbox.
                 </p>
                 <p>
@@ -124,7 +124,7 @@ export function FeatureShowcase() {
                 </div>
 
                 <p className="mt-6 font-nebula-mono text-[11px] leading-relaxed text-gray-600">
-                  Demonstration data — not a real creator&apos;s figures.
+                  Demonstration data, not a real creator&apos;s figures.
                 </p>
               </div>
             </div>

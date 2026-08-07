@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
       subscriberCount: Number(channel.statistics?.subscriberCount ?? 0),
       totalViewCount: Number(channel.statistics?.viewCount ?? 0),
       trendNote:
-        'Views/watch-time trend not populated — this Google grant only has youtube.readonly, which covers the Data API, not the Analytics API needed for a daily trend.',
+        'Views/watch-time trend not populated: this Google grant only has youtube.readonly, which covers the Data API, not the Analytics API needed for a daily trend.',
     }),
     { headers: { 'Content-Type': 'application/json' } },
   )

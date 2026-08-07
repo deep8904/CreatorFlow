@@ -4,7 +4,7 @@ import { createSupabaseServiceRoleClient } from '@/lib/supabase/serviceRole'
 import { computeVideoStats, formatCompactNumber } from '@/lib/mediaKit'
 import type { ChannelVideo, Deal } from '@/lib/supabase/types'
 
-export const metadata: Metadata = { title: 'Media Kit — CreatorFlow' }
+export const metadata: Metadata = { title: 'Media Kit - CreatorFlow' }
 
 // Public, unauthenticated route — deliberately outside app/(app), which is
 // the only auth-gated layout in this app (see app/(app)/layout.tsx). Every
@@ -85,7 +85,7 @@ export default async function PublicMediaKitPage({ params }: { params: Promise<{
           </h1>
           {handle && <p className="font-nebula-ui text-[14px] text-zinc-500">{handle}</p>}
           {integration?.is_demo && (
-            <p className="font-nebula-ui text-[11px] text-zinc-600">Seeded demo data — not a live channel connection.</p>
+            <p className="font-nebula-ui text-[11px] text-zinc-600">Seeded demo data, not a live channel connection.</p>
           )}
         </header>
 
@@ -159,7 +159,7 @@ export default async function PublicMediaKitPage({ params }: { params: Promise<{
         </section>
 
         <footer className="pt-2 text-center">
-          <p className="font-nebula-ui text-[11px] text-zinc-600">Built with CreatorFlow — free, no cut of any deal.</p>
+          <p className="font-nebula-ui text-[11px] text-zinc-600">Built with CreatorFlow, free with no cut of any deal.</p>
         </footer>
       </main>
     </div>

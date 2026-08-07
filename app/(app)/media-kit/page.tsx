@@ -3,7 +3,7 @@ import { requireModuleAccess } from '@/lib/supabase/access'
 import { getOrCreateMediaKit, getDeals, getChannelVideos, getIntegrations } from '@/lib/supabase/queries'
 import MediaKitBoard from './MediaKitBoard'
 
-export const metadata: Metadata = { title: 'Media Kit — CreatorFlow' }
+export const metadata: Metadata = { title: 'Media Kit - CreatorFlow' }
 
 export default async function MediaKitPage() {
   await requireModuleAccess('mediaKit')

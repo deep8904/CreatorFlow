@@ -57,7 +57,7 @@ const STAGE_LABEL: Record<Deal['status'], string> = {
 const STAGES: Deal['status'][] = ['inbound', 'negotiating', 'contracted', 'delivered', 'paid', 'lost']
 
 const FOLLOWUP_REASON_LABEL: Record<FollowUpReason, string> = {
-  stale: 'Gone quiet — no update in 5+ days',
+  stale: 'Gone quiet, no update in 5+ days',
   overdue_invoice: 'Invoice sent, unpaid, and past due',
 }
 
@@ -104,14 +104,14 @@ function formatDateTime(iso: string | null) {
 
 function aiReplyFor(deal: Deal) {
   const rate = formatRate(deal.rate_amount_cents)
-  return `Hi ${deal.contact_name?.split(' ')[0] ?? 'there'},\n\nThanks for reaching out about working with ${deal.brand_name ?? 'your brand'} — I'd love to talk through it.\n\nBased on my current rate card, ${deal.deliverables ?? 'this kind of deliverable'} is typically ${rate}. Happy to hop on a quick call this week to align on scope and timeline.\n\nLooking forward to it,\nDeep`
+  return `Hi ${deal.contact_name?.split(' ')[0] ?? 'there'},\n\nThanks for reaching out about working with ${deal.brand_name ?? 'your brand'}, I'd love to talk through it.\n\nBased on my current rate card, ${deal.deliverables ?? 'this kind of deliverable'} is typically ${rate}. Happy to hop on a quick call this week to align on scope and timeline.\n\nLooking forward to it,\nDeep`
 }
 
 function contractReviewFor(deal: Deal) {
   return [
-    { level: 'critical' as const, label: 'Needs a closer look', text: 'No cap specified on usage rights — could be read as unlimited, indefinite use of the content.' },
+    { level: 'critical' as const, label: 'Needs a closer look', text: 'No cap specified on usage rights. Could be read as unlimited, indefinite use of the content.' },
     { level: 'risk' as const, label: 'Worth checking', text: `Payment terms aren't stated. Confirm net-30 (or better) before signing for the ${formatRate(deal.rate_amount_cents)} rate.` },
-    { level: 'info' as const, label: 'For your information', text: 'Standard exclusivity clause — 30 days in-category after publish. Typical for this deal size.' },
+    { level: 'info' as const, label: 'For your information', text: 'Standard exclusivity clause: 30 days in-category after publish. Typical for this deal size.' },
   ]
 }
 
@@ -171,7 +171,7 @@ function DealModal({
             <FieldLabel htmlFor="deal-rate">Rate ($)</FieldLabel>
             <FieldInput id="deal-rate" type="number" min="0" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="1500" />
             {/* Creators consistently go into negotiation without a number
-                in mind — this is their own real history, not a market
+                in mind. This is their own real history, not a market
                 estimate, so it's honest even though it's a small sample. */}
             {!initial && typicalRateCents !== null && (
               <p className="mt-1.5 font-nebula-ui text-[10.5px] text-zinc-600">
@@ -420,7 +420,7 @@ export default function DealsBoard({
       await navigator.clipboard.writeText(aiReplyFor(deal))
       toast.success('Copied to clipboard.')
     } catch {
-      toast.error('Could not copy — your browser may be blocking clipboard access.')
+      toast.error('Could not copy. Your browser may be blocking clipboard access.')
     }
   }
 
@@ -823,7 +823,7 @@ export default function DealsBoard({
               >
                 <span className="nebula-cta__label flex items-center gap-1.5">
                   <Sparkles size={13} strokeWidth={2} />
-                  {revealAiReply ? 'Hide reply preview' : 'Draft reply — preview'}
+                  {revealAiReply ? 'Hide reply preview' : 'Draft reply (preview)'}
                 </span>
               </button>
               <button
@@ -832,7 +832,7 @@ export default function DealsBoard({
                 className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-[9999px] border border-white/10 font-nebula-ui text-[12.5px] font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-white ${HOVER} ${FOCUS}`}
               >
                 <FileText size={13} strokeWidth={2} />
-                {revealReview ? 'Hide contract review' : 'Review contract — preview'}
+                {revealReview ? 'Hide contract review' : 'Review contract (preview)'}
               </button>
               <button
                 type="button"
@@ -866,7 +866,7 @@ export default function DealsBoard({
             {revealAiReply && (
               <div className="nebula-border rounded-[12px] bg-white/[0.03] p-4">
                 <p className="mb-2 font-nebula-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
-                  Draft reply — preview
+                  Draft reply (preview)
                 </p>
                 <pre className="whitespace-pre-wrap font-nebula-ui text-[12.5px] leading-relaxed text-zinc-300">
                   {aiReplyFor(selected)}
@@ -888,7 +888,7 @@ export default function DealsBoard({
                   </button>
                 </div>
                 <p className="mt-2 font-nebula-ui text-[10.5px] text-zinc-600">
-                  Opens your own Gmail with this draft pre-filled — nothing is sent from here.
+                  Opens your own Gmail with this draft pre-filled. Nothing is sent from here.
                 </p>
               </div>
             )}
@@ -896,7 +896,7 @@ export default function DealsBoard({
             {revealReview && (
               <div className="flex flex-col gap-2.5">
                 <p className="font-nebula-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
-                  Contract review — preview
+                  Contract review (preview)
                 </p>
                 {contractReviewFor(selected).map((item, i) => {
                   const style = reviewStyle[item.level]
@@ -921,7 +921,7 @@ export default function DealsBoard({
                 </p>
                 {selectedHistory.length === 0 ? (
                   <p className="font-nebula-ui text-[12px] text-zinc-600">
-                    No transitions recorded yet — this starts tracking from here forward.
+                    No transitions recorded yet. Tracking starts from here forward.
                   </p>
                 ) : (
                   <ul className="flex flex-col gap-2.5">
@@ -943,7 +943,7 @@ export default function DealsBoard({
 
             {(revealAiReply || revealReview) && (
               <p className="text-center font-nebula-ui text-[11px] text-zinc-600">
-                Preview only — built from a template and your rate card, not a live AI call. Nothing sends until you
+                Preview only, built from a template and your rate card, not a live AI call. Nothing sends until you
                 approve.
               </p>
             )}

@@ -81,8 +81,8 @@ async function runFollowUpCheck(admin: ReturnType<typeof createClient>) {
 
     const summary =
       flagged.length === 0
-        ? 'Checked — nothing needs follow-up right now.'
-        : `Checked — ${flagged.length} deal${flagged.length === 1 ? '' : 's'} need${flagged.length === 1 ? 's' : ''} follow-up: ${flagged
+        ? 'Checked. Nothing needs follow-up right now.'
+        : `Checked, ${flagged.length} deal${flagged.length === 1 ? '' : 's'} need${flagged.length === 1 ? 's' : ''} follow-up: ${flagged
             .map((d: Deal) => d.brand_name ?? 'Untitled deal')
             .slice(0, 5)
             .join(', ')}${flagged.length > 5 ? ', …' : ''}.`
@@ -146,7 +146,7 @@ function isServiceRoleJwt(authHeader: string): boolean {
 Deno.serve(async (req) => {
   const authHeader = req.headers.get('Authorization') ?? ''
   if (!isServiceRoleJwt(authHeader)) {
-    return new Response(JSON.stringify({ error: 'Unauthorized — this endpoint is for the scheduler only.' }), {
+    return new Response(JSON.stringify({ error: 'Unauthorized. This endpoint is for the scheduler only.' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
     })

@@ -36,7 +36,7 @@ export function AuthResendButton({ onResend, sentLabel = 'Sent' }: { onResend: (
 
   return (
     <AuthButton variant="calm" type="button" onClick={handleClick} disabled={disabled}>
-      {isSending ? 'Sending…' : cooldown > 0 ? `${sentLabel} — resend in ${cooldown}s` : 'Resend email'}
+      {isSending ? 'Sending…' : cooldown > 0 ? `${sentLabel}, resend in ${cooldown}s` : 'Resend email'}
     </AuthButton>
   )
 }

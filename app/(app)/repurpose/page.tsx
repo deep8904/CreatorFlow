@@ -4,7 +4,7 @@ import { requireModuleAccess } from '@/lib/supabase/access'
 import { analyzeBestTimeToPublish } from '@/lib/bestTimeToPublish'
 import RepurposeBoard from './RepurposeBoard'
 
-export const metadata: Metadata = { title: 'Repurpose — CreatorFlow' }
+export const metadata: Metadata = { title: 'Repurpose - CreatorFlow' }
 
 export default async function RepurposePage() {
   await requireModuleAccess('repurpose')

@@ -59,7 +59,7 @@ const FEATURES: Feature[] = [
   },
   {
     title: 'Your channel, next to your pipeline',
-    body: 'Views, watch time and subscriber movement sitting beside your deals — so you can see which content actually drives sponsorship interest.',
+    body: 'Views, watch time and subscriber movement sitting beside your deals, so you can see which content actually drives sponsorship interest.',
     glow: 'from-orange-500/10',
     icon: (
       <svg {...iconProps} aria-hidden>

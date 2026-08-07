@@ -144,7 +144,7 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
       await navigator.clipboard.writeText(inviteLink(id))
       toast.success('Invite link copied.')
     } catch {
-      toast.error('Could not copy — your browser may be blocking clipboard access.')
+      toast.error('Could not copy. Your browser may be blocking clipboard access.')
     }
   }
 
@@ -155,7 +155,7 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
     if (
       role === 'owner' &&
       !window.confirm(
-        `Make ${name} the account owner? You'll become a Manager and lose access to team and workspace management — they'll have full control instead.`,
+        `Make ${name} the account owner? You'll become a Manager and lose access to team and workspace management, and they'll have full control instead.`,
       )
     )
       return
@@ -230,7 +230,7 @@ export default function TeamBoard({ team }: { team: TeamData | null }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-nebula-ui text-[13.5px] font-medium text-zinc-100">{invite.invited_email}</p>
                   <p className="font-nebula-ui text-[11.5px] text-zinc-500">
-                    Invited as {ROLE_LABELS[invite.role]} — waiting for them to accept
+                    Invited as {ROLE_LABELS[invite.role]}, waiting for them to accept
                   </p>
                 </div>
                 {team?.isOwner && (

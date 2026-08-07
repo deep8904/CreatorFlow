@@ -17,7 +17,7 @@ export function DashError({ error, reset }: { error: Error & { digest?: string }
       <div role="alert" className="max-w-[26rem]">
         <p className="font-nebula-heading text-[17px] font-semibold text-white">Something went wrong</p>
         <p className="mt-2 font-nebula-ui text-[13.5px] leading-relaxed text-zinc-500">
-          We couldn&apos;t load this screen. Nothing was lost — try again.
+          We couldn&apos;t load this screen. Nothing was lost. Try again.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button

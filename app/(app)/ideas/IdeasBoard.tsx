@@ -278,7 +278,7 @@ export default function IdeasBoard({ initialIdeas, initialView }: { initialIdeas
               {query.trim() ? 'No ideas match your search.' : 'No ideas yet.'}
             </p>
             <p className="mt-1 font-nebula-ui text-[13px] text-zinc-500">
-              {query.trim() ? 'Try a different search term.' : 'The next one you have — write it down here before it disappears.'}
+              {query.trim() ? 'Try a different search term.' : 'The next one you have. Write it down here before it disappears.'}
             </p>
             {!query.trim() && (
               <button
