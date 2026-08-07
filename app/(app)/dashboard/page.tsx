@@ -16,18 +16,17 @@ import { canAccessModule } from '@/lib/roles'
 import { getDealsNeedingFollowUp } from '@/lib/dealUrgency'
 import { DashboardHeader, CapturePills } from '@/components/dash/DashboardHeader'
 import { DateRangeMenu } from '@/components/dash/DateRangeMenu'
-import { MetricGrid, type Metric } from '@/components/dash/MetricCard'
+import { MetricGrid, MetricCard, type Metric } from '@/components/dash/MetricCard'
 import { Panel } from '@/components/dash/Panel'
 import { LineTrendChart, type TrendPoint } from '@/components/dash/LineTrendChart'
 import { StageFunnelChart, type StageBar } from '@/components/dash/StageFunnelChart'
 import { GaugeChart } from '@/components/dash/GaugeChart'
 import { BreakdownList, type BreakdownRow } from '@/components/dash/BreakdownList'
 import { DealsTable, type DealRow } from '@/components/dash/DealsTable'
-import { AIAssistantPanel } from '@/components/dash/AIAssistantPanel'
 import { EmptyDashboard } from '@/components/dash/EmptyDashboard'
 import { OnboardingChecklist, type ChecklistItem } from '@/components/dash/OnboardingChecklist'
 
-export const metadata: Metadata = { title: 'Dashboard — CreatorFlow' }
+export const metadata: Metadata = { title: 'Dashboard - CreatorFlow' }
 
 function formatMoney(d: number) {
   return new Intl.NumberFormat('en-US', {
@@ -63,7 +62,42 @@ const DEAL_STAGE_LABEL: Record<Deal['status'], string> = {
   lost: 'Lost',
 }
 
-const FUNNEL_STAGES: Deal['status'][] = ['inbound', 'negotiating', 'contracted', 'delivered', 'paid']
+// 'paid' renders separately as a terminal-state summary, not a pipeline
+// stage — see StageFunnelChart's `paid` prop.
+const FUNNEL_STAGES: Deal['status'][] = ['inbound', 'negotiating', 'contracted', 'delivered']
+
+/**
+ * A fixed two-card row (rather than the old "however many panels apply,
+ * pick a column count" approach) — each row on this page now pairs two
+ * specific cards, so the layout needs to degrade gracefully when a role
+ * can't see one side rather than needing a different column count per
+ * combination. A single surviving side takes the full row; an empty row
+ * renders nothing.
+ */
+function TwoUpRow({
+  left,
+  right,
+  ratio = 'even',
+}: {
+  left: ReactNode | null
+  right: ReactNode | null
+  ratio?: 'even' | 'oneTwo' | 'twoOne'
+}) {
+  if (!left && !right) return null
+  if (!left || !right) return <>{left ?? right}</>
+  // Tailwind's named grid-cols-2 utility compiles to repeat(2, minmax(0, 1fr)),
+  // which lets a track shrink below its content's min-content width — a
+  // literal `[1fr_2fr]` arbitrary value doesn't get that same minmax(0, ...)
+  // wrapper, so it's spelled out explicitly here too, otherwise a track could
+  // get pushed wider than its share by a future wide child and overflow.
+  const template =
+    ratio === 'oneTwo'
+      ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]'
+      : ratio === 'twoOne'
+        ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'
+        : 'lg:grid-cols-2'
+  return <div className={`grid grid-cols-1 gap-6 ${template}`}>{left}{right}</div>
+}
 
 /**
  * `due_date` is a date-only column and this page is server-rendered, so the
@@ -254,19 +288,22 @@ export default async function DashboardPage({
           },
         ]
       : []),
-    ...(canAnalyticsModule && youtubeConnected
-      ? [
-          {
-            label: 'Views, last 28 days',
-            value: formatCompactNumber(last28Views),
-            title: last28Views.toLocaleString(),
-            delta: viewsDeltaPct === null ? null : { pct: viewsDeltaPct, positive: viewsDeltaPct >= 0 },
-            hint: `${last28SubsGained >= 0 ? '+' : ''}${last28SubsGained.toLocaleString()} subscribers`,
-            icon: <Video size={14} />,
-          },
-        ]
-      : []),
   ]
+
+  // Promoted out of the stat strip into its own card (paired with "Deals by
+  // stage") rather than folded in with the rest — it's the one metric with a
+  // trend to show, not just a snapshot count.
+  const viewsMetric: Metric | null =
+    canAnalyticsModule && youtubeConnected
+      ? {
+          label: 'Views, last 28 days',
+          value: formatCompactNumber(last28Views),
+          title: last28Views.toLocaleString(),
+          delta: viewsDeltaPct === null ? null : { pct: viewsDeltaPct, positive: viewsDeltaPct >= 0 },
+          hint: `${last28SubsGained >= 0 ? '+' : ''}${last28SubsGained.toLocaleString()} subscribers`,
+          icon: <Video size={14} />,
+        }
+      : null
 
   const stageBars: StageBar[] = FUNNEL_STAGES.map((status) => {
     const inStage = deals.filter((d) => d.status === status)
@@ -398,193 +435,144 @@ export default async function DashboardPage({
             <EmptyDashboard role={role} />
           ) : (
             <div className="flex flex-col gap-6">
+              {/* Compact stat strip — every metric that isn't "Views" (that
+                  one gets its own card below, paired with Deals by stage,
+                  since it's the one metric with a trend to show). */}
               <MetricGrid metrics={metrics} />
 
-              {(() => {
-                const row1: { key: string; node: ReactNode }[] = []
-                if (canAnalyticsModule) {
-                  row1.push({
-                    key: 'trend',
-                    node: (
-                      <Panel title="Channel views" titleId="trend-h" eyebrow={`Last ${days} days`}>
-                        <div className="px-5 pb-5">
-                          {!showTrend ? (
-                            <div className="flex h-[180px] flex-col items-center justify-center gap-3 text-center">
-                              <p className="font-nebula-ui text-[12.5px] text-zinc-500">
-                                Connect YouTube to see your performance here.
+              <TwoUpRow
+                ratio="oneTwo"
+                left={viewsMetric && <MetricCard {...viewsMetric} className="h-full" />}
+                right={
+                  canDeals && (
+                    <Panel title="Deals by stage" titleId="stage-h" className="h-full">
+                      <div className="px-5 pb-5">
+                        <StageFunnelChart
+                          stages={stageBars}
+                          paid={{ count: paidDeals.length, formattedValue: formatMoney(revenueCollected) }}
+                        />
+                      </div>
+                    </Panel>
+                  )
+                }
+              />
+
+              <TwoUpRow
+                ratio="twoOne"
+                left={
+                  canAnalyticsModule && (
+                    <Panel title="Channel views" titleId="trend-h" eyebrow={`Last ${days} days`} className="h-full">
+                      <div className="px-5 pb-5">
+                        {!showTrend ? (
+                          <div className="flex h-[180px] flex-col items-center justify-center gap-3 text-center">
+                            <span aria-hidden className="grid h-9 w-9 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
+                              <Video size={16} strokeWidth={2} />
+                            </span>
+                            <p className="font-nebula-ui text-[12.5px] text-zinc-500">
+                              Connect YouTube to see your performance here.
+                            </p>
+                            <a
+                              href="/settings"
+                              className="inline-flex h-8 items-center rounded-[9999px] border border-white/10 px-3.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+                            >
+                              Connect YouTube
+                            </a>
+                          </div>
+                        ) : hasTrendData ? (
+                          <>
+                            <LineTrendChart points={trendPoints} unit="views" />
+                            {youtube?.isDemo && (
+                              <p className="mt-3 font-nebula-ui text-[10.5px] text-zinc-600">
+                                Seeded demo data. In production this pulls live from the YouTube Analytics API.
                               </p>
-                              <a
-                                href="/settings"
-                                className="inline-flex h-8 items-center rounded-[9999px] border border-white/10 px-3.5 font-nebula-ui text-[12px] font-medium text-zinc-300 hover:bg-white/[0.06] hover:text-white"
-                              >
-                                Connect YouTube
-                              </a>
-                            </div>
-                          ) : hasTrendData ? (
-                            <>
-                              <LineTrendChart points={trendPoints} unit="views" />
-                              {youtube?.isDemo && (
-                                <p className="mt-3 font-nebula-ui text-[10.5px] text-zinc-600">
-                                  Seeded demo data — in production this pulls live from the YouTube Analytics API.
-                                </p>
-                              )}
-                            </>
-                          ) : (
-                            <div className="flex h-[180px] flex-col items-center justify-center gap-2 text-center">
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex h-[180px] flex-col items-center justify-center gap-3 text-center">
+                            <span aria-hidden className="grid h-9 w-9 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
+                              <Video size={16} strokeWidth={2} />
+                            </span>
+                            <div>
                               <p className="font-nebula-ui text-[12.5px] text-zinc-500">
-                                No views in the last {days} days.
+                                Nothing to show for the last {days} days.
                               </p>
-                              <p className="font-nebula-ui text-[12px] text-zinc-600">
+                              <p className="mt-1 font-nebula-ui text-[12px] text-zinc-600">
                                 Try a wider range, or check back once your next video is live.
                               </p>
                             </div>
-                          )}
-                        </div>
-                      </Panel>
-                    ),
-                  })
-                }
-                if (canDeals) {
-                  row1.push({
-                    key: 'stage',
-                    node: (
-                      <Panel title="Deals by stage" titleId="stage-h">
-                        <div className="px-5 pb-5">
-                          <StageFunnelChart stages={stageBars} />
-                        </div>
-                      </Panel>
-                    ),
-                  })
-                }
-
-                const row2: { key: string; node: ReactNode }[] = []
-                if (canIdeas) {
-                  row2.push({
-                    key: 'gauge',
-                    node: (
-                      <Panel title="Ideas shipped" titleId="gauge-h">
-                        <div className="flex flex-col items-center px-5 pb-6">
-                          <GaugeChart pct={draftConversionPct} value={`${draftConversionPct}%`} label="Ideas turned into drafts" />
-                        </div>
-                      </Panel>
-                    ),
-                  })
-                }
-                if (canDeals) {
-                  row2.push(
-                    {
-                      key: 'brands',
-                      node: (
-                        <Panel title="Top brands" titleId="brands-h">
-                          <BreakdownList title="By pipeline value" rows={breakdownRows} />
-                        </Panel>
-                      ),
-                    },
-                    {
-                      key: 'next-step',
-                      node: (
-                        <Panel title="Needs a next step" titleId="table-h" action={{ label: 'View all', href: '/deals' }}>
-                          <div className="pb-2">
-                            <DealsTable rows={tableRows} />
                           </div>
-                        </Panel>
-                      ),
-                    },
+                        )}
+                      </div>
+                    </Panel>
                   )
                 }
-
-                const row3: { key: string; node: ReactNode }[] = []
-                if (canDeals) {
-                  row3.push(
-                    {
-                      key: 'followup',
-                      node: (
-                        <Panel
-                          title="Needs follow-up"
-                          titleId="followup-h"
-                          eyebrow={followUpDeals.length > 0 ? `${followUpDeals.length} flagged` : undefined}
-                        >
-                          {followUpRows.length === 0 ? (
-                            <p className="px-5 pb-5 font-nebula-ui text-[12.5px] text-zinc-500">
-                              Nothing needs a follow-up right now.
-                            </p>
-                          ) : (
-                            <div className="pb-2">
-                              <DealsTable rows={followUpRows} />
-                            </div>
-                          )}
-                        </Panel>
-                      ),
-                    },
-                    {
-                      key: 'upcoming',
-                      node: (
-                        <Panel
-                          title="Upcoming income"
-                          titleId="upcoming-h"
-                          eyebrow={upcomingIncomeDeals.length > 0 ? `${formatMoney(upcomingIncomeTotal)} committed` : undefined}
-                        >
-                          {upcomingIncomeRows.length === 0 ? (
-                            <p className="px-5 pb-5 font-nebula-ui text-[12.5px] text-zinc-500">
-                              Nothing contracted or delivered yet — this fills in once a deal is locked in.
-                            </p>
-                          ) : (
-                            <div className="pb-2">
-                              <DealsTable rows={upcomingIncomeRows} />
-                            </div>
-                          )}
-                        </Panel>
-                      ),
-                    },
-                    {
-                      key: 'ai',
-                      node: (
-                        <Panel title="AI Assistant" titleId="ai-h">
-                          <div className="h-[320px]">
-                            <AIAssistantPanel />
-                          </div>
-                        </Panel>
-                      ),
-                    },
+                right={
+                  canIdeas && (
+                    <Panel title="Ideas shipped" titleId="gauge-h" className="h-full">
+                      <div className="flex flex-1 flex-col items-center justify-center px-5 pb-6">
+                        <GaugeChart pct={draftConversionPct} value={`${draftConversionPct}%`} label="Ideas turned into drafts" />
+                      </div>
+                    </Panel>
                   )
                 }
+              />
 
-                // row1/row3 only ever have up to 2 possible panels — a single
-                // remaining panel just uses the base grid-cols-1, no override needed.
-                const gridColsClass = (count: number, twoColTemplate: string) => (count === 2 ? twoColTemplate : '')
-
-                return (
-                  <>
-                    {row1.length > 0 && (
-                      <div className={`grid grid-cols-1 gap-6 ${gridColsClass(row1.length, 'lg:grid-cols-[minmax(0,1fr)_320px]')}`}>
-                        {row1.map((item) => (
-                          <div key={item.key}>{item.node}</div>
-                        ))}
+              <TwoUpRow
+                ratio="even"
+                left={
+                  canDeals && (
+                    <Panel title="Top brands" titleId="brands-h" className="h-full">
+                      <div className="flex flex-1 flex-col justify-center">
+                        <BreakdownList title="By pipeline value" rows={breakdownRows} />
                       </div>
-                    )}
-
-                    {row2.length > 0 && (
-                      <div className={`grid grid-cols-1 gap-6 ${row2.length >= 3 ? 'lg:grid-cols-3' : row2.length === 2 ? 'lg:grid-cols-2' : ''}`}>
-                        {row2.map((item) => (
-                          <div key={item.key}>{item.node}</div>
-                        ))}
+                    </Panel>
+                  )
+                }
+                right={
+                  canDeals && (
+                    <Panel title="Needs a next step" titleId="table-h" action={{ label: 'View all', href: '/deals' }} className="h-full">
+                      <div className="pb-2">
+                        <DealsTable rows={tableRows} emptyMessage="Nothing needs a next step right now." />
                       </div>
-                    )}
+                    </Panel>
+                  )
+                }
+              />
 
-                    {row3.length > 0 && (
-                      <div
-                        className={`grid grid-cols-1 gap-6 ${
-                          row3.length === 3 ? 'lg:grid-cols-3' : gridColsClass(row3.length, 'lg:grid-cols-[minmax(0,1fr)_360px]')
-                        }`}
-                      >
-                        {row3.map((item) => (
-                          <div key={item.key}>{item.node}</div>
-                        ))}
+              <TwoUpRow
+                ratio="even"
+                left={
+                  canDeals && (
+                    <Panel
+                      title="Needs follow-up"
+                      titleId="followup-h"
+                      eyebrow={followUpDeals.length > 0 ? `${followUpDeals.length} flagged` : undefined}
+                      className="h-full"
+                    >
+                      <div className="pb-2">
+                        <DealsTable rows={followUpRows} emptyMessage="Nothing needs a follow-up right now." />
                       </div>
-                    )}
-                  </>
-                )
-              })()}
+                    </Panel>
+                  )
+                }
+                right={
+                  canDeals && (
+                    <Panel
+                      title="Upcoming income"
+                      titleId="upcoming-h"
+                      eyebrow={upcomingIncomeDeals.length > 0 ? `${formatMoney(upcomingIncomeTotal)} committed` : undefined}
+                      className="h-full"
+                    >
+                      <div className="pb-2">
+                        <DealsTable
+                          rows={upcomingIncomeRows}
+                          emptyMessage="Nothing contracted or delivered yet. This fills in once a deal is locked in."
+                        />
+                      </div>
+                    </Panel>
+                  )
+                }
+              />
             </div>
           )}
         </div>

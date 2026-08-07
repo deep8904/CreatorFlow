@@ -1,5 +1,6 @@
 'use client'
 
+import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
@@ -29,7 +30,15 @@ export function EmptyDashboard({ role }: { role: Role }) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-[1.25rem] border border-white/[0.06] bg-white/[0.02] px-6 py-16 text-center">
+    <div
+      className="nebula-border relative flex flex-col items-center justify-center gap-4 overflow-hidden rounded-[1.25rem] bg-white/[0.03] px-6 py-16 text-center backdrop-blur-xl"
+      style={
+        {
+          '--nebula-border-gradient':
+            'linear-gradient(160deg, rgba(255,255,255,0.14), rgba(255,255,255,0.02) 50%, rgba(234,88,12,0.08))',
+        } as CSSProperties
+      }
+    >
       <span aria-hidden className="grid h-11 w-11 place-items-center rounded-[9999px] bg-orange-500/10 text-orange-400">
         <Sparkles size={18} strokeWidth={2} />
       </span>
@@ -38,7 +47,7 @@ export function EmptyDashboard({ role }: { role: Role }) {
         <p className="mt-1 font-nebula-ui text-[13px] text-zinc-500">
           {canDeals || canIdeas
             ? 'Log a deal or capture an idea and this dashboard fills in.'
-            : "Nothing in this workspace yet for your role to show — check back once there's activity."}
+            : "Nothing in this workspace yet for your role to show. Check back once there's activity."}
         </p>
       </div>
       {(canDeals || canIdeas) && (

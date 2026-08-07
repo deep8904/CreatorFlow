@@ -24,10 +24,10 @@ function DeltaChip({ delta }: { delta: NonNullable<Metric['delta']> }) {
   )
 }
 
-export function MetricCard({ label, value, hint, title, delta, icon }: Metric) {
+export function MetricCard({ label, value, hint, title, delta, icon, className = '' }: Metric & { className?: string }) {
   return (
     <div
-      className="nebula-border relative overflow-hidden rounded-[1.25rem] bg-white/[0.03] p-4 backdrop-blur-xl sm:p-5"
+      className={`nebula-border relative flex flex-col justify-center overflow-hidden rounded-[1.25rem] bg-white/[0.03] p-4 backdrop-blur-xl sm:p-5 ${className}`}
       style={
         {
           '--nebula-border-gradient':
@@ -35,11 +35,14 @@ export function MetricCard({ label, value, hint, title, delta, icon }: Metric) {
         } as CSSProperties
       }
     >
+      {/* One badge slot, always top-right: the delta when this metric has a
+          trend, the category icon otherwise — never both, so every card in
+          the grid keeps its status indicator in the same place. */}
       <div className="flex items-start justify-between gap-2">
         <p className="font-nebula-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">
           {label}
         </p>
-        {icon && <span aria-hidden className="text-orange-400/80">{icon}</span>}
+        {delta ? <DeltaChip delta={delta} /> : icon ? <span aria-hidden className="text-orange-400/80">{icon}</span> : null}
       </div>
       <p
         title={title}
@@ -47,10 +50,7 @@ export function MetricCard({ label, value, hint, title, delta, icon }: Metric) {
       >
         {value}
       </p>
-      <div className="mt-1.5 flex items-center gap-2">
-        {delta && <DeltaChip delta={delta} />}
-        {hint && <p className="truncate font-nebula-ui text-[11.5px] text-zinc-500">{hint}</p>}
-      </div>
+      {hint && <p className="mt-1.5 truncate font-nebula-ui text-[11.5px] text-zinc-500">{hint}</p>}
     </div>
   )
 }

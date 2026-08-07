@@ -26,7 +26,7 @@ export function Panel({
   return (
     <section
       aria-labelledby={titleId}
-      className={`nebula-border relative overflow-hidden rounded-[1.25rem] bg-white/[0.03] backdrop-blur-xl ${className}`}
+      className={`nebula-border relative flex flex-col overflow-hidden rounded-[1.25rem] bg-white/[0.03] backdrop-blur-xl ${className}`}
       style={
         {
           '--nebula-border-gradient':
@@ -34,7 +34,7 @@ export function Panel({
         } as CSSProperties
       }
     >
-      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+      <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-3">
         <div className="min-w-0">
           {eyebrow && (
             <p className="font-nebula-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">

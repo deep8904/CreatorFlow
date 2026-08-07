@@ -21,9 +21,9 @@ const TONE_CLASS: Record<DealRow['stageTone'], string> = {
  * mapped to CreatorFlow's actual deal pipeline instead of a fabricated
  * region dimension.
  */
-export function DealsTable({ rows }: { rows: DealRow[] }) {
+export function DealsTable({ rows, emptyMessage = 'No deals yet.' }: { rows: DealRow[]; emptyMessage?: string }) {
   if (rows.length === 0) {
-    return <p className="px-5 py-6 font-nebula-ui text-[12.5px] text-zinc-500">No deals yet.</p>
+    return <p className="px-5 py-6 font-nebula-ui text-[12.5px] text-zinc-500">{emptyMessage}</p>
   }
 
   return (
