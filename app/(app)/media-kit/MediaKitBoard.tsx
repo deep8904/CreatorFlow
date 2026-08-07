@@ -1,6 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Copy, ExternalLink, RefreshCw, Eye, Video, ThumbsUp, Handshake } from 'lucide-react'
 import { regenerateMediaKitShareToken, updateMediaKitVisibility } from '@/lib/supabase/actions'
 import type { ChannelVideo, Deal, MediaKit } from '@/lib/supabase/types'
@@ -30,6 +31,7 @@ export default function MediaKitBoard({
   youtubeIsDemo: boolean
 }) {
   const toast = useToast()
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   if (!mediaKit) {
@@ -53,21 +55,28 @@ export default function MediaKitBoard({
       await navigator.clipboard.writeText(`${window.location.origin}${sharePath}`)
       toast.success('Link copied.')
     } catch {
-      toast.error('Could not copy — your browser may be blocking clipboard access.')
+      toast.error('Could not copy. Your browser may be blocking clipboard access.')
     }
   }
 
   const toggleVisibility = () => {
     startTransition(async () => {
       const result = await updateMediaKitVisibility(!mediaKit.show_dollar_amounts)
-      if (result.error) toast.error(result.error)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      // The toggle's checked state reads straight off the `mediaKit` prop
+      // (no local optimistic state) — without this, the DB write succeeds
+      // but the switch visibly doesn't move until the next full navigation.
+      router.refresh()
     })
   }
 
   const regenerate = () => {
     if (
       !window.confirm(
-        'Regenerate the share link? The old link will stop working immediately — anyone you sent it to will need the new one.'
+        'Regenerate the share link? The old link will stop working immediately, and anyone you sent it to will need the new one.'
       )
     )
       return
@@ -83,7 +92,7 @@ export default function MediaKitBoard({
       <DashboardHeader
         eyebrow="Media Kit"
         title="Media Kit"
-        description="A shareable page built from your real channel stats and closed deals — no Canva required."
+        description="A shareable page built from your real channel stats and closed deals, no Canva required."
       />
 
       <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -142,7 +151,7 @@ export default function MediaKitBoard({
                   <p className="mt-1 font-nebula-ui text-[12px] leading-relaxed text-zinc-500">
                     {mediaKit.show_dollar_amounts
                       ? 'Visitors see the rate for each closed deal.'
-                      : 'Visitors see "X brand partnerships completed" — no dollar figures.'}
+                      : 'Visitors see "X brand partnerships completed," with no dollar figures.'}
                   </p>
                 </div>
                 <button
@@ -157,7 +166,7 @@ export default function MediaKitBoard({
                   }`}
                 >
                   <span
-                    className={`absolute top-1 h-4 w-4 rounded-[9999px] bg-white transition-transform ${
+                    className={`absolute left-0 top-1 h-4 w-4 rounded-[9999px] bg-white transition-transform ${HOVER} ${
                       mediaKit.show_dollar_amounts ? 'translate-x-5' : 'translate-x-1'
                     }`}
                   />
@@ -170,7 +179,7 @@ export default function MediaKitBoard({
         <Panel
           title="Public preview"
           titleId="preview-h"
-          eyebrow="What a visitor sees — no login required"
+          eyebrow="What a visitor sees, no login required"
         >
           <div className="flex flex-col gap-5 px-5 pb-5">
             <div>

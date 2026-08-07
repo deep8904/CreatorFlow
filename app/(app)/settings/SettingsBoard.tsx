@@ -7,6 +7,7 @@ import { updateProfile, disconnectIntegration, deleteAccount, updateNotifyDealRe
 import { updateEmail, updatePassword, connectGoogle } from '@/lib/supabase/auth'
 import { InitialsChip } from '@/components/dash/InitialsChip'
 import { Panel } from '@/components/dash/Panel'
+import { Pill } from '@/components/dash/Pill'
 import { DashboardHeader } from '@/components/dash/DashboardHeader'
 import { GlassModal } from '@/components/dash/GlassModal'
 import { FieldLabel, FieldInput } from '@/components/dash/FormField'
@@ -243,7 +244,7 @@ export default function SettingsBoard({
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Repeat the password"
                 />
               </div>
             </div>
@@ -267,7 +268,7 @@ export default function SettingsBoard({
             <div className="min-w-0 flex-1">
               <p className="font-nebula-ui text-[13.5px] font-medium text-zinc-100">Deal reminders</p>
               <p className="font-nebula-ui text-[12px] text-zinc-500">
-                The bell in the sidebar flags deals due or overdue in the next 3 days. In-app only — no email or push.
+                The bell in the sidebar flags deals due or overdue in the next 3 days. In-app only, no email or push.
               </p>
             </div>
             <button
@@ -282,7 +283,7 @@ export default function SettingsBoard({
               }`}
             >
               <span
-                className={`absolute top-1 h-4 w-4 rounded-[9999px] bg-white transition-transform ${HOVER} ${
+                className={`absolute left-0 top-1 h-4 w-4 rounded-[9999px] bg-white transition-transform ${HOVER} ${
                   remindersOn ? 'translate-x-5' : 'translate-x-1'
                 }`}
               />
@@ -300,18 +301,15 @@ export default function SettingsBoard({
                   <p className="flex items-center gap-1.5 font-nebula-ui text-[13.5px] font-medium text-zinc-100">
                     {acct.name}
                     {acct.connected && acct.isDemo && (
-                      <span
-                        title="Seeded demo data, not a live OAuth session"
-                        className="rounded-[9999px] bg-white/[0.06] px-1.5 py-0.5 font-nebula-mono text-[9px] font-medium uppercase tracking-[0.08em] text-zinc-500"
-                      >
-                        Demo
+                      <span title="Seeded demo data, not a live OAuth session">
+                        <Pill>Demo</Pill>
                       </span>
                     )}
                   </p>
                   <p className="font-nebula-ui text-[12px] text-zinc-500">
                     {acct.connected
                       ? acct.isDemo
-                        ? `Connected as ${acct.accountLabel ?? email} — demo data, not live`
+                        ? `Connected as ${acct.accountLabel ?? email} (demo data, not live)`
                         : `Connected as ${acct.accountLabel ?? email}`
                       : acct.description}
                   </p>
@@ -360,7 +358,7 @@ export default function SettingsBoard({
         <Panel title="Data export" titleId="settings-export-heading">
           <div className="px-5 py-4">
             <p className="mb-4 font-nebula-ui text-[12.5px] text-zinc-500">
-              Download everything you&apos;ve put into CreatorFlow — deals, ideas, drafts, and settings — as files you can keep, any time.
+              Download everything you&apos;ve put into CreatorFlow (deals, ideas, drafts, and settings) as files you can keep, any time.
             </p>
             <a
               href="/api/export"

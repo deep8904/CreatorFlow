@@ -96,11 +96,11 @@ export default function AutomationsBoard({
                     : 'Turn on a rule to make it live.'}
             </span>{' '}
             The two scheduled rules (deal follow-up, Monday digest) run automatically on a real timer once turned
-            on — no manual trigger needed. {gmailReallyConnected && (
+            on, no manual trigger needed. {gmailReallyConnected && (
               <>With Gmail connected, "New sponsorship email → Create a deal" runs when you check Gmail from the
               Deals page. </>
             )}
-            The rest still need a trigger engine this build doesn&apos;t have yet — toggling them only saves a
+            The rest still need a trigger engine this build doesn&apos;t have yet, so toggling them only saves a
             preference.
           </p>
         </div>
@@ -139,7 +139,7 @@ export default function AutomationsBoard({
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-nebula-ui text-[13.5px] font-medium text-zinc-100">{auto.name}</p>
-                        {isLive ? <Pill tone="positive">Live</Pill> : <Pill>Preview — not running</Pill>}
+                        {isLive ? <Pill tone="positive">Live</Pill> : <Pill>Preview (not running)</Pill>}
                       </div>
                       <p className="mt-1 flex flex-wrap items-center gap-1.5 font-nebula-mono text-[10.5px] uppercase tracking-[0.08em] text-zinc-500">
                         {trigger.label}
@@ -159,16 +159,16 @@ export default function AutomationsBoard({
                       )}
                       {isGmailLive && (
                         <p className="mt-1.5 font-nebula-ui text-[11px] text-zinc-600">
-                          Runs when you click &quot;Check for new deals&quot; on the Deals page — not automatic yet.
+                          Runs when you click &quot;Check for new deals&quot; on the Deals page, not automatic yet.
                         </p>
                       )}
                       {isScheduled && (
                         <p className="mt-1.5 font-nebula-ui text-[11px] text-zinc-600">
                           {!auto.enabled
-                            ? `Off — turn on to have this run automatically, ${auto.schedule_label?.toLowerCase()}.`
+                            ? `Off. Turn on to have this run automatically, ${auto.schedule_label?.toLowerCase()}.`
                             : lastRun
-                              ? `Last checked ${timeAgo(lastRun.ran_at)} — ${lastRun.summary}`
-                              : `Scheduled, ${auto.schedule_label?.toLowerCase()} — hasn't run yet.`}
+                              ? `Last checked ${timeAgo(lastRun.ran_at)}: ${lastRun.summary}`
+                              : `Scheduled, ${auto.schedule_label?.toLowerCase()}, hasn't run yet.`}
                         </p>
                       )}
                     </div>
@@ -181,26 +181,32 @@ export default function AutomationsBoard({
                         aria-checked={auto.enabled}
                         aria-label={
                           isLive || isScheduled
-                            ? `${auto.enabled ? 'Turn off' : 'Turn on'} ${auto.name} — ${liveDescription}`
-                            : `${auto.enabled ? 'Turn off' : 'Turn on'} the saved preference for ${auto.name} — preview only, does not start it running`
+                            ? `${auto.enabled ? 'Turn off' : 'Turn on'} ${auto.name}: ${liveDescription}`
+                            : `${auto.enabled ? 'Turn off' : 'Turn on'} the saved preference for ${auto.name} (preview only, does not start it running)`
                         }
                         title={
                           isLive || isScheduled
                             ? `Real: ${liveDescription} when enabled`
-                            : 'Saves your preference for when this ships — has no effect today'
+                            : 'Saves your preference for when this ships. Has no effect today'
                         }
                         className={`relative mt-0.5 h-6 w-10 rounded-[9999px] transition-colors disabled:opacity-50 ${HOVER} ${FOCUS_INSET} ${
                           auto.enabled ? 'bg-orange-500' : 'bg-white/[0.12]'
                         }`}
                       >
                         <span
-                          className={`absolute top-1 h-4 w-4 rounded-[9999px] bg-white transition-transform ${HOVER} ${
+                          className={`absolute left-0 top-1 h-4 w-4 rounded-[9999px] bg-white transition-transform ${HOVER} ${
                             auto.enabled ? 'translate-x-5' : 'translate-x-1'
                           }`}
                         />
                       </button>
                       <span className="whitespace-nowrap font-nebula-mono text-[9px] uppercase tracking-[0.08em] text-zinc-600">
-                        {isLive || isScheduled ? (auto.enabled ? 'On' : 'Off') : auto.enabled ? 'Preference: on' : 'Preference: off'}
+                        {isLive || isScheduled
+                          ? auto.enabled
+                            ? 'Automation: on'
+                            : 'Automation: off'
+                          : auto.enabled
+                            ? 'Preference: on'
+                            : 'Preference: off'}
                       </span>
                     </div>
                   </div>

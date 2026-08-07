@@ -3,7 +3,7 @@
 import DashError from '@/components/dash/DashError'
 
 /**
- * Group-level boundary, so all nine `(app)` screens inherit one error surface.
+ * Group-level boundary, so every `(app)` screen inherits one error surface.
  */
 export default function AppError({
   error,
