@@ -25,14 +25,14 @@ export function DetailCards() {
         {/* ---------------------------------------------------------------- */}
         <NebulaReveal>
           <div
-            className="nebula-border group flex h-full flex-col overflow-hidden rounded-[2rem] bg-gradient-to-br from-white/5 to-white/0"
+            className="nebula-border group relative flex h-full flex-col overflow-hidden rounded-[2rem] bg-gradient-to-br from-white/5 to-white/0"
             style={{
               ['--nebula-border-gradient' as string]:
                 'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0), rgba(255,255,255,0.1))',
             }}
           >
             <div
-              className="relative flex h-44 items-center justify-center overflow-hidden sm:h-52 bg-gradient-to-b from-white/[0.03] to-transparent"
+              className="group/art relative flex h-44 items-center justify-center overflow-hidden sm:h-52 bg-gradient-to-b from-white/[0.03] to-transparent"
               style={{
                 maskImage: 'linear-gradient(180deg, transparent, black 0%, black 90%, transparent)',
                 WebkitMaskImage: 'linear-gradient(180deg, transparent, black 0%, black 90%, transparent)',
@@ -50,7 +50,7 @@ export function DetailCards() {
               {/* Floating widget — idea list, tilted left */}
               <div
                 aria-hidden
-                className="absolute left-4 top-7 w-28 -rotate-6 sm:left-10 sm:top-10 sm:w-32 rounded-xl border border-white/10 bg-zinc-900/60 p-3 shadow-xl backdrop-blur-sm transition-transform duration-500 hover:scale-105"
+                className="absolute left-4 top-7 w-28 -rotate-6 sm:left-10 sm:top-10 sm:w-32 rounded-xl border border-white/10 bg-zinc-900/60 p-3 shadow-xl backdrop-blur-sm transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/art:scale-105"
               >
                 <div className="mb-3 flex items-center gap-2">
                   <div className="h-2 w-2 rounded-[9999px] bg-orange-500/60" />
@@ -69,7 +69,7 @@ export function DetailCards() {
               {/* Floating widget — a deal value, tilted right */}
               <div
                 aria-hidden
-                className="absolute right-4 top-6 flex h-10 w-20 rotate-12 sm:right-12 sm:top-8 items-center justify-center rounded-lg border border-orange-500/30 bg-zinc-900/90 shadow-lg transition-transform duration-500 hover:scale-105"
+                className="absolute right-4 top-6 flex h-10 w-20 rotate-12 sm:right-12 sm:top-8 items-center justify-center rounded-lg border border-orange-500/30 bg-zinc-900/90 shadow-lg transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/art:scale-105"
               >
                 <span className="font-nebula-mono text-[10px] font-medium tracking-wider text-orange-400">
                   $1,500
@@ -79,7 +79,7 @@ export function DetailCards() {
               {/* Floating widget — draft grid, bottom right */}
               <div
                 aria-hidden
-                className="absolute bottom-8 right-10 hidden w-24 rotate-3 sm:block rounded-xl border border-white/10 bg-zinc-900/60 p-2.5 shadow-xl backdrop-blur-sm transition-transform duration-500 hover:scale-105"
+                className="absolute bottom-8 right-10 hidden w-24 rotate-3 sm:block rounded-xl border border-white/10 bg-zinc-900/60 p-2.5 shadow-xl backdrop-blur-sm transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/art:scale-105"
               >
                 <div className="mb-2 h-1 w-8 rounded-[9999px] bg-white/20" />
                 <div className="grid grid-cols-2 gap-1.5">
@@ -96,7 +96,7 @@ export function DetailCards() {
               <div aria-hidden className="absolute bottom-6 left-12 hidden h-14 w-14 -rotate-3 sm:block rounded-lg border border-dashed border-white/10 opacity-30" />
 
               {/* Centre composition — a captured note */}
-              <div className="relative z-10 transform transition-transform duration-500 ease-out group-hover:scale-105">
+              <div className="relative z-10 transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/art:scale-105">
                 <div className="relative h-24 w-28">
                   <div className="absolute bottom-0 h-20 w-full rounded-xl border border-white/10 bg-zinc-800 shadow-2xl" />
                   <div className="absolute bottom-4 left-3 right-3 h-20 origin-bottom-left -rotate-3 rounded-lg border border-white/5 bg-zinc-700 shadow-md">
@@ -115,7 +115,7 @@ export function DetailCards() {
                 Nothing gets dropped
               </h3>
               <p className="mb-8 font-nebula-ui text-base leading-relaxed text-gray-400">
-                Ideas, drafts and deals live in one place with a real status on each — not scattered
+                Ideas, drafts and deals live in one place with a real status on each, not scattered
                 across a notes app, a spreadsheet and an inbox you keep meaning to clean out.
               </p>
               <Link
@@ -133,14 +133,14 @@ export function DetailCards() {
         {/* ---------------------------------------------------------------- */}
         <NebulaReveal delay={120}>
           <div
-            className="nebula-border group flex h-full flex-col overflow-hidden rounded-[2rem] bg-gradient-to-br from-white/5 to-white/0"
+            className="nebula-border group relative flex h-full flex-col overflow-hidden rounded-[2rem] bg-gradient-to-br from-white/5 to-white/0"
             style={{
               ['--nebula-border-gradient' as string]:
                 'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0), rgba(255,255,255,0.1))',
             }}
           >
             <div
-              className="relative flex h-44 items-center justify-center overflow-hidden sm:h-52 bg-gradient-to-b from-white/[0.03] to-transparent"
+              className="group/art relative flex h-44 items-center justify-center overflow-hidden sm:h-52 bg-gradient-to-b from-white/[0.03] to-transparent"
               style={{
                 maskImage: 'linear-gradient(180deg, transparent, black 0%, black 85%, transparent)',
                 WebkitMaskImage: 'linear-gradient(180deg, transparent, black 0%, black 85%, transparent)',
@@ -163,7 +163,7 @@ export function DetailCards() {
                 <div aria-hidden className="absolute h-32 w-32 rounded-[9999px] border border-dashed sm:h-40 sm:w-40 border-white/10" />
 
                 {/* Centre hub — the repo */}
-                <div className="relative z-20 flex h-16 w-16 cursor-pointer items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-[0_0_40px_-10px_rgba(0,0,0,0.5)] transition-all duration-500 hover:scale-105 hover:shadow-[0_0_50px_-10px_rgba(255,255,255,0.1)]">
+                <div className="relative z-20 flex h-16 w-16 cursor-pointer items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-[0_0_40px_-10px_rgba(0,0,0,0.5)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/art:scale-105 group-hover/art:shadow-[0_0_50px_-10px_rgba(255,255,255,0.1)]">
                   <svg aria-hidden xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/90">
                     <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
                     <path d="M9 18c-4.51 2-5-2-7-2" />
@@ -171,10 +171,12 @@ export function DetailCards() {
                 </div>
 
                 {/* Satellites — placed by radius+angle from centre, not container
-                    percentages, so they clear the hub instead of hiding behind it. */}
+                    percentages, so they clear the hub instead of hiding behind it. Both
+                    react to the whole illustration's hover (not their own) so the diagram
+                    animates as one scene instead of only the piece under the cursor. */}
                 <div
                   aria-hidden
-                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-transform duration-300 hover:z-20 hover:scale-110"
+                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/art:z-20 group-hover/art:scale-110"
                   style={{ left: 'calc(50% + 75px)', top: 'calc(50% - 53px)' }}
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-[9999px] border border-white/10 bg-zinc-900/90 shadow-lg shadow-orange-500/10 ring-1 ring-white/5 backdrop-blur">
@@ -189,7 +191,7 @@ export function DetailCards() {
 
                 <div
                   aria-hidden
-                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-transform duration-300 hover:z-20 hover:scale-110"
+                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/art:z-20 group-hover/art:scale-110"
                   style={{ left: 'calc(50% - 75px)', top: 'calc(50% + 53px)' }}
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-[9999px] border border-white/10 bg-zinc-900/90 shadow-lg shadow-emerald-500/10 ring-1 ring-white/5 backdrop-blur">
@@ -210,7 +212,7 @@ export function DetailCards() {
                 Open source, and staying that way
               </h3>
               <p className="mb-8 font-nebula-ui text-base leading-relaxed text-gray-400">
-                The whole thing is public — read it, fork it, file an issue, or send a pull request.
+                The whole thing is public. Read it, fork it, file an issue, or send a pull request.
                 No paid tier waiting behind a feature flag.
               </p>
               <p className="font-nebula-ui text-sm leading-relaxed text-gray-500">
