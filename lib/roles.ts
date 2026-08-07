@@ -17,10 +17,10 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   owner: 'Full access to everything in this workspace.',
-  manager: 'Deals and analytics — the brand-partnership side of the business.',
-  editor: 'Ideas, drafts, and repurposing — the content-creation side.',
-  designer: 'Repurposing and analytics — visual and creative work.',
-  moderator: "No module is assigned to this role yet — CreatorFlow doesn't have community-facing features today.",
+  manager: 'Deals and analytics: the brand-partnership side of the business.',
+  editor: 'Ideas, drafts, and repurposing: the content-creation side.',
+  designer: 'Repurposing and analytics: visual and creative work.',
+  moderator: "No module is assigned to this role yet. CreatorFlow doesn't have community-facing features today.",
 }
 
 export type ModuleKey =
@@ -33,6 +33,7 @@ export type ModuleKey =
   | 'automations'
   | 'mediaKit'
   | 'calendar'
+  | 'aiAssistant'
   | 'team'
   | 'settings'
 
@@ -64,6 +65,11 @@ export const MODULE_ROLES: Record<ModuleKey, Role[]> = {
   // anyone who can see at least one of the two. Widen this union as later
   // stages add more sources.
   calendar: ['owner', 'manager', 'editor', 'designer'],
+  // Same union logic as calendar: the assistant surfaces context pulled
+  // from deals, ideas, drafts, and analytics, so anyone who can already see
+  // at least one of those sources can reach it — only moderator (no content
+  // module today) is excluded.
+  aiAssistant: ['owner', 'manager', 'editor', 'designer'],
   team: ALL_ROLES,
   settings: ALL_ROLES,
 }
@@ -82,6 +88,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   automations: 'Automations',
   mediaKit: 'Media Kit',
   calendar: 'Calendar',
+  aiAssistant: 'AI Assistant',
   team: 'Team',
   settings: 'Settings',
 }
@@ -97,6 +104,7 @@ const MODULE_ORDER: ModuleKey[] = [
   'repurpose',
   'automations',
   'mediaKit',
+  'aiAssistant',
   'team',
   'settings',
 ]

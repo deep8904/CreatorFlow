@@ -1,6 +1,6 @@
 import {
   LayoutGrid, Handshake, Lightbulb, FileText, Repeat2,
-  Zap, LineChart, Users, Settings, IdCard, CalendarDays,
+  Zap, LineChart, Users, Settings, IdCard, CalendarDays, Sparkles,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ModuleKey } from '@/lib/roles'
@@ -18,6 +18,7 @@ export const primaryNav: NavItem[] = [
   { label: 'Media Kit', href: '/media-kit', icon: IdCard, module: 'mediaKit' },
   { label: 'Automations', href: '/automations', icon: Zap, module: 'automations' },
   { label: 'Analytics', href: '/analytics', icon: LineChart, module: 'analytics' },
+  { label: 'AI Assistant', href: '/ai-assistant', icon: Sparkles, module: 'aiAssistant' },
 ]
 
 export const secondaryNav: NavItem[] = [
